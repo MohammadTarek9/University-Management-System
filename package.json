@@ -1,0 +1,22 @@
+{
+  "name": "university-management-system",
+  "version": "1.0.0",
+  "description": "A comprehensive University Management System using MERN stack with Facilities, Curriculum, Staff, and Community modules",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "install-server": "cd backend && npm install",
+    "install-client": "cd frontend && npm install",
+    "install-all": "npm run install-server && npm run install-client",
+    "build": "cd frontend && npm run build",
+    "heroku-postbuild": "npm run install-all && npm run build"
+  },
+  "keywords": ["university", "management", "system", "mern", "react", "node", "mongodb", "express"],
+  "author": "University Management Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
