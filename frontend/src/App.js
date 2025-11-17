@@ -17,6 +17,8 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
 import UserManagement from './pages/UserManagement';
+import Facilities from './pages/Facilities';
+import RoomManagement from './pages/RoomManagement';
 
 // Theme
 const theme = createTheme({
@@ -92,12 +94,20 @@ function App() {
                   }
                 />
                 
-                {/* Module routes (to be implemented) */}
+                {/* Facilities Module Routes */}
                 <Route
-                  path="/facilities/*"
+                  path="/facilities"
                   element={
-                    <ProtectedRoute>
-                      <div>Facilities Module - Coming Soon</div>
+                    <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
+                      <Facilities />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/facilities/rooms"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
+                      <RoomManagement />
                     </ProtectedRoute>
                   }
                 />
