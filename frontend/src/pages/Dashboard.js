@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -10,28 +10,69 @@ import {
   CardActions,
   Button,
   Avatar,
-  Chip
+  Chip,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Alert,
 } from '@mui/material';
 import {
   School,
   People,
-  Business,
   Forum,
-  AccountCircle
+  AccountCircle,
+  MeetingRoom
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { courseService } from '../services/courseService';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+ const [myCourses, setMyCourses] = useState([]);
+ const [myCoursesLoading, setMyCoursesLoading] = useState(false);
+ const [myCoursesError, setMyCoursesError] = useState('');
+
+  useEffect(() => {
+  const fetchMyCourses = async () => {
+    if (user?.role !== 'professor' && user?.role !== 'ta') return;
+
+    try {
+      setMyCoursesLoading(true);
+      setMyCoursesError('');
+     const response = await courseService.getMyCourses({ isActive: true });
+
+const payload = response.data || response;
+const courses = payload.data?.courses || payload.courses || [];
+
+setMyCourses(Array.isArray(courses) ? courses : []);
+
+    } catch (error) {
+      setMyCoursesError(error.message || 'Failed to load your courses');
+    } finally {
+      setMyCoursesLoading(false);
+    }
+  };
+
+  fetchMyCourses();
+ }, [user]);
+
 
   const modules = [
-    {
+      {
       title: 'Facilities Module',
       description: 'Manage classrooms, laboratories, and administrative offices',
-      icon: <Business color="primary" />,
+      icon: <MeetingRoom color="primary" />,
       color: '#1976d2',
-      features: ['Classroom Management', 'Lab Booking', 'Resource Allocation'],
-      path: '/facilities'
+      features: ['Room Management', 'Equipment Tracking', 'Resource Allocation'],
+      path: '/facilities',
+      available: ['admin', 'staff', 'professor', 'student', 'ta'].includes(user?.role) 
     },
     {
       title: 'Curriculum Module',
@@ -39,7 +80,8 @@ const Dashboard = () => {
       icon: <School color="secondary" />,
       color: '#dc004e',
       features: ['Course Catalog', 'Technology Integration', 'Assessment Tools'],
-      path: '/curriculum'
+      path: '/curriculum',
+      available: ['admin', 'staff', 'professor', 'student', 'ta'].includes(user?.role)
     },
     {
       title: 'Staff Module',
@@ -47,7 +89,8 @@ const Dashboard = () => {
       icon: <People color="success" />,
       color: '#2e7d32',
       features: ['Faculty Directory', 'Performance Tracking', 'HR Integration'],
-      path: '/staff'
+      path: '/staff',
+      available: ['admin', 'staff', 'professor','ta', 'student'].includes(user?.role)
     },
     {
       title: 'Community Module',
@@ -55,8 +98,11 @@ const Dashboard = () => {
       icon: <Forum color="warning" />,
       color: '#ed6c02',
       features: ['Parent Communication', 'Student Forums', 'Announcements'],
-      path: '/community'
-    }
+      path: '/community',
+      available: ['parent', 'student', 'professor', 'ta', 'admin', 'staff'].includes(user?.role)
+    },
+
+  
   ];
 
   const getRoleDisplayName = (role) => {
@@ -171,9 +217,10 @@ const Dashboard = () => {
                       opacity: 0.8
                     }
                   }}
-                  disabled // Will be enabled when modules are implemented
+                  disabled={!module.available}
+                  onClick={() => module.available && navigate(module.path)}
                 >
-                  Access Module
+                  {module.available ? 'Access Module' : 'Coming Soon'}
                 </Button>
                 <Button size="small" color="primary">
                   Learn More
@@ -183,6 +230,112 @@ const Dashboard = () => {
           </Grid>
         ))}
       </Grid>
+
+      {/* Admin Quick Actions */}
+      {user?.role === 'admin' && (
+        <Paper sx={{ p: 3, mt: 4, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+          <Typography variant="h6" component="h3" gutterBottom>
+            Administrator Tools
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card sx={{ cursor: 'pointer' }} onClick={() => window.location.href = '/admin/users'}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <People sx={{ mr: 1 }} />
+                    <Typography variant="h6">User Management</Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Add, edit, and manage user accounts
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card sx={{ cursor: 'pointer' }} onClick={() => navigate('/curriculum')}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <School sx={{ mr: 1 }} />
+                    <Typography variant="h6">Curriculum Management</Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Manage departments, subjects, and courses
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
+
+
+      {/* My Courses for Faculty */}
+{(user?.role === 'professor' || user?.role === 'ta') && (
+  <Paper sx={{ p: 3, mt: 4 }}>
+    <Typography variant="h6" component="h3" gutterBottom>
+      My Courses
+    </Typography>
+
+    {myCoursesError && (
+      <Alert
+        severity="error"
+        sx={{ mb: 2 }}
+        onClose={() => setMyCoursesError('')}
+      >
+        {myCoursesError}
+      </Alert>
+    )}
+
+    {myCoursesLoading ? (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+        <CircularProgress size={24} />
+      </Box>
+    ) : myCourses.length === 0 ? (
+      <Typography variant="body2" color="text.secondary">
+        You are not assigned to any active courses.
+      </Typography>
+    ) : (
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Subject</TableCell>
+              <TableCell>Department</TableCell>
+              <TableCell>Semester</TableCell>
+              <TableCell>Year</TableCell>
+              <TableCell>Enrollment</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {myCourses.map((course) => (
+              <TableRow key={course.id}>
+                <TableCell>
+                  <strong>{course.subject?.name || '-'}</strong>{' '}
+                  <Typography variant="caption" color="text.secondary">
+                    {course.subject?.code || ''}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {course.department?.name || '-'}
+                  {course.department?.code
+                    ? ` (${course.department.code})`
+                    : ''}
+                </TableCell>
+                <TableCell>{course.semester}</TableCell>
+                <TableCell>{course.year}</TableCell>
+                <TableCell>
+                  {course.currentEnrollment} / {course.maxEnrollment}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    )}
+  </Paper>
+)}
+
+
 
       {/* System Status */}
       <Paper sx={{ p: 3, mt: 4 }}>
