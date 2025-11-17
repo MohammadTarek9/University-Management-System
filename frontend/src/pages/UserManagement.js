@@ -36,7 +36,8 @@ import {
   PersonAdd,
   Add,
   AdminPanelSettings,
-  Refresh
+  Refresh,
+  Warning
 } from '@mui/icons-material';
 import { userService } from '../services/userService';
 import { useAuth } from '../context/AuthContext';
@@ -64,15 +65,21 @@ const UserManagement = () => {
     phoneNumber: ''
   });
   const [addLoading, setAddLoading] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  // Fetch users from API
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError('');
       
       const params = {
-        page: page + 1, // Backend expects 1-based page numbering
+        page: page + 1,
         limit: rowsPerPage,
         search: searchTerm,
         role: roleFilter
@@ -91,12 +98,35 @@ const UserManagement = () => {
     }
   };
 
-  // Initial load and when dependencies change
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchUsers();
     }
   }, [page, rowsPerPage, searchTerm, roleFilter, user]);
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Close dialogs with Escape key
+      if (event.key === 'Escape') {
+        if (addDialogOpen) setAddDialogOpen(false);
+        if (editDialogOpen) setEditDialogOpen(false);
+        if (deleteDialogOpen) setDeleteDialogOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [addDialogOpen, editDialogOpen, deleteDialogOpen]);
 
   // Handle page change
   const handleChangePage = (event, newPage) => {
@@ -129,7 +159,7 @@ const UserManagement = () => {
     setError('');
 
     try {
-      await userService.createUser(newUser);
+      const response = await userService.createUser(newUser);
       setAddDialogOpen(false);
       setNewUser({
         firstName: '',
@@ -142,6 +172,7 @@ const UserManagement = () => {
         department: '',
         phoneNumber: ''
       });
+      setSuccessMessage(`User '${newUser.firstName} ${newUser.lastName}' created successfully`);
       fetchUsers(); // Refresh the user list
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create user');
@@ -165,6 +196,88 @@ const UserManagement = () => {
       
       return updated;
     });
+  };
+
+  const handleEditClick = (user) => {
+    setEditUser({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      studentId: user.studentId || '',
+      employeeId: user.employeeId || '',
+      department: user.department || '',
+      phoneNumber: user.phoneNumber || '',
+      isActive: user.isActive
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditInputChange = (field, value) => {
+    setEditUser(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editUser.firstName || !editUser.lastName || !editUser.email) {
+      setError('Name and email are required');
+      return;
+    }
+
+    // Validate role-specific IDs
+    if (editUser.role === 'student' && !editUser.studentId) {
+      setError('Student ID is required for student accounts');
+      return;
+    }
+    if (['professor', 'staff', 'admin', 'ta'].includes(editUser.role) && !editUser.employeeId) {
+      setError('Employee ID is required for faculty/staff accounts');
+      return;
+    }
+
+    setEditLoading(true);
+    setError('');
+
+    try {
+      const updateData = { ...editUser };
+      delete updateData.id; // Remove ID from update payload
+      
+      await userService.updateUser(editUser.id, updateData);
+      setEditDialogOpen(false);
+      setSuccessMessage(`User '${editUser.firstName} ${editUser.lastName}' updated successfully`);
+      setEditUser(null);
+      fetchUsers(); // Refresh the user list
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update user');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeleteClick = (user) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+
+    setDeleteLoading(true);
+    setError('');
+
+    try {
+      await userService.deleteUser(userToDelete.id);
+      setDeleteDialogOpen(false);
+      setSuccessMessage(`User '${userToDelete.firstName} ${userToDelete.lastName}' deleted successfully`);
+      setUserToDelete(null);
+      fetchUsers(); // Refresh the user list
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete user');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   // Handle search input change
@@ -273,8 +386,13 @@ const UserManagement = () => {
 
       {/* Error Display */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
           {error}
+        </Alert>
+      )}
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage('')}>
+          {successMessage}
         </Alert>
       )}
 
@@ -368,7 +486,7 @@ const UserManagement = () => {
                           <IconButton 
                             size="small" 
                             color="primary"
-                            onClick={() => {/* TODO: Handle edit */}}
+                            onClick={() => handleEditClick(tableUser)}
                           >
                             <Edit />
                           </IconButton>
@@ -378,7 +496,7 @@ const UserManagement = () => {
                             size="small" 
                             color="error"
                             disabled={tableUser.id === user.id} // Prevent self-deletion
-                            onClick={() => {/* TODO: Handle delete */}}
+                            onClick={() => handleDeleteClick(tableUser)}
                           >
                             <Delete />
                           </IconButton>
@@ -546,6 +664,218 @@ const UserManagement = () => {
             startIcon={addLoading ? <CircularProgress size={20} /> : <Add />}
           >
             {addLoading ? 'Creating...' : 'Create User'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog 
+        open={editDialogOpen} 
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Edit sx={{ mr: 1 }} />
+            Edit User
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {editUser && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="First Name"
+                  value={editUser.firstName}
+                  onChange={(e) => handleEditInputChange('firstName', e.target.value)}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Last Name"
+                  value={editUser.lastName}
+                  onChange={(e) => handleEditInputChange('lastName', e.target.value)}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  type="email"
+                  value={editUser.email}
+                  onChange={(e) => handleEditInputChange('email', e.target.value)}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Role</InputLabel>
+                  <Select
+                    value={editUser.role}
+                    label="Role"
+                    onChange={(e) => handleEditInputChange('role', e.target.value)}
+                  >
+                    <MenuItem value="student">Student</MenuItem>
+                    <MenuItem value="professor">Professor</MenuItem>
+                    <MenuItem value="staff">Staff</MenuItem>
+                    <MenuItem value="ta">Teaching Assistant</MenuItem>
+                    <MenuItem value="parent">Parent</MenuItem>
+                    <MenuItem value="admin">Administrator</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              
+              {/* Conditional ID Fields */}
+              {editUser.role === 'student' && (
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Student ID"
+                    value={editUser.studentId}
+                    onChange={(e) => handleEditInputChange('studentId', e.target.value)}
+                    required
+                    helperText="Enter a unique student identification number"
+                  />
+                </Grid>
+              )}
+              
+              {['professor', 'staff', 'admin', 'ta'].includes(editUser.role) && (
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Employee ID"
+                    value={editUser.employeeId}
+                    onChange={(e) => handleEditInputChange('employeeId', e.target.value)}
+                    required
+                    helperText="Enter a unique employee identification number"
+                  />
+                </Grid>
+              )}
+              
+              {/* Optional Fields */}
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Department"
+                  value={editUser.department}
+                  onChange={(e) => handleEditInputChange('department', e.target.value)}
+                  helperText="Optional: User's department"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Phone Number"
+                  value={editUser.phoneNumber}
+                  onChange={(e) => handleEditInputChange('phoneNumber', e.target.value)}
+                  helperText="Optional: Contact phone number"
+                />
+              </Grid>
+              
+              {/* Account Status */}
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Account Status</InputLabel>
+                  <Select
+                    value={editUser.isActive}
+                    label="Account Status"
+                    onChange={(e) => handleEditInputChange('isActive', e.target.value)}
+                  >
+                    <MenuItem value={true}>Active</MenuItem>
+                    <MenuItem value={false}>Inactive</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setEditDialogOpen(false)}
+            disabled={editLoading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpdateUser}
+            variant="contained"
+            disabled={editLoading}
+            startIcon={editLoading ? <CircularProgress size={20} /> : <Edit />}
+          >
+            {editLoading ? 'Updating...' : 'Update User'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', color: 'error.main' }}>
+            <Warning sx={{ mr: 1 }} />
+            Confirm Delete User
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {userToDelete && (
+            <Box>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                Are you sure you want to delete this user account? This action cannot be undone.
+              </Typography>
+              <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  User Details:
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {userToDelete.firstName} {userToDelete.lastName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {userToDelete.email}
+                </Typography>
+                <Chip 
+                  label={getRoleChipProps(userToDelete.role).label} 
+                  color={getRoleChipProps(userToDelete.role).color} 
+                  size="small"
+                  sx={{ mt: 1 }}
+                />
+                {userToDelete.studentId && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Student ID: {userToDelete.studentId}
+                  </Typography>
+                )}
+                {userToDelete.employeeId && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Employee ID: {userToDelete.employeeId}
+                  </Typography>
+                )}
+              </Paper>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deleteLoading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete}
+            variant="contained"
+            color="error"
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={20} /> : <Delete />}
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete User'}
           </Button>
         </DialogActions>
       </Dialog>
