@@ -6,7 +6,8 @@ const initialState = {
   token: null,
   isAuthenticated: false,
   loading: true,
-  error: null
+  error: null,
+  requirePasswordChange: false
 };
 
 
@@ -16,7 +17,9 @@ const AUTH_ACTIONS = {
   LOGOUT: 'LOGOUT',
   SET_ERROR: 'SET_ERROR',
   CLEAR_ERROR: 'CLEAR_ERROR',
-  UPDATE_USER: 'UPDATE_USER'
+  UPDATE_USER: 'UPDATE_USER',
+  SET_PASSWORD_CHANGE_REQUIRED: 'SET_PASSWORD_CHANGE_REQUIRED',
+  PASSWORD_CHANGE_COMPLETED: 'PASSWORD_CHANGE_COMPLETED'
 };
 
 
@@ -34,7 +37,8 @@ const authReducer = (state, action) => {
         token: action.payload.token,
         isAuthenticated: true,
         loading: false,
-        error: null
+        error: null,
+        requirePasswordChange: action.payload.requirePasswordChange || false
       };
     case AUTH_ACTIONS.LOGOUT:
       return {
@@ -56,6 +60,17 @@ const authReducer = (state, action) => {
       return {
         ...state,
         user: { ...state.user, ...action.payload }
+      };
+    case AUTH_ACTIONS.SET_PASSWORD_CHANGE_REQUIRED:
+      return {
+        ...state,
+        requirePasswordChange: action.payload
+      };
+    case AUTH_ACTIONS.PASSWORD_CHANGE_COMPLETED:
+      return {
+        ...state,
+        requirePasswordChange: false,
+        user: { ...state.user, firstLogin: false, mustChangePassword: false }
       };
     default:
       return state;
@@ -105,7 +120,10 @@ export const AuthProvider = ({ children }) => {
       const response = await authService.login(credentials);
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: response.data
+        payload: {
+          ...response.data,
+          requirePasswordChange: response.data.requirePasswordChange || false
+        }
       });
       return response;
     } catch (error) {
@@ -117,25 +135,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (userData) => {
-    dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
 
-    try {
-      const response = await authService.register(userData);
-      dispatch({
-        type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: response.data
-      });
-      return response;
-    } catch (error) {
-      dispatch({
-        type: AUTH_ACTIONS.SET_ERROR,
-        payload: error.message || 'Registration failed'
-      });
-      throw error;
-    }
-  };
 
   const logout = async () => {
     dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
@@ -160,13 +160,85 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
+  // ADD PASSWORD RESET FUNCTIONS
+  const forgotPassword = async (credentials) => {
+    dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
+    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+
+    try {
+      const response = await authService.forgotPassword(credentials);
+      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
+      return response;
+    } catch (error) {
+      dispatch({
+        type: AUTH_ACTIONS.SET_ERROR,
+        payload: error.message || 'Password reset failed'
+      });
+      throw error;
+    }
+  };
+
+  const resetPassword = async (token, newPassword) => {
+    dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
+    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+
+    try {
+      const response = await authService.resetPassword(token, newPassword);
+      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
+      return response;
+    } catch (error) {
+      dispatch({
+        type: AUTH_ACTIONS.SET_ERROR,
+        payload: error.message || 'Password reset failed'
+      });
+      throw error;
+    }
+  };
+
+  const firstLoginChangePassword = async (passwordData) => {
+    dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
+    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+
+    try {
+      const response = await authService.firstLoginChangePassword(passwordData);
+      dispatch({ type: AUTH_ACTIONS.PASSWORD_CHANGE_COMPLETED });
+      return response;
+    } catch (error) {
+      dispatch({
+        type: AUTH_ACTIONS.SET_ERROR,
+        payload: error.message || 'Password change failed'
+      });
+      throw error;
+    }
+  };
+
+  const updateAuthAfterPasswordChange = (token, user) => {
+    // Store new token and user data
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    // Update the auth state
+    dispatch({
+      type: AUTH_ACTIONS.LOGIN_SUCCESS,
+      payload: {
+        token,
+        user,
+        requirePasswordChange: false
+      }
+    });
+  };
+
   const value = {
     ...state,
     login,
-    register,
     logout,
     clearError,
-    updateUser
+    updateUser,
+    // ADD PASSWORD RESET FUNCTIONS TO CONTEXT VALUE
+    forgotPassword,
+    resetPassword,
+    firstLoginChangePassword,
+    updateAuthAfterPasswordChange
   };
 
   return (
