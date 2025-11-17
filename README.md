@@ -2,40 +2,33 @@
 
 A comprehensive University Management System built using the MERN stack (MongoDB, Express.js, React, Node.js) with a modular architecture designed to streamline administrative and academic processes.
 
-
 ## Architecture
 
 ```
 university-management-system/
 ├── backend/                 # Node.js/Express API Server
 │   ├── config/             # Database and app configuration
-│   ├── controllers/        # Request handlers
-│   ├── middleware/         # Authentication and validation middleware
-│   ├── models/            # MongoDB/Mongoose schemas
+│   ├── controllers/        # Request handlers (auth, applications)
+│   ├── middleware/         # Authentication, validation, rate limiting
+│   ├── models/            # MongoDB schemas (User, Application)
 │   ├── routes/            # API route definitions
-│   ├── utils/             # Helper functions and utilities
+│   ├── utils/             # Password validation, security utilities
+│   ├── scripts/           # Migration and diagnostic scripts
 │   ├── modules/           # Feature modules
-│   │   ├── facilities/    # Facilities management module
-│   │   ├── curriculum/    # Curriculum management module
-│   │   ├── staff/        # Staff management module
-│   │   └── community/    # Community features module
+│   │   └── facilities/    # Admissions & room management
 │   ├── server.js         # Main server file
 │   └── package.json      # Backend dependencies
 ├── frontend/              # React Application
 │   ├── public/           # Static assets
 │   ├── src/
 │   │   ├── components/   # Reusable UI components
-│   │   │   ├── auth/    # Authentication components
-│   │   │   └── common/  # Shared components
-│   │   ├── context/     # React Context providers
-│   │   ├── modules/     # Feature-specific components
-│   │   │   ├── facilities/
-│   │   │   ├── curriculum/
-│   │   │   ├── staff/
-│   │   │   └── community/
-│   │   ├── pages/       # Page components
-│   │   ├── services/    # API service layer
-│   │   ├── utils/       # Helper functions
+│   │   │   ├── auth/    # Login, Register, ProtectedRoute
+│   │   │   ├── admissions/ # Application forms and dialogs
+│   │   │   └── common/  # Shared UI components
+│   │   ├── context/     # AuthContext for user management
+│   │   ├── pages/       # Dashboard, AdmissionsManagement, UserManagement
+│   │   ├── services/    # API integration (auth, applications)
+│   │   ├── utils/       # Helper functions and constants
 │   │   ├── App.js       # Main App component
 │   │   └── index.js     # React entry point
 │   └── package.json     # Frontend dependencies
@@ -115,18 +108,22 @@ university-management-system/
 
 #### Authentication Routes
 ```
-POST /api/auth/register    # User registration
-POST /api/auth/login       # User login
-GET  /api/auth/me         # Get current user profile
-POST /api/auth/logout     # User logout
+POST /api/auth/register          # User registration with role-based access
+POST /api/auth/login            # User login with JWT tokens
+GET  /api/auth/me               # Get current user profile
+POST /api/auth/logout           # User logout
 ```
 
-#### Module Routes (Coming Soon)
+#### Admissions Management
 ```
-GET  /api/facilities/health      # Facilities module status
-GET  /api/curriculum/health      # Curriculum module status  
-GET  /api/staff/health          # Staff module status
-GET  /api/community/health      # Community module status
+GET    /api/facilities/applications        # List applications (filtered/paginated)
+POST   /api/facilities/applications        # Create new application
+GET    /api/facilities/applications/:id    # Get application details
+PUT    /api/facilities/applications/:id    # Update application
+PUT    /api/facilities/applications/:id/status  # Update application status
+POST   /api/facilities/applications/:id/create-account  # Generate student credentials
+GET    /api/facilities/applications/stats  # Application statistics
+GET    /api/facilities/applications/filters # Available filter options
 ```
 
 ## Development
