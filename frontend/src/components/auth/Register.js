@@ -49,7 +49,7 @@ const validationSchema = yup.object({
     .required('Confirm password is required'),
   role: yup
     .string('Select your role')
-    .oneOf(['student', 'professor', 'admin', 'staff', 'parent', 'ta'], 'Invalid role')
+    .oneOf(['student', 'professor', 'staff', 'parent', 'ta'], 'Invalid role')
     .required('Role is required'),
   phoneNumber: yup
     .string('Enter your phone number')
@@ -208,7 +208,6 @@ const Register = () => {
                   >
                     <MenuItem value="student">Student</MenuItem>
                     <MenuItem value="professor">Professor</MenuItem>
-                    <MenuItem value="admin">Administrator</MenuItem>
                     <MenuItem value="staff">Staff</MenuItem>
                     <MenuItem value="parent">Parent</MenuItem>
                     <MenuItem value="ta">Teaching Assistant</MenuItem>

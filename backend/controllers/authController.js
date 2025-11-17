@@ -179,8 +179,16 @@ const registerValidation = [
   
   body('role')
     .optional()
-    .isIn(['student', 'professor', 'admin', 'staff', 'parent', 'ta'])
-    .withMessage('Role must be one of: student, professor, admin, staff, parent, ta'),
+    .isIn(['student', 'professor', 'staff', 'parent', 'ta'])
+    .withMessage('Role must be one of: student, professor, staff, parent, ta'),
+  
+  body('role')
+    .custom((value) => {
+      if (value === 'admin') {
+        throw new Error('Admin accounts cannot be created through public registration');
+      }
+      return true;
+    }),
   
   body('phoneNumber')
     .optional()
