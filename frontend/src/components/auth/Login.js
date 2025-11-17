@@ -8,11 +8,7 @@ import {
   Box,
   Alert,
   CircularProgress,
-  Link,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  Link
 } from '@mui/material';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
@@ -32,7 +28,7 @@ const validationSchema = yup.object({
 
 const Login = () => {
   const [showAlert, setShowAlert] = useState(false);
-  const { login, loading, error, clearError } = useAuth();
+  const { login, loading, error, clearError, requirePasswordChange } = useAuth();
   const navigate = useNavigate();
 
   const formik = useFormik({
@@ -44,8 +40,14 @@ const Login = () => {
     onSubmit: async (values) => {
       try {
         clearError();
-        await login(values);
-        navigate('/dashboard');
+        const response = await login(values);
+        
+        // Check if user needs to change password on first login
+        if (response.data.requirePasswordChange) {
+          navigate('/first-login-password-change');
+        } else {
+          navigate('/dashboard');
+        }
       } catch (error) {
         setShowAlert(true);
         setTimeout(() => setShowAlert(false), 5000);
@@ -114,10 +116,21 @@ const Login = () => {
             >
               {loading ? <CircularProgress size={24} /> : 'Sign In'}
             </Button>
-            <Box textAlign="center">
-              <Link component={RouterLink} to="/register" variant="body2">
-                Don't have an account? Sign Up
+             
+            {/* FORGOT PASSWORD LINK */}
+            <Box textAlign="center" sx={{ mt: 2 }}>
+              <Link component={RouterLink} to="/forgot-password" variant="body2">
+                Forgot Password?
               </Link>
+            </Box>
+            
+            {/* INFO ABOUT ACCOUNT CREATION */}
+            <Box textAlign="center" sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Student accounts are created automatically upon admission approval.
+                <br />
+                Contact administration for account access.
+              </Typography>
             </Box>
           </Box>
         </Paper>
