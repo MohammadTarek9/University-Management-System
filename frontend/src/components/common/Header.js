@@ -17,7 +17,8 @@ import {
   AccountCircle,
   Logout,
   Dashboard,
-  Settings
+  Settings,
+  MeetingRoom
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -110,6 +111,14 @@ const Header = () => {
                 </ListItemIcon>
                 <ListItemText>Dashboard</ListItemText>
               </MenuItem>
+              {['admin', 'staff', 'professor'].includes(user?.role) && (
+                <MenuItem onClick={() => { handleClose(); navigate('/facilities'); }}>
+                  <ListItemIcon>
+                    <MeetingRoom fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Facilities</ListItemText>
+                </MenuItem>
+              )}
               {user?.role === 'admin' && (
                 <MenuItem onClick={() => { handleClose(); navigate('/admin/users'); }}>
                   <ListItemIcon>
