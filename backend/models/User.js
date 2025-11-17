@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
   firstName: {
@@ -42,14 +43,20 @@ const userSchema = new mongoose.Schema({
   studentId: {
     type: String,
     sparse: true,
-    unique: true
+    unique: true,
+    default: undefined
   },
   employeeId: {
     type: String,
     sparse: true,
-    unique: true
+    unique: true,
+    default: undefined
   },
   department: {
+    type: String,
+    trim: true
+  },
+  major: {
     type: String,
     trim: true
   },
@@ -72,12 +79,43 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date
   },
+  firstLogin: {
+    type: Boolean,
+    default: false
+  },
+  mustChangePassword: {
+    type: Boolean,
+    default: false
+  },
+  securityQuestion: {
+    type: String,
+    trim: true
+  },
+  securityAnswer: {
+    type: String,
+    select: false
+  },
   resetPasswordToken: String,
   resetPasswordExpire: Date,
   emailVerificationToken: String,
   emailVerificationExpire: Date
 }, {
   timestamps: true
+});
+
+// Convert empty strings to undefined for unique fields to avoid duplicate key errors
+userSchema.pre('save', function(next) {
+  // Handle studentId
+  if (this.studentId === '') {
+    this.studentId = undefined;
+  }
+  
+  // Handle employeeId
+  if (this.employeeId === '') {
+    this.employeeId = undefined;
+  }
+  
+  next();
 });
 
 // Encrypt password using bcrypt before saving
@@ -114,9 +152,21 @@ userSchema.methods.getResetPasswordToken = function() {
     .digest('hex');
 
   // Set expire
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.resetPasswordExpire = Date.now() + 30 * 60 * 1000; // 30 minutes
 
   return resetToken;
+};
+
+// Check if user has a specific role
+userSchema.methods.hasRole = function(role) {
+  return this.role === role;
+};
+
+// Check if user has any of the specified roles
+userSchema.methods.hasAnyRole = function(...roles) {
+  // Flatten the roles array in case it's passed as a single array argument
+  const allowedRoles = roles.length === 1 && Array.isArray(roles[0]) ? roles[0] : roles;
+  return allowedRoles.includes(this.role);
 };
 
 // Virtual for full name
