@@ -38,7 +38,6 @@ import {
   Add,
   MeetingRoom,
   Refresh,
-  Visibility,
   School,
   Business,
   Close
@@ -253,6 +252,8 @@ const RoomManagement = () => {
     setSelectedRoom(room);
     setOpenDeleteDialog(true);
   };
+
+
 
   // Fetch rooms from API
   const fetchRooms = async () => {
@@ -554,15 +555,6 @@ const RoomManagement = () => {
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                        <Tooltip title="View room details">
-                          <IconButton 
-                            size="small" 
-                            color="info"
-                            onClick={() => {/* TODO: Handle view */}}
-                          >
-                            <Visibility />
-                          </IconButton>
-                        </Tooltip>
                         {canManageRooms && (
                           <>
                             <Tooltip title="Edit room">
