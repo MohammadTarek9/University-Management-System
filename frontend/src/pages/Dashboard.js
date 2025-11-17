@@ -184,6 +184,30 @@ const Dashboard = () => {
         ))}
       </Grid>
 
+      {/* Admin Quick Actions */}
+      {user?.role === 'admin' && (
+        <Paper sx={{ p: 3, mt: 4, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+          <Typography variant="h6" component="h3" gutterBottom>
+            Administrator Tools
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card sx={{ cursor: 'pointer' }} onClick={() => window.location.href = '/admin/users'}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <People sx={{ mr: 1 }} />
+                    <Typography variant="h6">User Management</Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Add, edit, and manage user accounts
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
+
       {/* System Status */}
       <Paper sx={{ p: 3, mt: 4 }}>
         <Typography variant="h6" component="h3" gutterBottom>
