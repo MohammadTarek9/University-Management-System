@@ -15,23 +15,26 @@ import {
 import {
   School,
   People,
-  Business,
   Forum,
-  AccountCircle
+  AccountCircle,
+  MeetingRoom
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const modules = [
     {
       title: 'Facilities Module',
       description: 'Manage classrooms, laboratories, and administrative offices',
-      icon: <Business color="primary" />,
+      icon: <MeetingRoom color="primary" />,
       color: '#1976d2',
-      features: ['Classroom Management', 'Lab Booking', 'Resource Allocation'],
-      path: '/facilities'
+      features: ['Room Management', 'Equipment Tracking', 'Resource Allocation'],
+      path: '/facilities',
+      available: ['admin', 'staff', 'professor'].includes(user?.role)
     },
     {
       title: 'Curriculum Module',
@@ -39,7 +42,8 @@ const Dashboard = () => {
       icon: <School color="secondary" />,
       color: '#dc004e',
       features: ['Course Catalog', 'Technology Integration', 'Assessment Tools'],
-      path: '/curriculum'
+      path: '/curriculum',
+      available: false
     },
     {
       title: 'Staff Module',
@@ -47,7 +51,8 @@ const Dashboard = () => {
       icon: <People color="success" />,
       color: '#2e7d32',
       features: ['Faculty Directory', 'Performance Tracking', 'HR Integration'],
-      path: '/staff'
+      path: '/staff',
+      available: false
     },
     {
       title: 'Community Module',
@@ -55,7 +60,8 @@ const Dashboard = () => {
       icon: <Forum color="warning" />,
       color: '#ed6c02',
       features: ['Parent Communication', 'Student Forums', 'Announcements'],
-      path: '/community'
+      path: '/community',
+      available: false
     }
   ];
 
@@ -171,9 +177,10 @@ const Dashboard = () => {
                       opacity: 0.8
                     }
                   }}
-                  disabled // Will be enabled when modules are implemented
+                  disabled={!module.available}
+                  onClick={() => module.available && navigate(module.path)}
                 >
-                  Access Module
+                  {module.available ? 'Access Module' : 'Coming Soon'}
                 </Button>
                 <Button size="small" color="primary">
                   Learn More
