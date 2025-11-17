@@ -17,7 +17,14 @@ import {
   AccountCircle,
   Logout,
   Dashboard,
-  Settings
+  Settings,
+  MeetingRoom,
+  Person,
+  School,
+  Assignment,
+  HowToReg,
+  MenuBook,
+  Forum
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -104,12 +111,74 @@ const Header = () => {
                 </Box>
               </MenuItem>
               <Divider />
+              <MenuItem onClick={() => { handleClose(); navigate('/profile'); }}>
+                <ListItemIcon>
+                  <Person fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>My Profile</ListItemText>
+              </MenuItem>
               <MenuItem onClick={handleDashboard}>
                 <ListItemIcon>
                   <Dashboard fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Dashboard</ListItemText>
               </MenuItem>
+              {user?.role === 'student' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/curriculum/registration'); }}>
+                  <ListItemIcon>
+                    <Assignment fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Course Registration</ListItemText>
+                </MenuItem>
+              )}
+              {user?.role === 'student' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/curriculum/browse'); }}>
+                  <ListItemIcon>
+                    <MenuBook fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Browse Subjects</ListItemText>
+                </MenuItem>
+              )}
+              {user?.role === 'admin' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/curriculum/enrollment-requests'); }}>
+                  <ListItemIcon>
+                    <HowToReg fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Enrollment Requests</ListItemText>
+                </MenuItem>
+              )}
+              {['admin', 'staff', 'professor'].includes(user?.role) && (
+                <MenuItem onClick={() => { handleClose(); navigate('/facilities'); }}>
+                  <ListItemIcon>
+                    <MeetingRoom fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Facilities</ListItemText>
+                </MenuItem>
+              )}
+              {['admin', 'staff'].includes(user?.role) && (
+                <MenuItem onClick={() => { handleClose(); navigate('/facilities/admissions'); }}>
+                  <ListItemIcon>
+                    <School fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Admissions</ListItemText>
+                </MenuItem>
+              )}
+              {['parent', 'student', 'professor', 'ta', 'admin', 'staff'].includes(user?.role) && (
+                <MenuItem onClick={() => { handleClose(); navigate('/community'); }}>
+                  <ListItemIcon>
+                    <Forum fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Community</ListItemText>
+                </MenuItem>
+              )}
+              {user?.role === 'admin' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/admin/users'); }}>
+                  <ListItemIcon>
+                    <AccountCircle fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>User Management</ListItemText>
+                </MenuItem>
+              )}
               <MenuItem onClick={handleClose}>
                 <ListItemIcon>
                   <Settings fontSize="small" />
@@ -129,9 +198,6 @@ const Header = () => {
           <Box>
             <Button color="inherit" onClick={() => navigate('/login')}>
               Login
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/register')}>
-              Register
             </Button>
           </Box>
         )}
