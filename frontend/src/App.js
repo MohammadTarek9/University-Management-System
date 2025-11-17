@@ -16,6 +16,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 // Pages
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
+import UserManagement from './pages/UserManagement';
 
 // Theme
 const theme = createTheme({
@@ -77,6 +78,16 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Admin routes */}
+                <Route
+                  path="/admin/users"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <UserManagement />
                     </ProtectedRoute>
                   }
                 />
