@@ -110,6 +110,14 @@ const Header = () => {
                 </ListItemIcon>
                 <ListItemText>Dashboard</ListItemText>
               </MenuItem>
+              {user?.role === 'admin' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/admin/users'); }}>
+                  <ListItemIcon>
+                    <AccountCircle fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>User Management</ListItemText>
+                </MenuItem>
+              )}
               <MenuItem onClick={handleClose}>
                 <ListItemIcon>
                   <Settings fontSize="small" />
