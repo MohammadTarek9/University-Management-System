@@ -155,6 +155,16 @@ const RoomManagement = () => {
     }
   };
 
+  // Handle equipment changes (convert strings to objects)
+  const handleEquipmentChange = (newValue) => {
+    const equipmentObjects = newValue.map(name => ({
+      name: name,
+      quantity: 1,
+      condition: 'good'
+    }));
+    handleFormChange('equipment', equipmentObjects);
+  };
+
   // Handle add room
   const handleAddRoom = async () => {
     if (!validateForm()) return;
@@ -696,8 +706,8 @@ const RoomManagement = () => {
               <Autocomplete
                 multiple
                 options={['Projector', 'Whiteboard', 'Computer', 'Audio System', 'Interactive Board', 'Air Conditioning', 'Microphone']}
-                value={formData.equipment}
-                onChange={(event, newValue) => handleFormChange('equipment', newValue)}
+                value={formData.equipment.map(eq => eq.name || eq)}
+                onChange={(event, newValue) => handleEquipmentChange(newValue)}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => (
                     <Chip variant="outlined" label={option} {...getTagProps({ index })} />
@@ -838,8 +848,8 @@ const RoomManagement = () => {
               <Autocomplete
                 multiple
                 options={['Projector', 'Whiteboard', 'Computer', 'Audio System', 'Interactive Board', 'Air Conditioning', 'Microphone']}
-                value={formData.equipment}
-                onChange={(event, newValue) => handleFormChange('equipment', newValue)}
+                value={formData.equipment.map(eq => eq.name || eq)}
+                onChange={(event, newValue) => handleEquipmentChange(newValue)}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => (
                     <Chip variant="outlined" label={option} {...getTagProps({ index })} />

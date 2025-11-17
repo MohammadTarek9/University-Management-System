@@ -56,22 +56,13 @@ const authorize = (...roles) => {
     // Flatten the roles array in case it's passed as a single array argument
     const allowedRoles = roles.length === 1 && Array.isArray(roles[0]) ? roles[0] : roles;
     
-    console.log('Authorization check:', {
-      userRole: req.user?.role,
-      allowedRoles: allowedRoles,
-      userExists: !!req.user,
-      userId: req.user?.id
-    });
-    
     if (!allowedRoles.includes(req.user.role)) {
-      console.log('Authorization failed: role not allowed');
       return res.status(403).json({
         success: false,
         message: `User role ${req.user.role} is not authorized to access this route`
       });
     }
     
-    console.log('Authorization successful');
     next();
   };
 };
