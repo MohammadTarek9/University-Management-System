@@ -19,6 +19,7 @@ import Unauthorized from './pages/Unauthorized';
 import UserManagement from './pages/UserManagement';
 import Facilities from './pages/Facilities';
 import RoomManagement from './pages/RoomManagement';
+import BookingManagement from './pages/BookingManagement';
 
 // Theme
 const theme = createTheme({
@@ -108,6 +109,14 @@ function App() {
                   element={
                     <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
                       <RoomManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/facilities/bookings"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
+                      <BookingManagement />
                     </ProtectedRoute>
                   }
                 />
