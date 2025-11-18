@@ -64,5 +64,14 @@ export const bookingService = {
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch availability' };
     }
+  },
+
+  searchAvailableRooms: async (params) => {
+    try {
+      const response = await api.get('/facilities/bookings/search/available', {params});
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch availability' };
+    }
   }
 };

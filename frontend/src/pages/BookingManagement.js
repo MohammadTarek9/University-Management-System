@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import RoomSearch from './roomSearch';
 import {
   Container,
   Paper,
@@ -61,6 +62,7 @@ const BookingManagement = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [roomFilter, setRoomFilter] = useState('all');
   const [activeTab, setActiveTab] = useState(0);
+  const [openRoomSearch, setOpenRoomSearch] = useState(false);
 
   // Dialog states
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
@@ -191,6 +193,23 @@ const BookingManagement = () => {
     }
   };
 
+  // Add this function to handle room selection from search
+  const handleRoomSelect = (room) => {
+    setFormData(prev => ({
+      ...prev,
+      roomId: room._id
+    }));
+    setOpenRoomSearch(false);
+    
+    // Pre-fill some form data if needed
+    if (!formData.title) {
+      setFormData(prev => ({
+        ...prev,
+        title: `Meeting in ${room.name}`,
+        attendees: Math.min(room.capacity, formData.attendees || 1)
+      }));
+    }
+  };
   // Reset form
   const resetForm = () => {
     setFormData({
@@ -240,6 +259,16 @@ const BookingManagement = () => {
         <Typography variant="h4" component="h1" sx={{ flexGrow: 1 }}>
           Room Bookings
         </Typography>
+        {/*Search Rooms button */}
+        <Button
+          variant="outlined"
+          startIcon={<Search />}
+          sx={{ mr: 2 }}
+          onClick={() => setOpenRoomSearch(true)}
+        >
+          Search Rooms
+        </Button>
+
         <Button
           variant="contained"
           startIcon={<Add />}
@@ -455,14 +484,35 @@ const BookingManagement = () => {
                   label="Room *"
                   onChange={(e) => setFormData({ ...formData, roomId: e.target.value })}
                 >
+                  <MenuItem value="">
+                    <em>Select a room</em>
+                  </MenuItem>
                   {rooms.map((room) => (
                     <MenuItem key={room._id} value={room._id}>
-                      {room.name} - {room.location.building} (Capacity: {room.capacity})
+                      <Box>
+                        <Typography variant="body1">
+                          {room.name} - {room.location.building}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Capacity: {room.capacity} • Type: {room.type}
+                        </Typography>
+                      </Box>
                     </MenuItem>
                   ))}
                 </Select>
                 {formErrors.roomId && <FormHelperText>{formErrors.roomId}</FormHelperText>}
               </FormControl>
+              
+              <Button 
+                startIcon={<Search />}
+                onClick={() => {
+                  setOpenCreateDialog(false);
+                  setOpenRoomSearch(true);
+                }}
+                sx={{ mt: 1 }}
+              >
+                Search Available Rooms
+              </Button>
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -691,6 +741,13 @@ const BookingManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      
+      <RoomSearch
+        open={openRoomSearch}
+        onClose={() => setOpenRoomSearch(false)}
+        onRoomSelect={handleRoomSelect}
+      />
     </Container>
   );
 };
