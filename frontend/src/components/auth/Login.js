@@ -114,6 +114,14 @@ const Login = () => {
             >
               {loading ? <CircularProgress size={24} /> : 'Sign In'}
             </Button>
+             
+            {/* ADDED FORGOT PASSWORD LINK */}
+            <Box textAlign="center" sx={{ mt: 2 }}>
+              <Link component={RouterLink} to="/forgot-password" variant="body2">
+                Forgot Password?
+              </Link>
+            </Box>
+
             <Box textAlign="center">
               <Link component={RouterLink} to="/register" variant="body2">
                 Don't have an account? Sign Up
