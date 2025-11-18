@@ -18,7 +18,8 @@ import {
   Logout,
   Dashboard,
   Settings,
-  MeetingRoom
+  MeetingRoom,
+  Person
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -105,6 +106,12 @@ const Header = () => {
                 </Box>
               </MenuItem>
               <Divider />
+              <MenuItem onClick={() => { handleClose(); navigate('/profile'); }}>
+                <ListItemIcon>
+                  <Person fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>My Profile</ListItemText>
+              </MenuItem>
               <MenuItem onClick={handleDashboard}>
                 <ListItemIcon>
                   <Dashboard fontSize="small" />

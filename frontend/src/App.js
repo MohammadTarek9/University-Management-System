@@ -19,6 +19,7 @@ import Unauthorized from './pages/Unauthorized';
 import UserManagement from './pages/UserManagement';
 import Facilities from './pages/Facilities';
 import RoomManagement from './pages/RoomManagement';
+import ProfilePage from './pages/ProfilePage';
 
 // Theme
 const theme = createTheme({
@@ -80,6 +81,16 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+
+                 {/* Profile route */}
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
                     </ProtectedRoute>
                   }
                 />
