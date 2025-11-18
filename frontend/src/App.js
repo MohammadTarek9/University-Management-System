@@ -12,13 +12,14 @@ import Footer from './components/common/Footer';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-
+import ForgotPassword from './components/auth/ForgotPassword';
 // Pages
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
 import UserManagement from './pages/UserManagement';
 import Facilities from './pages/Facilities';
 import RoomManagement from './pages/RoomManagement';
+import ProfilePage from './pages/ProfilePage';
 
 // Theme
 const theme = createTheme({
@@ -83,6 +84,16 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+
+                 {/* Profile route */}
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
                 
                 {/* Admin routes */}
                 <Route
@@ -138,7 +149,8 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+
                 {/* Default redirects */}
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
