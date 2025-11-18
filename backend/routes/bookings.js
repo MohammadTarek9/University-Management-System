@@ -6,7 +6,8 @@ const {
   createBooking,
   updateBooking,
   cancelBooking,
-  getRoomAvailability
+  getRoomAvailability,
+  searchAvailableRooms
 } = require('../controllers/bookingController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -58,4 +59,6 @@ router.patch('/:id/cancel', authorize(['admin', 'staff', 'professor']), cancelBo
 // GET /api/facilities/rooms/:id/availability - Get room availability
 router.get('/rooms/:id/availability', authorize(['admin', 'staff', 'professor']), getRoomAvailability);
 
+// GET /api/facilities/bookings/search/available - search available rooms with filters
+router.get('/search/available', protect, authorize('admin', 'staff', 'professor'), searchAvailableRooms);
 module.exports = router;

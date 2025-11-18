@@ -20,6 +20,7 @@ import UserManagement from './pages/UserManagement';
 import Facilities from './pages/Facilities';
 import RoomManagement from './pages/RoomManagement';
 import BookingManagement from './pages/BookingManagement';
+import RoomSearch from './pages/roomSearch';
 
 // Theme
 const theme = createTheme({

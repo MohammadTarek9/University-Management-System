@@ -324,3 +324,112 @@ exports.getRoomAvailability = async (req, res) => {
     return errorResponse(res, 500, 'Failed to fetch availability');
   }
 };
+
+
+// @desc    Search available rooms with filters
+// @route   GET /api/facilities/rooms/search/available
+// @access  Private (Admin, Staff, Professor)
+exports.searchAvailableRooms = async (req, res) => {
+  try {
+    const {
+      startTime,
+      endTime,
+      capacity,
+      building,
+      roomType,
+      date,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    // Validate required parameters
+    if (!startTime || !endTime) {
+      return errorResponse(res, 400, 'Start time and end time are required');
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    
+    // Validate time range
+    if (start >= end) {
+      return errorResponse(res, 400, 'End time must be after start time');
+    }
+
+    if (start < new Date()) {
+      return errorResponse(res, 400, 'Cannot book rooms in the past');
+    }
+
+    // Validate duration (minimum 30 minutes, maximum 8 hours)
+    const duration = (end - start) / (1000 * 60);
+    if (duration < 30) {
+      return errorResponse(res, 400, 'Minimum booking duration is 30 minutes');
+    }
+    if (duration > 480) {
+      return errorResponse(res, 400, 'Maximum booking duration is 8 hours');
+    }
+
+    // Build room filter
+    const roomFilter = { isActive: true };
+    
+    if (capacity && !isNaN(capacity)) {
+      roomFilter.capacity = { $gte: parseInt(capacity) };
+    }
+    
+    if (building && building !== 'all') {
+      roomFilter['location.building'] = building;
+    }
+    
+    if (roomType && roomType !== 'all') {
+      roomFilter.type = roomType;
+    }
+
+    // Find all rooms that match the criteria
+    const rooms = await Room.find(roomFilter)
+      .select('-equipmentCount -fullLocation')
+      .lean();
+
+    // Check availability for each room
+    const availableRooms = [];
+    
+    for (const room of rooms) {
+      const isAvailable = await Booking.checkAvailability(
+        room._id, 
+        start, 
+        end
+      );
+      
+      if (isAvailable) {
+        availableRooms.push(room);
+      }
+    }
+
+    // Pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedRooms = availableRooms.slice(startIndex, endIndex);
+
+    const pagination = {
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(availableRooms.length / limit),
+      totalRooms: availableRooms.length,
+      hasNext: endIndex < availableRooms.length,
+      hasPrev: startIndex > 0
+    };
+
+    return successResponse(res, 200, 'Available rooms retrieved successfully', {
+      rooms: paginatedRooms,
+      pagination,
+      searchCriteria: {
+        startTime,
+        endTime,
+        capacity,
+        building,
+        roomType
+      }
+    });
+
+  } catch (error) {
+    console.error('Error searching available rooms:', error);
+    return errorResponse(res, 500, 'Failed to search available rooms');
+  }
+};
