@@ -160,13 +160,51 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
+  // ADD PASSWORD RESET FUNCTIONS
+  const forgotPassword = async (credentials) => {
+    dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
+    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+
+    try {
+      const response = await authService.forgotPassword(credentials);
+      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
+      return response;
+    } catch (error) {
+      dispatch({
+        type: AUTH_ACTIONS.SET_ERROR,
+        payload: error.message || 'Password reset failed'
+      });
+      throw error;
+    }
+  };
+
+  const resetPassword = async (token, newPassword) => {
+    dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
+    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+
+    try {
+      const response = await authService.resetPassword(token, newPassword);
+      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
+      return response;
+    } catch (error) {
+      dispatch({
+        type: AUTH_ACTIONS.SET_ERROR,
+        payload: error.message || 'Password reset failed'
+      });
+      throw error;
+    }
+  };
+
   const value = {
     ...state,
     login,
     register,
     logout,
     clearError,
-    updateUser
+    updateUser,
+    // ADD PASSWORD RESET FUNCTIONS TO CONTEXT VALUE
+    forgotPassword,
+    resetPassword
   };
 
   return (
