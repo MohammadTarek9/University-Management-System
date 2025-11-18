@@ -55,6 +55,11 @@ const validationSchema = yup.object({
     .string('Enter your phone number')
     .matches(/^\+?[\d\s-()]+$/, 'Please enter a valid phone number')
     .optional(),
+  // ADDED SECURITY ANSWER VALIDATION
+  securityAnswer: yup
+    .string('Enter your security answer')
+    .min(2, 'Security answer should be at least 2 characters')
+    .required('Security answer is required'),
 });
 
 const Register = () => {
@@ -74,6 +79,7 @@ const Register = () => {
       employeeId: '',
       department: '',
       phoneNumber: '',
+      securityAnswer: '', // ADDED SECURITY ANSWER FIELD
     },
     validationSchema: validationSchema,
     onSubmit: async (values) => {
@@ -263,6 +269,29 @@ const Register = () => {
                   label="Department (Optional)"
                   value={formik.values.department}
                   onChange={formik.handleChange}
+                />
+              </Grid>
+              {/* ADDED SECURITY QUESTION SECTION */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                  Security Question
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  This will be used to reset your password if you forget it.
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 2, fontStyle: 'italic' }}>
+                  Who was your favorite teacher?
+                </Typography>
+                <TextField
+                  fullWidth
+                  id="securityAnswer"
+                  name="securityAnswer"
+                  label="Your Answer"
+                  value={formik.values.securityAnswer}
+                  onChange={formik.handleChange}
+                  error={formik.touched.securityAnswer && Boolean(formik.errors.securityAnswer)}
+                  helperText={formik.touched.securityAnswer && formik.errors.securityAnswer}
+                  required
                 />
               </Grid>
             </Grid>

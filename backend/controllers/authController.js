@@ -1,11 +1,12 @@
 const User = require('../models/User');
 const { body } = require('express-validator');
 const { errorResponse, successResponse } = require('../utils/responseHelpers');
+const crypto = require('crypto');
 
 
 const register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, role, studentId, employeeId, department, phoneNumber } = req.body;
+    const { firstName, lastName, email, password, role, studentId, employeeId, department, phoneNumber, securityAnswer } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -35,7 +36,8 @@ const register = async (req, res) => {
       studentId,
       employeeId,
       department,
-      phoneNumber
+      phoneNumber,
+      securityAnswer: securityAnswer || "default"
     });
 
     const token = user.getSignedJwtToken();
@@ -153,6 +155,88 @@ const logout = async (req, res) => {
   successResponse(res, 200, 'Logout successful');
 };
 
+// Password Reset Functions
+const forgotPassword = async (req, res) => {
+  try {
+    const { email, securityAnswer } = req.body;
+
+    if (!email || !securityAnswer) {
+      return errorResponse(res, 400, 'Please provide email and security answer');
+    }
+
+    const user = await User.findOne({ email }).select('+securityAnswer');
+    
+    if (!user) {
+      return errorResponse(res, 401, 'No user found with this email');
+    }
+
+    // Check security answer (case insensitive)
+    if (user.securityAnswer.toLowerCase() !== securityAnswer.toLowerCase()) {
+      return errorResponse(res, 401, 'Incorrect security answer');
+    }
+
+    // Generate reset token
+    const resetToken = user.getResetPasswordToken();
+    await user.save();
+
+    console.log('Generated reset token:', resetToken); // Debug log
+
+    successResponse(res, 200, 'Security question verified', {
+      resetToken, // Make sure this is included
+      message: 'You can now reset your password'
+    });
+
+  } catch (error) {
+    console.error(error);
+    errorResponse(res, 500, 'Server error during password reset');
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    console.log('Reset password request - Token:', token); // Debug log
+
+    if (!password) {
+      return errorResponse(res, 400, 'Please provide a new password');
+    }
+
+    // Hash token to compare with stored hash
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    console.log('Hashed token:', resetPasswordToken); // Debug log
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    console.log('Found user:', user ? user.email : 'No user found'); // Debug log
+
+    if (!user) {
+      return errorResponse(res, 400, 'Invalid or expired reset token');
+    }
+
+    // Set new password
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    successResponse(res, 200, 'Password reset successful');
+
+  } catch (error) {
+    console.error(error);
+    errorResponse(res, 500, 'Server error during password reset');
+  }
+};
+
+// Validation Arrays
 const registerValidation = [
   body('firstName')
     .notEmpty()
@@ -193,7 +277,13 @@ const registerValidation = [
   body('phoneNumber')
     .optional()
     .matches(/^\+?[\d\s-()]+$/)
-    .withMessage('Please provide a valid phone number')
+    .withMessage('Please provide a valid phone number'),
+  
+  body('securityAnswer')
+    .notEmpty()
+    .withMessage('Security answer is required')
+    .isLength({ min: 2 })
+    .withMessage('Security answer must be at least 2 characters')
 ];
 
 const loginValidation = [
@@ -207,11 +297,36 @@ const loginValidation = [
     .withMessage('Password is required')
 ];
 
+const forgotPasswordValidation = [
+  body('email')
+    .isEmail()
+    .withMessage('Please provide a valid email')
+    .normalizeEmail(),
+  
+  body('securityAnswer')
+    .notEmpty()
+    .withMessage('Security answer is required')
+    .isLength({ min: 2 })
+    .withMessage('Security answer must be at least 2 characters')
+];
+
+const resetPasswordValidation = [
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number')
+];
+
 module.exports = {
   register,
   login,
   getMe,
   logout,
+  forgotPassword,
+  resetPassword,
   registerValidation,
-  loginValidation
+  loginValidation,
+  forgotPasswordValidation,
+  resetPasswordValidation
 };
