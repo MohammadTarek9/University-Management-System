@@ -44,7 +44,7 @@ const Facilities = () => {
       color: 'secondary',
       permissions: ['admin', 'staff', 'professor'],
       features: ['Schedule Rooms', 'Manage Reservations', 'Conflict Detection', 'Calendar View'],
-      comingSoon: true
+      //comingSoon: true
     },
     {
       id: 'resources',
