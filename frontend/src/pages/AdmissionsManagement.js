@@ -43,6 +43,8 @@ import {
 } from '@mui/icons-material';
 import { applicationService } from '../services/applicationService';
 import { useAuth } from '../context/AuthContext';
+import AddApplicationDialog from '../components/admissions/AddApplicationDialog';
+import ApplicationViewDialog from '../components/admissions/ApplicationViewDialog';
 
 const AdmissionsManagement = () => {
   const { user } = useAuth();
@@ -64,6 +66,9 @@ const AdmissionsManagement = () => {
     statuses: [],
     nationalities: []
   });
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
 
   // Fetch applications from API
   const fetchApplications = async () => {
@@ -207,6 +212,77 @@ const AdmissionsManagement = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Handle add application success
+  const handleAddApplicationSuccess = (newApplication) => {
+    setSuccessMessage(`Application ${newApplication.applicationId} submitted successfully!`);
+    refreshData(); // Refresh the applications list
+  };
+
+  // Handle view application
+  const handleViewApplication = (application) => {
+    setSelectedApplication(application);
+    setShowViewDialog(true);
+  };
+
+  // Handle approve application
+  const handleApproveApplication = async (applicationId) => {
+    try {
+      const response = await applicationService.updateApplicationStatus(applicationId, {
+        status: 'Approved',
+        reviewComments: 'Application approved'
+      });
+      if (response.success) {
+        setSuccessMessage('Application approved successfully!');
+        refreshData();
+      } else {
+        setError(response.message || 'Failed to approve application');
+      }
+    } catch (error) {
+      setError(error.message || 'Failed to approve application');
+    }
+  };
+
+  // Handle reject application
+  const handleRejectApplication = async (applicationId) => {
+    try {
+      const response = await applicationService.updateApplicationStatus(applicationId, {
+        status: 'Rejected',
+        reviewComments: 'Application rejected'
+      });
+      if (response.success) {
+        setSuccessMessage('Application rejected successfully!');
+        refreshData();
+      } else {
+        setError(response.message || 'Failed to reject application');
+      }
+    } catch (error) {
+      setError(error.message || 'Failed to reject application');
+    }
+  };
+
+  // Handle edit application (placeholder)
+  const handleEditApplication = (application) => {
+    // TODO: Implement edit functionality
+    console.log('Edit application:', application.applicationId);
+  };
+
+  // Handle delete application
+  const handleDeleteApplication = async (applicationId) => {
+    if (window.confirm('Are you sure you want to delete this application? This action cannot be undone.')) {
+      try {
+        const response = await applicationService.deleteApplication(applicationId);
+        if (response.success) {
+          setSuccessMessage('Application deleted successfully!');
+          refreshData();
+        } else {
+          setError(response.message || 'Failed to delete application');
+        }
+      } catch (error) {
+        setError(error.message || 'Failed to delete application');
+      }
+    }
+  };
+
   // Check if current user can manage applications (admin only for create/edit/delete)
   const canManageApplications = user && user.role === 'admin';
 
@@ -231,7 +307,7 @@ const AdmissionsManagement = () => {
             <Button
               variant="contained"
               startIcon={<Add />}
-              onClick={() => {/* TODO: Open add application dialog */}}
+              onClick={() => setShowAddDialog(true)}
             >
               Add Application
             </Button>
@@ -491,7 +567,7 @@ const AdmissionsManagement = () => {
                           <IconButton 
                             size="small" 
                             color="info"
-                            onClick={() => {/* TODO: Handle view */}}
+                            onClick={() => handleViewApplication(application)}
                           >
                             <Visibility />
                           </IconButton>
@@ -502,7 +578,7 @@ const AdmissionsManagement = () => {
                               <IconButton 
                                 size="small" 
                                 color="success"
-                                onClick={() => {/* TODO: Handle approve */}}
+                                onClick={() => handleApproveApplication(application._id)}
                                 disabled={application.status === 'Approved'}
                               >
                                 <CheckCircle />
@@ -512,7 +588,7 @@ const AdmissionsManagement = () => {
                               <IconButton 
                                 size="small" 
                                 color="error"
-                                onClick={() => {/* TODO: Handle reject */}}
+                                onClick={() => handleRejectApplication(application._id)}
                                 disabled={application.status === 'Rejected'}
                               >
                                 <Cancel />
@@ -526,7 +602,7 @@ const AdmissionsManagement = () => {
                               <IconButton 
                                 size="small" 
                                 color="primary"
-                                onClick={() => {/* TODO: Handle edit */}}
+                                onClick={() => handleEditApplication(application)}
                               >
                                 <Edit />
                               </IconButton>
@@ -535,7 +611,7 @@ const AdmissionsManagement = () => {
                               <IconButton 
                                 size="small" 
                                 color="error"
-                                onClick={() => {/* TODO: Handle delete */}}
+                                onClick={() => handleDeleteApplication(application._id)}
                               >
                                 <Delete />
                               </IconButton>
@@ -570,6 +646,23 @@ const AdmissionsManagement = () => {
           {(searchTerm || statusFilter !== 'all' || programFilter !== 'all' || degreeLevelFilter !== 'all') && ' (filtered)'}
         </Typography>
       </Box>
+
+      {/* Add Application Dialog */}
+      <AddApplicationDialog
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onSuccess={handleAddApplicationSuccess}
+      />
+
+      {/* View Application Dialog */}
+      <ApplicationViewDialog
+        open={showViewDialog}
+        onClose={() => {
+          setShowViewDialog(false);
+          setSelectedApplication(null);
+        }}
+        application={selectedApplication}
+      />
     </Container>
   );
 };
