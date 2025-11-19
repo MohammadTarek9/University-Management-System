@@ -5,6 +5,8 @@ export const applicationService = {
   getAllApplications: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString();
+      console.log('API URL being called:', `/facilities/applications?${queryString}`);
+      console.log('Query parameters:', params);
       const response = await api.get(`/facilities/applications?${queryString}`);
       return response.data;
     } catch (error) {
@@ -86,8 +88,8 @@ export const applicationService = {
     }
   },
 
-  // Helper function to get available programs
-  getAvailablePrograms: () => {
+  // Helper function to get available departments
+  getAvailableDepartments: () => {
     return [
       'Computer Science',
       'Engineering',
@@ -131,7 +133,7 @@ export const applicationService = {
       applicantName: `${application.personalInfo.firstName} ${application.personalInfo.lastName}`,
       submittedDate: new Date(application.submittedAt).toLocaleDateString(),
       lastModifiedDate: new Date(application.lastModified).toLocaleDateString(),
-      programDisplay: application.academicInfo.program,
+      departmentDisplay: application.personalInfo.department,
       statusDisplay: application.status,
       statusColor: applicationService.getStatusColor(application.status)
     };
@@ -189,10 +191,13 @@ export const applicationService = {
       errors.country = 'Country is required';
     }
 
-    // Academic Information Validation
-    if (!data.academicInfo?.program) {
-      errors.program = 'Program is required';
+    // Department Validation
+    if (!data.personalInfo?.department) {
+      errors.department = 'Department is required';
     }
+    
+    // Academic Information Validation
+    // Major is optional, no validation needed
     
     if (!data.academicInfo?.degreeLevel) {
       errors.degreeLevel = 'Degree level is required';

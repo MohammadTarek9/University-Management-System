@@ -87,6 +87,7 @@ const initialFormData = {
     phone: '',
     dateOfBirth: '',
     nationality: '',
+    department: '',
     address: {
       street: '',
       city: '',
@@ -96,7 +97,7 @@ const initialFormData = {
     }
   },
   academicInfo: {
-    program: '',
+    major: '',
     degreeLevel: '',
     intendedStartDate: '',
     previousEducation: {
@@ -154,6 +155,7 @@ const AddApplicationDialog = ({ open, onClose, onSuccess, editMode = false, exis
           phone: existingApplication.personalInfo?.phone || '',
           dateOfBirth: formatDateForInput(existingApplication.personalInfo?.dateOfBirth),
           nationality: existingApplication.personalInfo?.nationality || '',
+          department: existingApplication.personalInfo?.department || '',
           address: {
             street: existingApplication.personalInfo?.address?.street || '',
             city: existingApplication.personalInfo?.address?.city || '',
@@ -163,7 +165,7 @@ const AddApplicationDialog = ({ open, onClose, onSuccess, editMode = false, exis
           }
         },
         academicInfo: {
-          program: existingApplication.academicInfo?.program || '',
+          major: existingApplication.academicInfo?.major || '',
           degreeLevel: existingApplication.academicInfo?.degreeLevel || '',
           intendedStartDate: formatDateForInput(existingApplication.academicInfo?.intendedStartDate),
           previousEducation: {
@@ -284,6 +286,9 @@ const AddApplicationDialog = ({ open, onClose, onSuccess, editMode = false, exis
       if (!formData.personalInfo.nationality.trim()) {
         newErrors['personalInfo.nationality'] = 'Nationality is required';
       }
+      if (!formData.personalInfo.department.trim()) {
+        newErrors['personalInfo.department'] = 'Department is required';
+      }
       if (!formData.personalInfo.address.street.trim()) {
         newErrors['personalInfo.address.street'] = 'Street address is required';
       }
@@ -301,9 +306,7 @@ const AddApplicationDialog = ({ open, onClose, onSuccess, editMode = false, exis
       }
     } else if (step === 1) {
       // Academic Information validation
-      if (!formData.academicInfo.program.trim()) {
-        newErrors['academicInfo.program'] = 'Program is required';
-      }
+      // Major field is optional, no validation needed
       if (!formData.academicInfo.degreeLevel.trim()) {
         newErrors['academicInfo.degreeLevel'] = 'Degree level is required';
       }
@@ -517,6 +520,30 @@ const AddApplicationDialog = ({ open, onClose, onSuccess, editMode = false, exis
                   )}
                 </FormControl>
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth required error={!!errors['personalInfo.department']}>
+                  <InputLabel>Department</InputLabel>
+                  <Select
+                    value={formData.personalInfo.department}
+                    label="Department"
+                    onChange={(e) => handleInputChange('personalInfo', 'department', e.target.value)}
+                  >
+                    <MenuItem value="Computer Science">Computer Science</MenuItem>
+                    <MenuItem value="Engineering">Engineering</MenuItem>
+                    <MenuItem value="Business Administration">Business Administration</MenuItem>
+                    <MenuItem value="Medicine">Medicine</MenuItem>
+                    <MenuItem value="Law">Law</MenuItem>
+                    <MenuItem value="Arts">Arts</MenuItem>
+                    <MenuItem value="Sciences">Sciences</MenuItem>
+                    <MenuItem value="Education">Education</MenuItem>
+                    <MenuItem value="Nursing">Nursing</MenuItem>
+                    <MenuItem value="Economics">Economics</MenuItem>
+                  </Select>
+                  {errors['personalInfo.department'] && (
+                    <FormHelperText>{errors['personalInfo.department']}</FormHelperText>
+                  )}
+                </FormControl>
+              </Grid>
 
               <Grid item xs={12}>
                 <Divider sx={{ my: 2 }}>
@@ -591,23 +618,15 @@ const AddApplicationDialog = ({ open, onClose, onSuccess, editMode = false, exis
             </Typography>
             <Grid container spacing={3}>
               <Grid item xs={12} sm={6}>
-                <FormControl fullWidth required error={!!errors['academicInfo.program']}>
-                  <InputLabel>Program</InputLabel>
-                  <Select
-                    value={formData.academicInfo.program}
-                    label="Program"
-                    onChange={(e) => handleInputChange('academicInfo', 'program', e.target.value)}
-                  >
-                    {filterOptions.programs.map((program) => (
-                      <MenuItem key={program} value={program}>
-                        {program}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {errors['academicInfo.program'] && (
-                    <FormHelperText>{errors['academicInfo.program']}</FormHelperText>
-                  )}
-                </FormControl>
+                <TextField
+                  fullWidth
+                  label="Major (Optional)"
+                  value={formData.academicInfo.major}
+                  onChange={(e) => handleInputChange('academicInfo', 'major', e.target.value)}
+                  error={!!errors['academicInfo.major']}
+                  helperText={errors['academicInfo.major'] || 'e.g., Software Engineering, Data Science, Marketing'}
+                  placeholder="Enter your major or leave blank"
+                />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required error={!!errors['academicInfo.degreeLevel']}>

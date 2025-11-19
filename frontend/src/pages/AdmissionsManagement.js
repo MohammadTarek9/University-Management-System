@@ -63,11 +63,11 @@ const AdmissionsManagement = () => {
   const [totalApplications, setTotalApplications] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [programFilter, setProgramFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [degreeLevelFilter, setDegreeLevelFilter] = useState('all');
   const [stats, setStats] = useState(null);
   const [filterOptions, setFilterOptions] = useState({
-    programs: [],
+    departments: [],
     degreeLevels: [],
     statuses: [],
     nationalities: []
@@ -92,7 +92,7 @@ const AdmissionsManagement = () => {
         limit: rowsPerPage,
         search: searchTerm,
         status: statusFilter,
-        program: programFilter,
+        department: departmentFilter,
         degreeLevel: degreeLevelFilter
       };
 
@@ -136,7 +136,10 @@ const AdmissionsManagement = () => {
   const fetchFilterOptions = async () => {
     try {
       const response = await applicationService.getFilterOptions();
+      console.log('Filter options response:', response);
       if (response.success) {
+        console.log('Setting filter options:', response.data);
+        console.log('Departments available:', response.data.departments);
         setFilterOptions(response.data);
       }
     } catch (error) {
@@ -147,7 +150,7 @@ const AdmissionsManagement = () => {
   // Initial load and when dependencies change
   useEffect(() => {
     fetchApplications();
-  }, [page, rowsPerPage, searchTerm, statusFilter, programFilter, degreeLevelFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, rowsPerPage, searchTerm, statusFilter, departmentFilter, degreeLevelFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load stats and filter options on component mount
   useEffect(() => {
@@ -188,8 +191,10 @@ const AdmissionsManagement = () => {
     setPage(0);
   };
 
-  const handleProgramFilterChange = (event) => {
-    setProgramFilter(event.target.value);
+  const handleDepartmentFilterChange = (event) => {
+    const newValue = event.target.value;
+    console.log('Department filter changed to:', newValue);
+    setDepartmentFilter(newValue);
     setPage(0);
   };
 
@@ -202,7 +207,7 @@ const AdmissionsManagement = () => {
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
-    setProgramFilter('all');
+    setDepartmentFilter('all');
     setDegreeLevelFilter('all');
     setPage(0);
   };
@@ -532,16 +537,16 @@ const AdmissionsManagement = () => {
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
             <FormControl fullWidth>
-              <InputLabel>Program</InputLabel>
+              <InputLabel>Department</InputLabel>
               <Select
-                value={programFilter}
-                label="Program"
-                onChange={handleProgramFilterChange}
+                value={departmentFilter}
+                label="Department"
+                onChange={handleDepartmentFilterChange}
               >
-                <MenuItem value="all">All Programs</MenuItem>
-                {filterOptions.programs.map((program) => (
-                  <MenuItem key={program} value={program}>
-                    {program}
+                <MenuItem value="all">All Departments</MenuItem>
+                {filterOptions.departments.map((department) => (
+                  <MenuItem key={department} value={department}>
+                    {department}
                   </MenuItem>
                 ))}
               </Select>
@@ -635,7 +640,7 @@ const AdmissionsManagement = () => {
                 <TableCell>Application ID</TableCell>
                 <TableCell>Applicant Name</TableCell>
                 <TableCell>Email</TableCell>
-                <TableCell>Program</TableCell>
+                <TableCell>Department</TableCell>
                 <TableCell>Degree Level</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Submitted Date</TableCell>
@@ -660,7 +665,7 @@ const AdmissionsManagement = () => {
                       No applications found
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {(searchTerm || statusFilter !== 'all' || programFilter !== 'all' || degreeLevelFilter !== 'all')
+                      {(searchTerm || statusFilter !== 'all' || departmentFilter !== 'all' || degreeLevelFilter !== 'all')
                         ? 'Try adjusting your filters'
                         : 'Applications will appear here once submitted'}
                     </Typography>
@@ -695,9 +700,9 @@ const AdmissionsManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={application.academicInfo.program}
+                        label={application.personalInfo.department || application.academicInfo.program || 'N/A'}
                         size="small"
-                        color="primary"
+                        color={application.personalInfo.department ? "primary" : "default"}
                         variant="outlined"
                       />
                     </TableCell>
@@ -741,24 +746,28 @@ const AdmissionsManagement = () => {
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Quick Approve">
-                              <IconButton 
-                                size="small" 
-                                color="success"
-                                onClick={() => handleApproveApplication(application._id)}
-                                disabled={application.status === 'Approved'}
-                              >
-                                <CheckCircle />
-                              </IconButton>
+                              <span>
+                                <IconButton 
+                                  size="small" 
+                                  color="success"
+                                  onClick={() => handleApproveApplication(application._id)}
+                                  disabled={application.status === 'Approved'}
+                                >
+                                  <CheckCircle />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                             <Tooltip title="Quick Reject">
-                              <IconButton 
-                                size="small" 
-                                color="error"
-                                onClick={() => handleRejectApplication(application._id)}
-                                disabled={application.status === 'Rejected'}
-                              >
-                                <Cancel />
-                              </IconButton>
+                              <span>
+                                <IconButton 
+                                  size="small" 
+                                  color="error"
+                                  onClick={() => handleRejectApplication(application._id)}
+                                  disabled={application.status === 'Rejected'}
+                                >
+                                  <Cancel />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                           </>
                         )}
@@ -810,7 +819,7 @@ const AdmissionsManagement = () => {
       <Box sx={{ mt: 2, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
           Showing {applications.length} of {totalApplications} applications
-          {(searchTerm || statusFilter !== 'all' || programFilter !== 'all' || degreeLevelFilter !== 'all') && ' (filtered)'}
+          {(searchTerm || statusFilter !== 'all' || departmentFilter !== 'all' || degreeLevelFilter !== 'all') && ' (filtered)'}
         </Typography>
       </Box>
 

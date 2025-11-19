@@ -57,17 +57,19 @@ const StudentCredentialsPanel = ({ application, onAccountCreated }) => {
   };
 
   const handleCreateAccount = () => {
-    // Prepare data for user creation form
+    // Prepare data for user creation form with all admission info
     const userData = {
-      firstName: application.firstName,
-      lastName: application.lastName,
+      firstName: application.personalInfo?.firstName || '',
+      lastName: application.personalInfo?.lastName || '',
       email: application.studentCredentials.universityEmail,
       studentId: application.studentCredentials.studentId,
       temporaryPassword: credentials?.temporaryPassword,
       role: 'student',
       // Additional data from application
-      phoneNumber: application.phoneNumber || '',
-      personalEmail: application.email // Keep original email as reference
+      phoneNumber: application.personalInfo?.phone || '',
+      department: application.personalInfo?.department || '',
+      major: application.academicInfo?.major || '',
+      personalEmail: application.personalInfo?.email // Keep original email as reference
     };
 
     // Store in localStorage for user management page

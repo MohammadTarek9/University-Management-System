@@ -39,6 +39,25 @@ const applicationSchema = new mongoose.Schema({
       trim: true,
       maxlength: [50, 'Nationality cannot exceed 50 characters']
     },
+    department: {
+      type: String,
+      required: [true, 'Department is required'],
+      enum: {
+        values: [
+          'Computer Science',
+          'Engineering',
+          'Business Administration',
+          'Medicine',
+          'Law',
+          'Arts',
+          'Sciences',
+          'Education',
+          'Nursing',
+          'Economics'
+        ],
+        message: 'Please select a valid department'
+      }
+    },
     address: {
       street: {
         type: String,
@@ -75,24 +94,11 @@ const applicationSchema = new mongoose.Schema({
 
   // Academic Information
   academicInfo: {
-    program: {
+    major: {
       type: String,
-      required: [true, 'Program is required'],
-      enum: {
-        values: [
-          'Computer Science',
-          'Engineering',
-          'Business Administration',
-          'Medicine',
-          'Law',
-          'Arts',
-          'Sciences',
-          'Education',
-          'Nursing',
-          'Economics'
-        ],
-        message: 'Please select a valid program'
-      }
+      required: false,
+      trim: true,
+      maxlength: [100, 'Major cannot exceed 100 characters']
     },
     degreeLevel: {
       type: String,

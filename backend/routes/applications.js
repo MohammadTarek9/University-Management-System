@@ -75,8 +75,8 @@ const applicationValidation = [
     .isLength({ min: 1, max: 50 })
     .withMessage('Country must be between 1 and 50 characters'),
     
-  // Academic Information Validation
-  body('academicInfo.program')
+  // Department Validation (moved from academicInfo.program to personalInfo.department)
+  body('personalInfo.department')
     .isIn([
       'Computer Science',
       'Engineering', 
@@ -89,7 +89,14 @@ const applicationValidation = [
       'Nursing',
       'Economics'
     ])
-    .withMessage('Please select a valid program'),
+    .withMessage('Please select a valid department'),
+
+  // Academic Information Validation
+  body('academicInfo.major')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Major cannot exceed 100 characters'),
     
   body('academicInfo.degreeLevel')
     .isIn(['Bachelor', 'Master', 'Doctorate', 'Certificate'])

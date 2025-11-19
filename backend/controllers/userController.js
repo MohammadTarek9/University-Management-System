@@ -82,7 +82,7 @@ const getUserById = async (req, res) => {
 // @access  Private/Admin
 const createUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, role, studentId, employeeId, department, phoneNumber, firstLogin, mustChangePassword, securityQuestion, securityAnswer } = req.body;
+    const { firstName, lastName, email, password, role, studentId, employeeId, department, major, phoneNumber, firstLogin, mustChangePassword, securityQuestion, securityAnswer } = req.body;
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
@@ -115,6 +115,7 @@ const createUser = async (req, res) => {
       studentId: studentId && studentId.trim() !== '' ? studentId : undefined,
       employeeId: employeeId && employeeId.trim() !== '' ? employeeId : undefined,
       department,
+      major,
       phoneNumber,
       firstLogin: firstLogin || false,
       mustChangePassword: mustChangePassword || false,
@@ -136,6 +137,7 @@ const createUser = async (req, res) => {
         studentId: user.studentId,
         employeeId: user.employeeId,
         department: user.department,
+        major: user.major,
         phoneNumber: user.phoneNumber,
         isActive: user.isActive,
         createdAt: user.createdAt
@@ -153,7 +155,7 @@ const createUser = async (req, res) => {
 // @access  Private/Admin
 const updateUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, role, studentId, employeeId, department, phoneNumber, isActive } = req.body;
+    const { firstName, lastName, email, role, studentId, employeeId, department, major, phoneNumber, isActive } = req.body;
     
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -192,6 +194,7 @@ const updateUser = async (req, res) => {
     if (studentId !== undefined) user.studentId = studentId && studentId.trim() !== '' ? studentId : undefined;
     if (employeeId !== undefined) user.employeeId = employeeId && employeeId.trim() !== '' ? employeeId : undefined;
     if (department !== undefined) user.department = department;
+    if (major !== undefined) user.major = major;
     if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
     if (isActive !== undefined) user.isActive = isActive;
 
@@ -208,6 +211,7 @@ const updateUser = async (req, res) => {
         studentId: user.studentId,
         employeeId: user.employeeId,
         department: user.department,
+        major: user.major,
         phoneNumber: user.phoneNumber,
         isActive: user.isActive,
         updatedAt: user.updatedAt

@@ -62,6 +62,7 @@ const UserManagement = () => {
     studentId: '',
     employeeId: '',
     department: '',
+    major: '',
     phoneNumber: ''
   });
   const [addLoading, setAddLoading] = useState(false);
@@ -120,8 +121,9 @@ const UserManagement = () => {
           role: 'student',
           studentId: userData.studentId || '',
           employeeId: '',
-          department: '',
-          phoneNumber: userData.phoneNumber || ''
+          department: userData.department || '',
+          phoneNumber: userData.phoneNumber || '',
+          major: userData.major || ''
         });
         setAddDialogOpen(true);
         
@@ -216,6 +218,7 @@ const UserManagement = () => {
         studentId: '',
         employeeId: '',
         department: '',
+        major: '',
         phoneNumber: ''
       });
       setSuccessMessage(`User '${newUser.firstName} ${newUser.lastName}' created successfully`);
@@ -265,6 +268,7 @@ const UserManagement = () => {
       studentId: user.studentId || '',
       employeeId: user.employeeId || '',
       department: user.department || '',
+      major: user.major || '',
       phoneNumber: user.phoneNumber || '',
       isActive: user.isActive
     });
@@ -716,6 +720,15 @@ const UserManagement = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                label="Major"
+                value={newUser.major}
+                onChange={(e) => handleInputChange('major', e.target.value)}
+                helperText="Optional: Student's major/specialization"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
                 label="Phone Number"
                 value={newUser.phoneNumber}
                 onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
@@ -839,6 +852,15 @@ const UserManagement = () => {
                   value={editUser.department}
                   onChange={(e) => handleEditInputChange('department', e.target.value)}
                   helperText="Optional: User's department"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Major"
+                  value={editUser.major}
+                  onChange={(e) => handleEditInputChange('major', e.target.value)}
+                  helperText="Optional: Student's major/specialization"
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
