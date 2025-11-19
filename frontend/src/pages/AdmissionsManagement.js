@@ -25,7 +25,11 @@ import {
   Grid,
   Button,
   Card,
-  CardContent
+  CardContent,
+  Checkbox,
+  Toolbar,
+  Fade,
+  Stack
 } from '@mui/material';
 import {
   Search,
@@ -39,12 +43,14 @@ import {
   FilterList,
   Refresh,
   Assignment,
-  TrendingUp
+  TrendingUp,
+  Clear
 } from '@mui/icons-material';
 import { applicationService } from '../services/applicationService';
 import { useAuth } from '../context/AuthContext';
 import AddApplicationDialog from '../components/admissions/AddApplicationDialog';
 import ApplicationViewDialog from '../components/admissions/ApplicationViewDialog';
+import ApplicationReviewDialog from '../components/admissions/ApplicationReviewDialog';
 
 const AdmissionsManagement = () => {
   const { user } = useAuth();
@@ -68,7 +74,10 @@ const AdmissionsManagement = () => {
   });
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [selectedApplications, setSelectedApplications] = useState([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
   // Fetch applications from API
   const fetchApplications = async () => {
@@ -223,6 +232,89 @@ const AdmissionsManagement = () => {
     setSelectedApplication(application);
     setShowViewDialog(true);
   };
+
+  // Handle review application
+  const handleReviewApplication = (application) => {
+    setSelectedApplication(application);
+    setShowReviewDialog(true);
+  };
+
+  // Handle review success
+  const handleReviewSuccess = (updatedApplication) => {
+    setSuccessMessage(`Application ${updatedApplication.applicationId} status updated successfully!`);
+    refreshData();
+  };
+
+  // Handle bulk selection
+  const handleSelectApplication = (applicationId, checked) => {
+    if (checked) {
+      setSelectedApplications(prev => [...prev, applicationId]);
+    } else {
+      setSelectedApplications(prev => prev.filter(id => id !== applicationId));
+    }
+  };
+
+  // Handle select all
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedApplications(applications.map(app => app._id));
+    } else {
+      setSelectedApplications([]);
+    }
+  };
+
+  // Handle bulk approve
+  const handleBulkApprove = async () => {
+    if (selectedApplications.length === 0) return;
+    
+    try {
+      setLoading(true);
+      const promises = selectedApplications.map(id => 
+        applicationService.updateApplicationStatus(id, {
+          status: 'Approved',
+          reviewComments: 'Bulk approved'
+        })
+      );
+      
+      await Promise.all(promises);
+      setSuccessMessage(`${selectedApplications.length} applications approved successfully!`);
+      setSelectedApplications([]);
+      refreshData();
+    } catch (error) {
+      setError('Failed to bulk approve applications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle bulk reject
+  const handleBulkReject = async () => {
+    if (selectedApplications.length === 0) return;
+    
+    try {
+      setLoading(true);
+      const promises = selectedApplications.map(id => 
+        applicationService.updateApplicationStatus(id, {
+          status: 'Rejected',
+          reviewComments: 'Bulk rejected'
+        })
+      );
+      
+      await Promise.all(promises);
+      setSuccessMessage(`${selectedApplications.length} applications rejected successfully!`);
+      setSelectedApplications([]);
+      refreshData();
+    } catch (error) {
+      setError('Failed to bulk reject applications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show/hide bulk actions based on selection
+  useEffect(() => {
+    setShowBulkActions(selectedApplications.length > 0);
+  }, [selectedApplications]);
 
   // Handle approve application
   const handleApproveApplication = async (applicationId) => {
@@ -478,12 +570,59 @@ const AdmissionsManagement = () => {
         </Grid>
       </Paper>
 
+      {/* Bulk Actions Toolbar */}
+      <Fade in={showBulkActions}>
+        <Paper sx={{ mb: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+          <Toolbar>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              {selectedApplications.length} application{selectedApplications.length !== 1 ? 's' : ''} selected
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<CheckCircle />}
+                onClick={handleBulkApprove}
+                disabled={loading}
+              >
+                Approve All
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<Cancel />}
+                onClick={handleBulkReject}
+                disabled={loading}
+              >
+                Reject All
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Clear />}
+                onClick={() => setSelectedApplications([])}
+                sx={{ color: 'inherit', borderColor: 'currentColor' }}
+              >
+                Clear
+              </Button>
+            </Stack>
+          </Toolbar>
+        </Paper>
+      </Fade>
+
       {/* Applications Table */}
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
         <TableContainer sx={{ maxHeight: 600 }}>
           <Table stickyHeader aria-label="applications table">
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    indeterminate={selectedApplications.length > 0 && selectedApplications.length < applications.length}
+                    checked={applications.length > 0 && selectedApplications.length === applications.length}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    disabled={loading}
+                  />
+                </TableCell>
                 <TableCell>Application ID</TableCell>
                 <TableCell>Applicant Name</TableCell>
                 <TableCell>Email</TableCell>
@@ -519,9 +658,18 @@ const AdmissionsManagement = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                applications.map((application) => (
-                  <TableRow key={application._id} hover>
-                    <TableCell>
+                applications.map((application) => {
+                  const isSelected = selectedApplications.includes(application._id);
+                  return (
+                    <TableRow key={application._id} hover selected={isSelected}>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={(e) => handleSelectApplication(application._id, e.target.checked)}
+                          disabled={loading}
+                        />
+                      </TableCell>
+                      <TableCell>
                       <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                         {application.applicationId}
                       </Typography>
@@ -574,7 +722,16 @@ const AdmissionsManagement = () => {
                         </Tooltip>
                         {(canManageApplications || user?.role === 'staff') && (
                           <>
-                            <Tooltip title="Approve application">
+                            <Tooltip title="Review & Update Status">
+                              <IconButton 
+                                size="small" 
+                                color="primary"
+                                onClick={() => handleReviewApplication(application)}
+                              >
+                                <Assignment />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Quick Approve">
                               <IconButton 
                                 size="small" 
                                 color="success"
@@ -584,7 +741,7 @@ const AdmissionsManagement = () => {
                                 <CheckCircle />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Reject application">
+                            <Tooltip title="Quick Reject">
                               <IconButton 
                                 size="small" 
                                 color="error"
@@ -621,7 +778,8 @@ const AdmissionsManagement = () => {
                       </Box>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -662,6 +820,17 @@ const AdmissionsManagement = () => {
           setSelectedApplication(null);
         }}
         application={selectedApplication}
+      />
+
+      {/* Review Application Dialog */}
+      <ApplicationReviewDialog
+        open={showReviewDialog}
+        onClose={() => {
+          setShowReviewDialog(false);
+          setSelectedApplication(null);
+        }}
+        application={selectedApplication}
+        onSuccess={handleReviewSuccess}
       />
     </Container>
   );
