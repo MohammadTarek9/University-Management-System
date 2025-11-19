@@ -47,6 +47,16 @@ const Facilities = () => {
       //comingSoon: true
     },
     {
+      id: 'admissions',
+      title: 'Admissions Management',
+      description: 'Review and process student admission applications. Track application status, approve/reject applicants, and manage enrollment workflow.',
+      icon: <School sx={{ fontSize: 40 }} />,
+      path: '/facilities/admissions',
+      color: 'success',
+      permissions: ['admin', 'staff'],
+      features: ['Review Applications', 'Status Management', 'Approval Workflow', 'Application Analytics']
+    },
+    {
       id: 'resources',
       title: 'Resource Allocation',
       description: 'Track and allocate equipment, software licenses, and other resources across departments and faculty.',
