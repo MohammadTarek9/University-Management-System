@@ -51,7 +51,7 @@ const UserManagement = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalUsers, setTotalUsers] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newUser, setNewUser] = useState({
     firstName: '',
@@ -62,6 +62,7 @@ const UserManagement = () => {
     studentId: '',
     employeeId: '',
     department: '',
+    major: '',
     phoneNumber: ''
   });
   const [addLoading, setAddLoading] = useState(false);
@@ -82,7 +83,7 @@ const UserManagement = () => {
         page: page + 1,
         limit: rowsPerPage,
         search: searchTerm,
-        role: roleFilter
+        ...(roleFilter && { role: roleFilter })
       };
 
       const response = await userService.getAllUsers(params);
@@ -103,6 +104,39 @@ const UserManagement = () => {
       fetchUsers();
     }
   }, [page, rowsPerPage, searchTerm, roleFilter, user]);
+
+  // Check for pre-populated data from student credentials
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const prePopulateData = localStorage.getItem('prePopulateUserData');
+    
+    if (urlParams.get('action') === 'create' && prePopulateData) {
+      try {
+        const userData = JSON.parse(prePopulateData);
+        setNewUser({
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          email: userData.email || '',
+          password: userData.temporaryPassword || '',
+          role: 'student',
+          studentId: userData.studentId || '',
+          employeeId: '',
+          department: userData.department || '',
+          phoneNumber: userData.phoneNumber || '',
+          major: userData.major || ''
+        });
+        setAddDialogOpen(true);
+        
+        // Clear the stored data
+        localStorage.removeItem('prePopulateUserData');
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (error) {
+        console.error('Error parsing pre-populate data:', error);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     if (successMessage) {
@@ -159,7 +193,21 @@ const UserManagement = () => {
     setError('');
 
     try {
-      const response = await userService.createUser(newUser);
+      // Add firstLogin flag if this is from student credentials
+      const userData = { 
+        ...newUser,
+        // Clean up empty ID values to prevent duplicate key errors
+        studentId: newUser.studentId?.trim() || undefined,
+        employeeId: newUser.employeeId?.trim() || undefined,
+        // Add firstLogin fields for pre-populated student accounts
+        ...(newUser.studentId && newUser.email && newUser.email.includes('@uni.edu.eg') && {
+          firstLogin: true,
+          mustChangePassword: true
+        })
+      };
+      
+      console.log('Creating user with data:', { ...userData, password: '[HIDDEN]' });
+      const response = await userService.createUser(userData);
       setAddDialogOpen(false);
       setNewUser({
         firstName: '',
@@ -170,12 +218,24 @@ const UserManagement = () => {
         studentId: '',
         employeeId: '',
         department: '',
+        major: '',
         phoneNumber: ''
       });
       setSuccessMessage(`User '${newUser.firstName} ${newUser.lastName}' created successfully`);
       fetchUsers(); // Refresh the user list
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create user');
+      console.error('User creation error:', err);
+      let errorMessage = 'Failed to create user';
+      
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.errors && Array.isArray(err.errors)) {
+        errorMessage = err.errors.map(error => error.msg).join(', ');
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      setError(errorMessage);
     } finally {
       setAddLoading(false);
     }
@@ -208,6 +268,7 @@ const UserManagement = () => {
       studentId: user.studentId || '',
       employeeId: user.employeeId || '',
       department: user.department || '',
+      major: user.major || '',
       phoneNumber: user.phoneNumber || '',
       isActive: user.isActive
     });
@@ -544,6 +605,11 @@ const UserManagement = () => {
           </Box>
         </DialogTitle>
         <DialogContent>
+          {newUser.studentId && newUser.password && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <strong>Student Account Creation:</strong> This form has been pre-populated with data from an approved admission application. Please review and complete the remaining fields.
+            </Alert>
+          )}
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -571,17 +637,25 @@ const UserManagement = () => {
                 value={newUser.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 required
+                disabled={!!(newUser.email && newUser.email.includes('@uni.edu.eg'))} // Disable if university email
+                helperText={newUser.email && newUser.email.includes('@uni.edu.eg') ? 
+                  "Auto-generated university email address" : 
+                  "Enter the user's email address"
+                }
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Password"
+                label={newUser.studentId ? "Temporary Password" : "Password"}
                 type="password"
                 value={newUser.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
                 required
-                helperText="Password must be at least 6 characters"
+                helperText={newUser.studentId ? 
+                  "This is the temporary password generated for the student. They will be required to change it on first login." : 
+                  "Password must be at least 6 characters and contain uppercase, lowercase, and number"
+                }
               />
             </Grid>
             <Grid item xs={12}>
@@ -611,7 +685,11 @@ const UserManagement = () => {
                   value={newUser.studentId}
                   onChange={(e) => handleInputChange('studentId', e.target.value)}
                   required
-                  helperText="Enter a unique student identification number"
+                  disabled={!!(newUser.studentId && newUser.password)} // Disable if pre-populated
+                  helperText={newUser.studentId && newUser.password ? 
+                    "Auto-generated student ID from admission application" : 
+                    "Enter a unique student identification number"
+                  }
                 />
               </Grid>
             )}
@@ -637,6 +715,15 @@ const UserManagement = () => {
                 value={newUser.department}
                 onChange={(e) => handleInputChange('department', e.target.value)}
                 helperText="Optional: User's department"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Major"
+                value={newUser.major}
+                onChange={(e) => handleInputChange('major', e.target.value)}
+                helperText="Optional: Student's major/specialization"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -765,6 +852,15 @@ const UserManagement = () => {
                   value={editUser.department}
                   onChange={(e) => handleEditInputChange('department', e.target.value)}
                   helperText="Optional: User's department"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Major"
+                  value={editUser.major}
+                  onChange={(e) => handleEditInputChange('major', e.target.value)}
+                  helperText="Optional: Student's major/specialization"
                 />
               </Grid>
               <Grid item xs={12} sm={6}>

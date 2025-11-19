@@ -43,14 +43,20 @@ const userSchema = new mongoose.Schema({
   studentId: {
     type: String,
     sparse: true,
-    unique: true
+    unique: true,
+    default: undefined
   },
   employeeId: {
     type: String,
     sparse: true,
-    unique: true
+    unique: true,
+    default: undefined
   },
   department: {
+    type: String,
+    trim: true
+  },
+  major: {
     type: String,
     trim: true
   },
@@ -73,16 +79,43 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date
   },
+  firstLogin: {
+    type: Boolean,
+    default: false
+  },
+  mustChangePassword: {
+    type: Boolean,
+    default: false
+  },
+  securityQuestion: {
+    type: String,
+    trim: true
+  },
   securityAnswer: {
-  type: String,
-  select: false
-},
+    type: String,
+    select: false
+  },
   resetPasswordToken: String,
   resetPasswordExpire: Date,
   emailVerificationToken: String,
   emailVerificationExpire: Date
 }, {
   timestamps: true
+});
+
+// Convert empty strings to undefined for unique fields to avoid duplicate key errors
+userSchema.pre('save', function(next) {
+  // Handle studentId
+  if (this.studentId === '') {
+    this.studentId = undefined;
+  }
+  
+  // Handle employeeId
+  if (this.employeeId === '') {
+    this.employeeId = undefined;
+  }
+  
+  next();
 });
 
 // Encrypt password using bcrypt before saving

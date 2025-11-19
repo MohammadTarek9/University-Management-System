@@ -19,7 +19,8 @@ import {
   Dashboard,
   Settings,
   MeetingRoom,
-  Person
+  Person,
+  School
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -126,6 +127,14 @@ const Header = () => {
                   <ListItemText>Facilities</ListItemText>
                 </MenuItem>
               )}
+              {['admin', 'staff'].includes(user?.role) && (
+                <MenuItem onClick={() => { handleClose(); navigate('/facilities/admissions'); }}>
+                  <ListItemIcon>
+                    <School fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Admissions</ListItemText>
+                </MenuItem>
+              )}
               {user?.role === 'admin' && (
                 <MenuItem onClick={() => { handleClose(); navigate('/admin/users'); }}>
                   <ListItemIcon>
@@ -153,9 +162,6 @@ const Header = () => {
           <Box>
             <Button color="inherit" onClick={() => navigate('/login')}>
               Login
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/register')}>
-              Register
             </Button>
           </Box>
         )}

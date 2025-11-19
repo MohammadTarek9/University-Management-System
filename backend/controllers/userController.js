@@ -82,7 +82,7 @@ const getUserById = async (req, res) => {
 // @access  Private/Admin
 const createUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, role, studentId, employeeId, department, phoneNumber } = req.body;
+    const { firstName, lastName, email, password, role, studentId, employeeId, department, major, phoneNumber, firstLogin, mustChangePassword, securityQuestion, securityAnswer } = req.body;
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
@@ -90,32 +90,37 @@ const createUser = async (req, res) => {
       return errorResponse(res, 400, 'User already exists with this email');
     }
 
-    // Check for duplicate studentId or employeeId
-    if (studentId) {
+    // Check for duplicate studentId or employeeId (only if they are not empty)
+    if (studentId && studentId.trim() !== '') {
       const existingStudent = await User.findOne({ studentId });
       if (existingStudent) {
         return errorResponse(res, 400, 'Student ID already exists');
       }
     }
 
-    if (employeeId) {
+    if (employeeId && employeeId.trim() !== '') {
       const existingEmployee = await User.findOne({ employeeId });
       if (existingEmployee) {
         return errorResponse(res, 400, 'Employee ID already exists');
       }
     }
 
-    // Create user
+    // Create user (convert empty strings to undefined for unique fields)
     const user = await User.create({
       firstName,
       lastName,
       email,
       password,
       role: role || 'student',
-      studentId,
-      employeeId,
+      studentId: studentId && studentId.trim() !== '' ? studentId : undefined,
+      employeeId: employeeId && employeeId.trim() !== '' ? employeeId : undefined,
       department,
-      phoneNumber
+      major,
+      phoneNumber,
+      firstLogin: firstLogin || false,
+      mustChangePassword: mustChangePassword || false,
+      securityQuestion,
+      securityAnswer
     });
 
     // Remove password from output
@@ -132,6 +137,7 @@ const createUser = async (req, res) => {
         studentId: user.studentId,
         employeeId: user.employeeId,
         department: user.department,
+        major: user.major,
         phoneNumber: user.phoneNumber,
         isActive: user.isActive,
         createdAt: user.createdAt
@@ -149,7 +155,7 @@ const createUser = async (req, res) => {
 // @access  Private/Admin
 const updateUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, role, studentId, employeeId, department, phoneNumber, isActive } = req.body;
+    const { firstName, lastName, email, role, studentId, employeeId, department, major, phoneNumber, isActive } = req.body;
     
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -165,7 +171,7 @@ const updateUser = async (req, res) => {
     }
 
     // Check for duplicate studentId
-    if (studentId && studentId !== user.studentId) {
+    if (studentId && studentId.trim() !== '' && studentId !== user.studentId) {
       const existingStudent = await User.findOne({ studentId });
       if (existingStudent) {
         return errorResponse(res, 400, 'Student ID already exists');
@@ -173,7 +179,7 @@ const updateUser = async (req, res) => {
     }
 
     // Check for duplicate employeeId
-    if (employeeId && employeeId !== user.employeeId) {
+    if (employeeId && employeeId.trim() !== '' && employeeId !== user.employeeId) {
       const existingEmployee = await User.findOne({ employeeId });
       if (existingEmployee) {
         return errorResponse(res, 400, 'Employee ID already exists');
@@ -185,9 +191,10 @@ const updateUser = async (req, res) => {
     if (lastName !== undefined) user.lastName = lastName;
     if (email !== undefined) user.email = email;
     if (role !== undefined) user.role = role;
-    if (studentId !== undefined) user.studentId = studentId;
-    if (employeeId !== undefined) user.employeeId = employeeId;
+    if (studentId !== undefined) user.studentId = studentId && studentId.trim() !== '' ? studentId : undefined;
+    if (employeeId !== undefined) user.employeeId = employeeId && employeeId.trim() !== '' ? employeeId : undefined;
     if (department !== undefined) user.department = department;
+    if (major !== undefined) user.major = major;
     if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
     if (isActive !== undefined) user.isActive = isActive;
 
@@ -204,6 +211,7 @@ const updateUser = async (req, res) => {
         studentId: user.studentId,
         employeeId: user.employeeId,
         department: user.department,
+        major: user.major,
         phoneNumber: user.phoneNumber,
         isActive: user.isActive,
         updatedAt: user.updatedAt

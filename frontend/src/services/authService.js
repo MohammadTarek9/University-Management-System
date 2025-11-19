@@ -1,6 +1,16 @@
 import api from './api';
 
 export const authService = {
+  // Health check to verify backend connection
+  healthCheck: async () => {
+    try {
+      const response = await api.get('/health');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Backend server is not responding' };
+    }
+  },
+
   login: async (credentials) => {
     try {
       const response = await api.post('/auth/login', credentials);
@@ -14,18 +24,7 @@ export const authService = {
     }
   },
 
-  register: async (userData) => {
-    try {
-      const response = await api.post('/auth/register', userData);
-      if (response.data.success) {
-        localStorage.setItem('token', response.data.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      }
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Registration failed' };
-    }
-  },
+
 
   getCurrentUser: async () => {
     try {
@@ -48,6 +47,15 @@ export const authService = {
   },
 
   // ADDED PASSWORD RESET METHODS
+  getSecurityQuestion: async (email) => {
+    try {
+      const response = await api.get(`/auth/security-question?email=${encodeURIComponent(email)}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch security question' };
+    }
+  },
+
   forgotPassword: async (credentials) => {
     try {
       const response = await api.post('/auth/forgot-password', credentials);
@@ -63,6 +71,15 @@ export const authService = {
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Password reset failed' };
+    }
+  },
+
+  firstLoginChangePassword: async (passwordData) => {
+    try {
+      const response = await api.post('/auth/first-login-change-password', passwordData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Password change failed' };
     }
   },
 

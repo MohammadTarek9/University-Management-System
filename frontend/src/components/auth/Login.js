@@ -8,11 +8,7 @@ import {
   Box,
   Alert,
   CircularProgress,
-  Link,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  Link
 } from '@mui/material';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
@@ -115,17 +111,20 @@ const Login = () => {
               {loading ? <CircularProgress size={24} /> : 'Sign In'}
             </Button>
              
-            {/* ADDED FORGOT PASSWORD LINK */}
+            {/* FORGOT PASSWORD LINK */}
             <Box textAlign="center" sx={{ mt: 2 }}>
               <Link component={RouterLink} to="/forgot-password" variant="body2">
                 Forgot Password?
               </Link>
             </Box>
-
-            <Box textAlign="center">
-              <Link component={RouterLink} to="/register" variant="body2">
-                Don't have an account? Sign Up
-              </Link>
+            
+            {/* INFO ABOUT ACCOUNT CREATION */}
+            <Box textAlign="center" sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Student accounts are created automatically upon admission approval.
+                <br />
+                Contact administration for account access.
+              </Typography>
             </Box>
           </Box>
         </Paper>
