@@ -16,31 +16,34 @@ const sendResponse = (res, statusCode, success, message, data = null, errors = n
 // @access  Private (Admin/Staff)
 exports.getAllApplications = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      program,
-      degreeLevel,
-      search,
-      sortBy = 'submittedAt',
-      sortOrder = 'desc',
-      dateFrom,
-      dateTo,
-      nationality
-    } = req.query;
+  const {
+    page = 1,
+    limit = 10,
+    status,
+    department,
+    degreeLevel,
+    search,
+    sortBy = 'submittedAt',
+    sortOrder = 'desc',
+    dateFrom,
+    dateTo,
+    nationality
+  } = req.query;
 
-    // Build filter object
-    const filter = {};
-    
-    if (status && status !== 'all') {
-      filter.status = status;
-    }
-    
-    if (program && program !== 'all') {
-      filter['academicInfo.program'] = program;
-    }
-    
+  // Debug logging
+  console.log('Query parameters received:', req.query);
+  console.log('Department filter value:', department);
+  console.log('Department type:', typeof department);
+  console.log('Department !== "all":', department !== 'all');
+
+  // Build filter object
+  let filter = {};
+  
+  if (status && status !== 'all') {
+    filter.status = status;
+    console.log('Status filter applied:', status);
+  }
+  
     if (degreeLevel && degreeLevel !== 'all') {
       filter['academicInfo.degreeLevel'] = degreeLevel;
     }
@@ -59,19 +62,46 @@ exports.getAllApplications = async (req, res) => {
         filter.submittedAt.$lte = new Date(dateTo);
       }
     }
+
+    // Build complex filter with proper AND/OR logic
+    const andConditions = [];
+
+    // Department filter (try both old and new locations)
+    if (department && department !== 'all') {
+      andConditions.push({
+        $or: [
+          { 'personalInfo.department': department },
+          { 'academicInfo.program': department }
+        ]
+      });
+      console.log('Department filter applied with value:', department);
+    }
     
     // Search functionality
     if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
-      filter.$or = [
-        { 'personalInfo.firstName': searchRegex },
-        { 'personalInfo.lastName': searchRegex },
-        { 'personalInfo.email': searchRegex },
-        { applicationId: searchRegex },
-        { 'academicInfo.program': searchRegex },
-        { 'personalInfo.nationality': searchRegex },
-        { 'academicInfo.previousEducation.institution': searchRegex }
-      ];
+      andConditions.push({
+        $or: [
+          { 'personalInfo.firstName': searchRegex },
+          { 'personalInfo.lastName': searchRegex },
+          { 'personalInfo.email': searchRegex },
+          { applicationId: searchRegex },
+          { 'personalInfo.department': searchRegex },
+          { 'personalInfo.nationality': searchRegex },
+          { 'academicInfo.previousEducation.institution': searchRegex }
+        ]
+      });
+    }
+
+    // Combine with existing filter conditions
+    if (andConditions.length > 0) {
+      const baseFilter = { ...filter };
+      filter = {
+        $and: [
+          baseFilter,
+          ...andConditions
+        ]
+      };
     }
 
     // Calculate pagination
@@ -80,6 +110,9 @@ exports.getAllApplications = async (req, res) => {
     // Build sort object
     const sort = {};
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+    // Debug: Log final filter object
+    console.log('Final MongoDB filter:', JSON.stringify(filter, null, 2));
 
     // Execute queries
     const [applications, totalApplications] = await Promise.all([
@@ -91,6 +124,8 @@ exports.getAllApplications = async (req, res) => {
         .lean(),
       Application.countDocuments(filter)
     ]);
+
+    console.log(`Query returned ${applications.length} applications, total count: ${totalApplications}`);
 
     // Calculate pagination info
     const totalPages = Math.ceil(totalApplications / parseInt(limit));
@@ -390,7 +425,7 @@ exports.getFilterOptions = async (req, res) => {
     const institutions = await Application.distinct('academicInfo.previousEducation.institution');
     
     // Static options
-    const programs = [
+    const departments = [
       'Computer Science',
       'Engineering',
       'Business Administration',
@@ -407,7 +442,7 @@ exports.getFilterOptions = async (req, res) => {
     const statuses = ['Pending Review', 'Under Review', 'Approved', 'Rejected', 'Waitlisted'];
     
     const filterOptions = {
-      programs,
+      departments,
       degreeLevels,
       statuses,
       nationalities: nationalities.sort(), // Already comprehensive, just sort them
@@ -434,10 +469,10 @@ exports.getApplicationStats = async (req, res) => {
       submittedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
     });
     
-    const programStats = await Application.aggregate([
+    const departmentStats = await Application.aggregate([
       {
         $group: {
-          _id: '$academicInfo.program',
+          _id: '$personalInfo.department',
           count: { $sum: 1 }
         }
       },
@@ -447,7 +482,7 @@ exports.getApplicationStats = async (req, res) => {
     const responseData = {
       ...stats,
       recentApplications,
-      byProgram: programStats.reduce((acc, stat) => {
+      byDepartment: departmentStats.reduce((acc, stat) => {
         acc[stat._id] = stat.count;
         return acc;
       }, {})

@@ -181,6 +181,16 @@ const ApplicationViewDialog = ({ open, onClose, application }) => {
                   <Typography variant="body1">{application.personalInfo.nationality}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Department</Typography>
+                  <Typography variant="body1">{application.personalInfo.department}</Typography>
+                </Grid>
+                {application.academicInfo.major && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Major</Typography>
+                    <Typography variant="body1">{application.academicInfo.major}</Typography>
+                  </Grid>
+                )}
+                <Grid item xs={12} sm={6}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
                     <LocationOn sx={{ mr: 1, fontSize: 16, mt: 0.5 }} />
                     <Box>
