@@ -189,6 +189,65 @@ exports.createApplication = async (req, res) => {
   }
 };
 
+// @desc    Update entire application (Edit mode)
+// @route   PUT /api/facilities/applications/:id
+// @access  Private (Admin only)
+exports.updateApplication = async (req, res) => {
+  try {
+    // Validate request data
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return sendResponse(res, 400, false, 'Validation failed', null, errors.array());
+    }
+
+    const application = await Application.findById(req.params.id);
+    
+    if (!application) {
+      return sendResponse(res, 404, false, 'Application not found');
+    }
+
+    // Check if another application exists with the same email (excluding current one)
+    if (req.body.personalInfo?.email && req.body.personalInfo.email !== application.personalInfo.email) {
+      const existingApplication = await Application.findOne({
+        'personalInfo.email': req.body.personalInfo.email,
+        _id: { $ne: req.params.id }
+      });
+
+      if (existingApplication) {
+        return sendResponse(res, 409, false, 'An application with this email already exists');
+      }
+    }
+
+    // Update application fields
+    Object.assign(application, req.body);
+    
+    // Update processing info
+    application.processingInfo.lastModifiedBy = req.user._id;
+    application.processingInfo.lastModified = new Date();
+    
+    await application.save();
+
+    sendResponse(res, 200, true, 'Application updated successfully', application);
+
+  } catch (error) {
+    console.error('Error updating application:', error);
+    
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+      return sendResponse(res, 400, false, 'Validation failed', null, validationErrors);
+    }
+    
+    if (error.code === 11000) {
+      return sendResponse(res, 409, false, 'Application with this information already exists');
+    }
+    
+    sendResponse(res, 500, false, 'Server error while updating application');
+  }
+};
+
 // @desc    Update application status (Approve/Reject/etc.)
 // @route   PUT /api/facilities/applications/:id/status
 // @access  Private (Admin/Staff)

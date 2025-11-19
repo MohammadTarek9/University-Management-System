@@ -4,6 +4,7 @@ const {
   getAllApplications,
   getApplicationById,
   createApplication,
+  updateApplication,
   updateApplicationStatus,
   deleteApplication,
   getApplicationStats,
@@ -155,6 +156,9 @@ router.post('/', authorize(['admin']), applicationValidation, createApplication)
 
 // GET /api/facilities/applications/:id - Get single application
 router.get('/:id', authorize(['admin', 'staff']), getApplicationById);
+
+// PUT /api/facilities/applications/:id - Update entire application (Admin only)
+router.put('/:id', authorize(['admin']), applicationValidation, updateApplication);
 
 // PUT /api/facilities/applications/:id/status - Update application status (Admin, Staff)
 router.put('/:id/status', authorize(['admin', 'staff']), statusUpdateValidation, updateApplicationStatus);
