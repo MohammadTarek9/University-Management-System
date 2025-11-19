@@ -21,6 +21,7 @@ import Facilities from './pages/Facilities';
 import RoomManagement from './pages/RoomManagement';
 import ProfilePage from './pages/ProfilePage';
 import BookingManagement from './pages/BookingManagement';
+import AdmissionsManagement from './pages/AdmissionsManagement';
 
 // Theme
 const theme = createTheme({
@@ -128,6 +129,14 @@ function App() {
                   element={
                     <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
                       <BookingManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/facilities/admissions"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                      <AdmissionsManagement />
                     </ProtectedRoute>
                   }
                 />
