@@ -28,7 +28,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormHelperText,
   Autocomplete
 } from '@mui/material';
 import {
@@ -40,7 +39,8 @@ import {
   Refresh,
   School,
   Business,
-  Close
+  Close,
+  People  
 } from '@mui/icons-material';
 import { roomService } from '../services/roomService';
 import { useAuth } from '../context/AuthContext';
@@ -58,7 +58,8 @@ const RoomManagement = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [buildingFilter, setBuildingFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-
+  const [capacityFilter, setCapacityFilter] = useState('');
+  
   // Dialog state
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
@@ -267,6 +268,7 @@ const RoomManagement = () => {
         search: searchTerm,
         type: typeFilter,
         building: buildingFilter,
+        capacity: capacityFilter,
         isActive: statusFilter
       };
 
@@ -292,7 +294,7 @@ const RoomManagement = () => {
   // Initial load and when dependencies change
   useEffect(() => {
     fetchRooms();
-  }, [page, rowsPerPage, searchTerm, typeFilter, buildingFilter, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, rowsPerPage, searchTerm, typeFilter, buildingFilter, capacityFilter, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-clear success messages after 5 seconds
   useEffect(() => {
@@ -337,6 +339,10 @@ const RoomManagement = () => {
     setPage(0);
   };
 
+  const handleCapacityFilterChange = (event) => {
+    setCapacityFilter(event.target.value);
+    setPage(0);
+  };
   // Get room type display properties
   const getRoomTypeChipProps = (type) => {
     const typeConfig = {
@@ -485,6 +491,24 @@ const RoomManagement = () => {
                 <MenuItem value="false">Inactive</MenuItem>
               </Select>
             </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField
+              fullWidth
+              label="Min Capacity"
+              type="number"
+              value={capacityFilter}
+              onChange={handleCapacityFilterChange}
+              placeholder="Min capacity"
+              inputProps={{ min: 1 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <People />
+                  </InputAdornment>
+                ),
+              }}
+            />
           </Grid>
         </Grid>
       </Paper>

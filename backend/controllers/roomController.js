@@ -13,6 +13,7 @@ exports.getAllRooms = async (req, res) => {
     const search = req.query.search || '';
     const type = req.query.type || '';
     const building = req.query.building || '';
+    const capacity = req.query.capacity || ''; 
     const isActive = req.query.isActive;
 
     // Build filter object
@@ -32,6 +33,10 @@ exports.getAllRooms = async (req, res) => {
     
     if (building && building !== 'all') {
       filter['location.building'] = building;
+    }
+    
+    if (capacity && !isNaN(capacity)) {
+      filter.capacity = { $gte: parseInt(capacity) };
     }
     
     if (isActive !== undefined && isActive !== 'all') {
