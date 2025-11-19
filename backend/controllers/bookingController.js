@@ -342,21 +342,81 @@ exports.searchAvailableRooms = async (req, res) => {
       limit = 10
     } = req.query;
 
-    // Validate required parameters
-    if (!startTime || !endTime) {
-      return errorResponse(res, 400, 'Start time and end time are required');
+    let start, end;
+
+    // Helper function to create valid date from time string
+    const createDateTime = (dateStr, timeStr) => {
+      if (!timeStr) return null;
+      
+      // If timeStr is already a full ISO string, use it directly
+      if (timeStr.includes('T')) {
+        return new Date(timeStr);
+      }
+      
+      // If we have a date and time, combine them
+      if (dateStr && timeStr) {
+        return new Date(`${dateStr}T${timeStr}`);
+      }
+      
+      // If only time is provided, use today's date with that time
+      if (timeStr && !dateStr) {
+        const today = new Date().toISOString().split('T')[0];
+        return new Date(`${today}T${timeStr}`);
+      }
+      
+      return null;
+    };
+
+    // Handle different input scenarios
+    if (date && startTime && endTime) {
+      // Both date and times provided - combine them
+      start = createDateTime(date, startTime);
+      end = createDateTime(date, endTime);
+    }
+    else if (date && !startTime && !endTime) {
+      // Only date provided - set to reasonable defaults
+      const selectedDate = new Date(date);
+      const now = new Date();
+      
+      // If selected date is today, start from current time + 1 hour
+      if (selectedDate.toDateString() === now.toDateString()) {
+        start = new Date(now);
+        start.setHours(now.getHours() + 1, 0, 0, 0);
+      } else {
+        // Future date - start from 8:00 AM
+        start = new Date(selectedDate);
+        start.setHours(8, 0, 0, 0);
+      }
+      
+      // End time 2 hours after start
+      end = new Date(start);
+      end.setHours(start.getHours() + 2);
+    }
+    else if (startTime && endTime) {
+      // Only times provided (with or without date) - use createDateTime
+      start = createDateTime(date, startTime);
+      end = createDateTime(date, endTime);
+      
+      // If times are invalid, use defaults
+      if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+        start = new Date(Date.now() + 1 * 60 * 60 * 1000);
+        end = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      }
+    }
+    else {
+      // Default: start from current time + 1 hour
+      start = new Date(Date.now() + 1 * 60 * 60 * 1000);
+      end = new Date(Date.now() + 2 * 60 * 60 * 1000);
     }
 
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    
+    // Validate that dates are valid
+    if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return errorResponse(res, 400, 'Invalid date/time format provided');
+    }
+
     // Validate time range
     if (start >= end) {
       return errorResponse(res, 400, 'End time must be after start time');
-    }
-
-    if (start < new Date()) {
-      return errorResponse(res, 400, 'Cannot book rooms in the past');
     }
 
     // Validate duration (minimum 30 minutes, maximum 8 hours)
@@ -403,6 +463,9 @@ exports.searchAvailableRooms = async (req, res) => {
       }
     }
 
+    // Extract unique buildings for filter options
+    const uniqueBuildings = [...new Set(rooms.map(room => room.location.building))];
+
     // Pagination
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + parseInt(limit);
@@ -420,16 +483,26 @@ exports.searchAvailableRooms = async (req, res) => {
       rooms: paginatedRooms,
       pagination,
       searchCriteria: {
-        startTime,
-        endTime,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
         capacity,
         building,
-        roomType
+        roomType,
+        date
+      },
+      filterOptions: {
+        buildings: uniqueBuildings
       }
     });
 
   } catch (error) {
     console.error('Error searching available rooms:', error);
+    
+    // Handle specific CastError
+    if (error.name === 'CastError') {
+      return errorResponse(res, 400, 'Invalid date/time format provided');
+    }
+    
     return errorResponse(res, 500, 'Failed to search available rooms');
   }
 };
