@@ -47,6 +47,25 @@ export const authService = {
     }
   },
 
+  // ADDED PASSWORD RESET METHODS
+  forgotPassword: async (credentials) => {
+    try {
+      const response = await api.post('/auth/forgot-password', credentials);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Password reset failed' };
+    }
+  },
+
+  resetPassword: async (token, newPassword) => {
+    try {
+      const response = await api.put(`/auth/reset-password/${token}`, { password: newPassword });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Password reset failed' };
+    }
+  },
+
   isAuthenticated: () => {
     const token = localStorage.getItem('token');
     return !!token;
