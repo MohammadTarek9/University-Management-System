@@ -101,6 +101,7 @@ const login = async (req, res) => {
 
     successResponse(res, 200, 'Login successful', {
       token,
+      requirePasswordChange: user.firstLogin && user.mustChangePassword,
       user: {
         id: user._id,
         firstName: user.firstName,
@@ -111,7 +112,9 @@ const login = async (req, res) => {
         employeeId: user.employeeId,
         department: user.department,
         phoneNumber: user.phoneNumber,
-        lastLogin: user.lastLogin
+        lastLogin: user.lastLogin,
+        firstLogin: user.firstLogin,
+        mustChangePassword: user.mustChangePassword
       }
     });
 
@@ -153,6 +156,35 @@ const getMe = async (req, res) => {
 
 const logout = async (req, res) => {
   successResponse(res, 200, 'Logout successful');
+};
+
+// Get Security Question by Email
+const getSecurityQuestion = async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    if (!email) {
+      return errorResponse(res, 400, 'Please provide email address');
+    }
+
+    const user = await User.findOne({ email }).select('securityQuestion');
+    
+    if (!user) {
+      return errorResponse(res, 404, 'No user found with this email address');
+    }
+
+    if (!user.securityQuestion) {
+      return errorResponse(res, 400, 'No security question set for this user');
+    }
+
+    successResponse(res, 200, 'Security question retrieved', {
+      securityQuestion: user.securityQuestion
+    });
+
+  } catch (error) {
+    console.error(error);
+    errorResponse(res, 500, 'Server error retrieving security question');
+  }
 };
 
 // Password Reset Functions
@@ -318,15 +350,111 @@ const resetPasswordValidation = [
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number')
 ];
 
+// @desc    First-time login password change with security question setup
+// @route   POST /api/auth/first-login-change-password
+// @access  Private (First-time login users only)
+const firstLoginChangePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, securityQuestion, securityAnswer } = req.body;
+
+    // Get user with password and security fields
+    const user = await User.findById(req.user.id).select('+password +securityAnswer');
+
+    if (!user) {
+      return errorResponse(res, 404, 'User not found');
+    }
+
+    // Check if this is indeed a first-time login user
+    if (!user.firstLogin || !user.mustChangePassword) {
+      return errorResponse(res, 400, 'This endpoint is only for first-time login users');
+    }
+
+    // Verify current password
+    const isValidPassword = await user.matchPassword(currentPassword);
+    if (!isValidPassword) {
+      return errorResponse(res, 400, 'Current password is incorrect');
+    }
+
+    // Validate new password is different from current
+    const isSamePassword = await user.matchPassword(newPassword);
+    if (isSamePassword) {
+      return errorResponse(res, 400, 'New password must be different from current password');
+    }
+
+    // Update user with new password and security question
+    user.password = newPassword;
+    user.securityQuestion = securityQuestion;
+    user.securityAnswer = securityAnswer;
+    user.firstLogin = false;
+    user.mustChangePassword = false;
+    user.isEmailVerified = true; // Mark as verified since they completed first login
+    user.lastLogin = new Date();
+
+    await user.save();
+
+    // Generate new token
+    const token = user.getSignedJwtToken();
+
+    // Remove sensitive fields from response
+    user.password = undefined;
+    user.securityAnswer = undefined;
+
+    successResponse(res, 200, 'Password changed successfully. You can now access the system.', {
+      token,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        studentId: user.studentId,
+        isEmailVerified: user.isEmailVerified,
+        firstLogin: user.firstLogin
+      }
+    });
+
+  } catch (error) {
+    console.error('First login password change error:', error);
+    errorResponse(res, 500, 'Server error during password change');
+  }
+};
+
+const firstLoginChangePasswordValidation = [
+  body('currentPassword')
+    .notEmpty()
+    .withMessage('Current password is required'),
+  
+  body('newPassword')
+    .isLength({ min: 6 })
+    .withMessage('New password must be at least 6 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('New password must contain at least one uppercase letter, one lowercase letter, and one number'),
+  
+  body('securityQuestion')
+    .notEmpty()
+    .withMessage('Security question is required')
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Security question must be between 5 and 200 characters'),
+  
+  body('securityAnswer')
+    .notEmpty()
+    .withMessage('Security answer is required')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Security answer must be between 2 and 100 characters')
+];
+
 module.exports = {
   register,
   login,
   getMe,
   logout,
+  getSecurityQuestion,
   forgotPassword,
   resetPassword,
+  firstLoginChangePassword,
   registerValidation,
   loginValidation,
   forgotPasswordValidation,
-  resetPasswordValidation
+  resetPasswordValidation,
+  firstLoginChangePasswordValidation
 };

@@ -50,6 +50,8 @@ const ForgotPassword = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [showAlert, setShowAlert] = useState(false);
   const [resetToken, setResetToken] = useState('');
+  const [securityQuestion, setSecurityQuestion] = useState('');
+  const [loadingQuestion, setLoadingQuestion] = useState(false);
   const { loading, error, clearError, forgotPassword, resetPassword } = useAuth();
   const navigate = useNavigate();
 
@@ -152,9 +154,19 @@ const ForgotPassword = () => {
               <Typography variant="h6" gutterBottom>
                 Verify Your Identity
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Please answer your security question: <strong>Who was your favorite teacher?</strong>
-              </Typography>
+              {securityQuestion ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Please answer your security question: <strong>{securityQuestion}</strong>
+                </Typography>
+              ) : loadingQuestion ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Loading security question...
+                </Typography>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Enter your email address to see your security question
+                </Typography>
+              )}
               
               <TextField
                 fullWidth
@@ -164,6 +176,22 @@ const ForgotPassword = () => {
                 type="email"
                 value={formikStep1.values.email}
                 onChange={formikStep1.handleChange}
+                onBlur={async (e) => {
+                  formikStep1.handleBlur(e);
+                  const email = e.target.value;
+                  if (email && !formikStep1.errors.email) {
+                    setLoadingQuestion(true);
+                    try {
+                      const { authService } = await import('../../services/authService');
+                      const response = await authService.getSecurityQuestion(email);
+                      setSecurityQuestion(response.data.securityQuestion);
+                    } catch (error) {
+                      setSecurityQuestion('');
+                      console.error('Failed to fetch security question:', error);
+                    }
+                    setLoadingQuestion(false);
+                  }
+                }}
                 error={formikStep1.touched.email && Boolean(formikStep1.errors.email)}
                 helperText={formikStep1.touched.email && formikStep1.errors.email}
                 margin="normal"
@@ -186,7 +214,7 @@ const ForgotPassword = () => {
                 fullWidth
                 variant="contained"
                 sx={{ mt: 3, mb: 2 }}
-                disabled={loading}
+                disabled={loading || !securityQuestion || loadingQuestion}
               >
                 {loading ? <CircularProgress size={24} /> : 'Verify Identity'}
               </Button>

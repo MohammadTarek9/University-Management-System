@@ -5,7 +5,9 @@ const { protect, authorize } = require('../../middleware/auth');
 // Import room routes
 const roomRoutes = require('../../routes/rooms');
 // Import booking routes
-const bookingRoutes = require('../../routes/bookings'); 
+const bookingRoutes = require('../../routes/bookings');
+// Import application routes
+const applicationRoutes = require('../../routes/applications'); 
 
 router.get('/health', (req, res) => {
   res.json({
@@ -18,7 +20,8 @@ router.get('/health', (req, res) => {
     ],
     activeRoutes: [
       'GET /api/facilities/rooms - Room management',
-      'GET /api/facilities/bookings - Booking management'
+      'GET /api/facilities/bookings - Booking management',
+      'GET /api/facilities/applications - Admission applications management'
     ]
   });
 });
@@ -27,6 +30,8 @@ router.get('/health', (req, res) => {
 router.use('/rooms', roomRoutes);
 // Mount booking routes 
 router.use('/bookings', bookingRoutes);
+// Mount application management routes
+router.use('/applications', applicationRoutes);
 
 // Future routes (commented for now)
 // router.get('/classrooms', protect, getClassrooms);
