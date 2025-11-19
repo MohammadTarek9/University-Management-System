@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { generateSecurePassword, validatePassword } = require('../utils/passwordValidator');
 
 const applicationSchema = new mongoose.Schema({
   // Applicant Personal Information
@@ -195,6 +196,10 @@ const applicationSchema = new mongoose.Schema({
       unique: true,
       sparse: true
     },
+    temporaryPassword: {
+      type: String,
+      select: false // Don't include in normal queries for security
+    },
     credentialsGeneratedAt: {
       type: Date
     },
@@ -262,7 +267,7 @@ applicationSchema.index({ applicationId: 1, unique: true });
 applicationSchema.index({ 'studentCredentials.studentId': 1, unique: true, sparse: true });
 applicationSchema.index({ 'studentCredentials.universityEmail': 1, unique: true, sparse: true });
 
-// Static method to generate unique student ID and university email
+// Static method to generate unique student ID, university email, and temporary password
 applicationSchema.statics.generateStudentCredentials = async function(intendedStartDate) {
   const startYear = new Date(intendedStartDate).getFullYear();
   const yearSuffix = startYear.toString().slice(-2); // Last 2 digits of year
@@ -295,9 +300,31 @@ applicationSchema.statics.generateStudentCredentials = async function(intendedSt
 
   const universityEmail = `${studentId}@uni.edu.eg`;
   
+  // Generate secure temporary password using utility function
+  // This ensures consistency with validation requirements across the system
+  let temporaryPassword;
+  let passwordAttempts = 0;
+  const maxPasswordAttempts = 10;
+  
+  // Generate password and validate it meets requirements
+  do {
+    temporaryPassword = generateSecurePassword(12); // 12 character password for better security
+    const validation = validatePassword(temporaryPassword);
+    
+    if (validation.isValid) {
+      break;
+    }
+    
+    passwordAttempts++;
+    if (passwordAttempts >= maxPasswordAttempts) {
+      throw new Error('Failed to generate valid password after multiple attempts');
+    }
+  } while (passwordAttempts < maxPasswordAttempts);
+  
   return {
     studentId,
-    universityEmail
+    universityEmail,
+    temporaryPassword
   };
 };
 

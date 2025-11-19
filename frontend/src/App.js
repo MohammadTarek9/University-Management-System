@@ -13,6 +13,7 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ForgotPassword from './components/auth/ForgotPassword';
+import MainLayout from './components/layout/MainLayout';
 // Pages
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
@@ -71,108 +72,110 @@ function App() {
             <Header />
             
             <Box component="main" sx={{ flexGrow: 1 }}>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/unauthorized" element={<Unauthorized />} />
-                
-                {/* Protected routes */}
-                <Route
-                  path="/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
+              <MainLayout>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/unauthorized" element={<Unauthorized />} />
+                  
+                  {/* Protected routes */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                 {/* Profile route */}
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <ProfilePage />
-                    </ProtectedRoute>
-                  }
-                />
-                
-                {/* Admin routes */}
-                <Route
-                  path="/admin/users"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <UserManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                
-                {/* Facilities Module Routes */}
-                <Route
-                  path="/facilities"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
-                      <Facilities />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/facilities/rooms"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
-                      <RoomManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/facilities/bookings"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
-                      <BookingManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/facilities/admissions"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin', 'staff']}>
-                      <AdmissionsManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/curriculum/*"
-                  element={
-                    <ProtectedRoute>
-                      <div>Curriculum Module - Coming Soon</div>
-                    </ProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/staff/*"
-                  element={
-                    <ProtectedRoute>
-                      <div>Staff Module - Coming Soon</div>
-                    </ProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/community/*"
-                  element={
-                    <ProtectedRoute>
-                      <div>Community Module - Coming Soon</div>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
+                   {/* Profile route */}
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <ProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  
+                  {/* Admin routes */}
+                  <Route
+                    path="/admin/users"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin']}>
+                        <UserManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  
+                  {/* Facilities Module Routes */}
+                  <Route
+                    path="/facilities"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
+                        <Facilities />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/facilities/rooms"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
+                        <RoomManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/facilities/bookings"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
+                        <BookingManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/facilities/admissions"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                        <AdmissionsManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  
+                  <Route
+                    path="/curriculum/*"
+                    element={
+                      <ProtectedRoute>
+                        <div>Curriculum Module - Coming Soon</div>
+                      </ProtectedRoute>
+                    }
+                  />
+                  
+                  <Route
+                    path="/staff/*"
+                    element={
+                      <ProtectedRoute>
+                        <div>Staff Module - Coming Soon</div>
+                      </ProtectedRoute>
+                    }
+                  />
+                  
+                  <Route
+                    path="/community/*"
+                    element={
+                      <ProtectedRoute>
+                        <div>Community Module - Coming Soon</div>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
 
-                {/* Default redirects */}
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
+                  {/* Default redirects */}
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </MainLayout>
             </Box>
             
             <Footer />

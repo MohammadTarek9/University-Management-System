@@ -287,10 +287,15 @@ exports.updateApplicationStatus = async (req, res) => {
         
         application.studentCredentials.studentId = credentials.studentId;
         application.studentCredentials.universityEmail = credentials.universityEmail;
+        application.studentCredentials.temporaryPassword = credentials.temporaryPassword;
         application.studentCredentials.credentialsGeneratedAt = new Date();
         application.studentCredentials.credentialsGeneratedBy = req.user._id;
         
-        console.log(`Generated student credentials for application ${application.applicationId}:`, credentials);
+        console.log(`Generated student credentials for application ${application.applicationId}:`, {
+          studentId: credentials.studentId,
+          universityEmail: credentials.universityEmail,
+          passwordGenerated: true // Don't log actual password
+        });
       } catch (credentialsError) {
         console.error('Error generating student credentials:', credentialsError);
         return sendResponse(res, 500, false, 'Application approved but failed to generate student credentials');
@@ -421,5 +426,114 @@ exports.getApplicationStats = async (req, res) => {
   } catch (error) {
     console.error('Error fetching application statistics:', error);
     sendResponse(res, 500, false, 'Server error while fetching statistics');
+  }
+};
+
+// @desc    Get student credentials for approved application (Admin only)
+// @route   GET /api/facilities/applications/:id/credentials
+// @access  Private (Admin only)
+exports.getStudentCredentials = async (req, res) => {
+  try {
+    const application = await Application.findById(req.params.id).select('+studentCredentials.temporaryPassword');
+    
+    if (!application) {
+      return sendResponse(res, 404, false, 'Application not found');
+    }
+
+    if (application.status !== 'Approved') {
+      return sendResponse(res, 400, false, 'Application must be approved to retrieve credentials');
+    }
+
+    if (!application.studentCredentials.studentId) {
+      return sendResponse(res, 400, false, 'Student credentials not generated yet');
+    }
+
+    // Only return credentials to authorized admin
+    const credentials = {
+      studentId: application.studentCredentials.studentId,
+      universityEmail: application.studentCredentials.universityEmail,
+      temporaryPassword: application.studentCredentials.temporaryPassword,
+      applicantName: `${application.personalInfo.firstName} ${application.personalInfo.lastName}`,
+      credentialsGeneratedAt: application.studentCredentials.credentialsGeneratedAt
+    };
+
+    sendResponse(res, 200, true, 'Student credentials retrieved successfully', credentials);
+
+  } catch (error) {
+    console.error('Error retrieving student credentials:', error);
+    sendResponse(res, 500, false, 'Server error while retrieving credentials');
+  }
+};
+
+// @desc    Create student account from approved application
+// @route   POST /api/facilities/applications/:id/create-account
+// @access  Private (Admin only)
+exports.createStudentAccount = async (req, res) => {
+  const User = require('../models/User');
+  
+  try {
+    const application = await Application.findById(req.params.id).select('+studentCredentials.temporaryPassword');
+    
+    if (!application) {
+      return sendResponse(res, 404, false, 'Application not found');
+    }
+
+    if (application.status !== 'Approved') {
+      return sendResponse(res, 400, false, 'Application must be approved to create student account');
+    }
+
+    if (!application.studentCredentials.studentId) {
+      return sendResponse(res, 400, false, 'Student credentials not generated yet');
+    }
+
+    // Check if user account already exists
+    const existingUser = await User.findOne({ 
+      $or: [
+        { email: application.studentCredentials.universityEmail },
+        { studentId: application.studentCredentials.studentId }
+      ]
+    });
+
+    if (existingUser) {
+      return sendResponse(res, 409, false, 'Student account already exists');
+    }
+
+    // Create new student user account
+    const newUser = new User({
+      firstName: application.personalInfo.firstName,
+      lastName: application.personalInfo.lastName,
+      email: application.studentCredentials.universityEmail,
+      password: application.studentCredentials.temporaryPassword,
+      role: 'student',
+      studentId: application.studentCredentials.studentId,
+      phoneNumber: application.personalInfo.phone,
+      isActive: true,
+      isEmailVerified: false, // Will be verified on first login
+      mustChangePassword: true, // Custom field to force password change
+      firstLogin: true // Custom field to identify first-time login
+    });
+
+    await newUser.save();
+
+    // Update application to mark account as created
+    application.studentCredentials.accountCreated = true;
+    application.studentCredentials.accountCreatedAt = new Date();
+    application.studentCredentials.accountCreatedBy = req.user._id;
+    await application.save();
+
+    sendResponse(res, 201, true, 'Student account created successfully', {
+      studentId: newUser.studentId,
+      email: newUser.email,
+      accountCreatedAt: new Date()
+    });
+
+  } catch (error) {
+    console.error('Error creating student account:', error);
+    
+    if (error.code === 11000) {
+      return sendResponse(res, 409, false, 'Student account with this email or ID already exists');
+    }
+    
+    sendResponse(res, 500, false, 'Server error while creating student account');
   }
 };

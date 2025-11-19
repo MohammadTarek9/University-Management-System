@@ -17,6 +17,7 @@ import {
   ListItemText,
   ListItemIcon
 } from '@mui/material';
+import StudentCredentialsPanel from './StudentCredentialsPanel';
 import {
   Close,
   Person,
@@ -124,46 +125,16 @@ const ApplicationViewDialog = ({ open, onClose, application }) => {
             </Paper>
           </Grid>
 
-          {/* Student Credentials (Only show if approved and credentials exist) */}
+          {/* Student Credentials Management Panel */}
           {application.status === 'Approved' && application.studentCredentials?.studentId && (
             <Grid item xs={12}>
-              <Paper variant="outlined" sx={{ p: 2, bgcolor: 'success.light', borderColor: 'success.main' }}>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'success.contrastText' }}>
-                  <Badge sx={{ mr: 1 }} />
-                  Student Credentials
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <PersonPin sx={{ mr: 1, fontSize: 16 }} />
-                      <Box>
-                        <Typography variant="subtitle2" color="text.secondary">Student ID</Typography>
-                        <Typography variant="h6" sx={{ fontFamily: 'monospace', letterSpacing: 1 }}>
-                          {application.studentCredentials.studentId}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Email sx={{ mr: 1, fontSize: 16 }} />
-                      <Box>
-                        <Typography variant="subtitle2" color="text.secondary">University Email</Typography>
-                        <Typography variant="body1" sx={{ fontFamily: 'monospace' }}>
-                          {application.studentCredentials.universityEmail}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Grid>
-                  {application.studentCredentials.credentialsGeneratedAt && (
-                    <Grid item xs={12}>
-                      <Typography variant="body2" color="text.secondary">
-                        Credentials generated: {formatDate(application.studentCredentials.credentialsGeneratedAt)}
-                      </Typography>
-                    </Grid>
-                  )}
-                </Grid>
-              </Paper>
+              <StudentCredentialsPanel 
+                application={application}
+                onAccountCreated={(accountData) => {
+                  console.log('Account created:', accountData);
+                  // Optional: refresh application data or show success message
+                }}
+              />
             </Grid>
           )}
 

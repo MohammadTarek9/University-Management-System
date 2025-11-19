@@ -66,6 +66,15 @@ export const authService = {
     }
   },
 
+  firstLoginChangePassword: async (passwordData) => {
+    try {
+      const response = await api.post('/auth/first-login-change-password', passwordData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Password change failed' };
+    }
+  },
+
   isAuthenticated: () => {
     const token = localStorage.getItem('token');
     return !!token;
