@@ -183,6 +183,27 @@ const applicationSchema = new mongoose.Schema({
     }
   },
 
+  // Student Credentials (generated upon approval)
+  studentCredentials: {
+    studentId: {
+      type: String,
+      unique: true,
+      sparse: true // Only enforce uniqueness if value exists
+    },
+    universityEmail: {
+      type: String,
+      unique: true,
+      sparse: true
+    },
+    credentialsGeneratedAt: {
+      type: Date
+    },
+    credentialsGeneratedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  },
+
   // Application Metadata
   applicationId: {
     type: String,
@@ -238,6 +259,47 @@ applicationSchema.index({ 'personalInfo.email': 1, unique: true });
 applicationSchema.index({ 'academicInfo.program': 1 });
 applicationSchema.index({ submittedAt: -1 });
 applicationSchema.index({ applicationId: 1, unique: true });
+applicationSchema.index({ 'studentCredentials.studentId': 1, unique: true, sparse: true });
+applicationSchema.index({ 'studentCredentials.universityEmail': 1, unique: true, sparse: true });
+
+// Static method to generate unique student ID and university email
+applicationSchema.statics.generateStudentCredentials = async function(intendedStartDate) {
+  const startYear = new Date(intendedStartDate).getFullYear();
+  const yearSuffix = startYear.toString().slice(-2); // Last 2 digits of year
+  
+  let studentId;
+  let isUnique = false;
+  let attempts = 0;
+  const maxAttempts = 100;
+
+  // Keep generating until we find a unique ID
+  while (!isUnique && attempts < maxAttempts) {
+    // Generate 4 random digits
+    const randomDigits = Math.floor(1000 + Math.random() * 9000); // Ensures 4 digits
+    studentId = `${yearSuffix}R${randomDigits}`;
+    
+    // Check if this ID already exists
+    const existingApplication = await this.findOne({
+      'studentCredentials.studentId': studentId
+    });
+    
+    if (!existingApplication) {
+      isUnique = true;
+    }
+    attempts++;
+  }
+
+  if (!isUnique) {
+    throw new Error('Unable to generate unique student ID after multiple attempts');
+  }
+
+  const universityEmail = `${studentId}@uni.edu.eg`;
+  
+  return {
+    studentId,
+    universityEmail
+  };
+};
 
 // Static method to get application statistics
 applicationSchema.statics.getStatistics = async function() {

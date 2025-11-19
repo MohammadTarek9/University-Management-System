@@ -280,6 +280,23 @@ exports.updateApplicationStatus = async (req, res) => {
       application.processingInfo.notes = notes;
     }
 
+    // Generate student credentials if application is approved and credentials don't exist
+    if (status === 'Approved' && !application.studentCredentials.studentId) {
+      try {
+        const credentials = await Application.generateStudentCredentials(application.academicInfo.intendedStartDate);
+        
+        application.studentCredentials.studentId = credentials.studentId;
+        application.studentCredentials.universityEmail = credentials.universityEmail;
+        application.studentCredentials.credentialsGeneratedAt = new Date();
+        application.studentCredentials.credentialsGeneratedBy = req.user._id;
+        
+        console.log(`Generated student credentials for application ${application.applicationId}:`, credentials);
+      } catch (credentialsError) {
+        console.error('Error generating student credentials:', credentialsError);
+        return sendResponse(res, 500, false, 'Application approved but failed to generate student credentials');
+      }
+    }
+
     await application.save();
 
     // Populate reviewer info for response
