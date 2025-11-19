@@ -36,6 +36,16 @@ export const applicationService = {
     }
   },
 
+  // Update entire application (edit mode)
+  updateApplication: async (id, applicationData) => {
+    try {
+      const response = await api.put(`/facilities/applications/${id}`, applicationData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to update application' };
+    }
+  },
+
   // Update application status (approve/reject/etc.)
   updateApplicationStatus: async (id, statusData) => {
     try {

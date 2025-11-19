@@ -76,6 +76,8 @@ const AdmissionsManagement = () => {
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingApplication, setEditingApplication] = useState(null);
   const [selectedApplications, setSelectedApplications] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
 
@@ -227,6 +229,12 @@ const AdmissionsManagement = () => {
     refreshData(); // Refresh the applications list
   };
 
+  // Handle edit application success
+  const handleEditApplicationSuccess = (updatedApplication) => {
+    setSuccessMessage(`Application ${updatedApplication.applicationId} updated successfully!`);
+    refreshData(); // Refresh the applications list
+  };
+
   // Handle view application
   const handleViewApplication = (application) => {
     setSelectedApplication(application);
@@ -352,10 +360,11 @@ const AdmissionsManagement = () => {
     }
   };
 
-  // Handle edit application (placeholder)
+  // Handle edit application
   const handleEditApplication = (application) => {
-    // TODO: Implement edit functionality
-    console.log('Edit application:', application.applicationId);
+    setEditingApplication(application);
+    setEditMode(true);
+    setShowAddDialog(true);
   };
 
   // Handle delete application
@@ -808,8 +817,14 @@ const AdmissionsManagement = () => {
       {/* Add Application Dialog */}
       <AddApplicationDialog
         open={showAddDialog}
-        onClose={() => setShowAddDialog(false)}
-        onSuccess={handleAddApplicationSuccess}
+        onClose={() => {
+          setShowAddDialog(false);
+          setEditMode(false);
+          setEditingApplication(null);
+        }}
+        onSuccess={editMode ? handleEditApplicationSuccess : handleAddApplicationSuccess}
+        editMode={editMode}
+        existingApplication={editingApplication}
       />
 
       {/* View Application Dialog */}

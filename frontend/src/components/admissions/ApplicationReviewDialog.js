@@ -266,7 +266,7 @@ const ApplicationReviewDialog = ({ open, onClose, application, onSuccess }) => {
               rows={4}
               value={reviewComments}
               onChange={(e) => setReviewComments(e.target.value)}
-              error={!reviewComments.trim() && error}
+              error={!reviewComments.trim() && !!error}
               helperText={
                 !reviewComments.trim() && error 
                   ? 'Review comments are required' 
