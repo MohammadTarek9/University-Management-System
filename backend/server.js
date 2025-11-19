@@ -16,6 +16,9 @@ const facilitiesRoutes = require('./modules/facilities/routes');
 
 const app = express();
 
+// Trust first proxy for rate limiting and proxy headers
+app.set('trust proxy', 1);
+
 app.use(helmet());
 
 const limiter = rateLimit({
@@ -33,10 +36,14 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
+      'http://192.168.56.1:3000',
       process.env.CLIENT_URL
     ].filter(Boolean);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // In development, be more permissive
+    if (process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.log(`CORS blocked origin: ${origin}`);
@@ -44,12 +51,25 @@ const corsOptions = {
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 200,
+  preflightContinue: false
 };
 
+// Handle preflight OPTIONS requests
+app.options('*', cors(corsOptions));
+
 app.use(cors(corsOptions));
+
+// Add additional headers for better compatibility
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
+  next();
+});
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));

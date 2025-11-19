@@ -1,6 +1,16 @@
 import api from './api';
 
 export const authService = {
+  // Health check to verify backend connection
+  healthCheck: async () => {
+    try {
+      const response = await api.get('/health');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Backend server is not responding' };
+    }
+  },
+
   login: async (credentials) => {
     try {
       const response = await api.post('/auth/login', credentials);
