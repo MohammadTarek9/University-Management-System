@@ -7,10 +7,12 @@ const {
   logout,
   forgotPassword,
   resetPassword,
+  firstLoginChangePassword,
   registerValidation,
   loginValidation,
   forgotPasswordValidation,
-  resetPasswordValidation
+  resetPasswordValidation,
+  firstLoginChangePasswordValidation
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { handleValidationErrors } = require('../utils/responseHelpers');
@@ -24,5 +26,6 @@ router.put('/reset-password/:token', resetPasswordValidation, handleValidationEr
 // Protected routes
 router.get('/me', protect, getMe);
 router.post('/logout', protect, logout);
+router.post('/first-login-change-password', protect, firstLoginChangePasswordValidation, handleValidationErrors, firstLoginChangePassword);
 
 module.exports = router;

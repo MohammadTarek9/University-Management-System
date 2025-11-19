@@ -28,7 +28,18 @@ export const userService = {
       const response = await api.post('/users', userData);
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to create user' };
+      console.error('UserService createUser error:', error.response?.data);
+      const errorData = error.response?.data;
+      
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        // Handle validation errors
+        const errorMessages = errorData.errors.map(err => err.msg).join('; ');
+        throw new Error(errorMessages);
+      } else if (errorData?.message) {
+        throw new Error(errorData.message);
+      } else {
+        throw new Error('Failed to create user');
+      }
     }
   },
 

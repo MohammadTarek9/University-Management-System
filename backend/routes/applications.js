@@ -8,7 +8,9 @@ const {
   updateApplicationStatus,
   deleteApplication,
   getApplicationStats,
-  getFilterOptions
+  getFilterOptions,
+  getStudentCredentials,
+  createStudentAccount
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -162,6 +164,12 @@ router.put('/:id', authorize(['admin']), applicationValidation, updateApplicatio
 
 // PUT /api/facilities/applications/:id/status - Update application status (Admin, Staff)
 router.put('/:id/status', authorize(['admin', 'staff']), statusUpdateValidation, updateApplicationStatus);
+
+// GET /api/facilities/applications/:id/credentials - Get student credentials (Admin only)
+router.get('/:id/credentials', authorize(['admin']), getStudentCredentials);
+
+// POST /api/facilities/applications/:id/create-account - Create student account (Admin only)
+router.post('/:id/create-account', authorize(['admin']), createStudentAccount);
 
 // DELETE /api/facilities/applications/:id - Delete application (Admin only)
 router.delete('/:id', authorize(['admin']), deleteApplication);
