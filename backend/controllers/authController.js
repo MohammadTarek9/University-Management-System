@@ -158,6 +158,35 @@ const logout = async (req, res) => {
   successResponse(res, 200, 'Logout successful');
 };
 
+// Get Security Question by Email
+const getSecurityQuestion = async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    if (!email) {
+      return errorResponse(res, 400, 'Please provide email address');
+    }
+
+    const user = await User.findOne({ email }).select('securityQuestion');
+    
+    if (!user) {
+      return errorResponse(res, 404, 'No user found with this email address');
+    }
+
+    if (!user.securityQuestion) {
+      return errorResponse(res, 400, 'No security question set for this user');
+    }
+
+    successResponse(res, 200, 'Security question retrieved', {
+      securityQuestion: user.securityQuestion
+    });
+
+  } catch (error) {
+    console.error(error);
+    errorResponse(res, 500, 'Server error retrieving security question');
+  }
+};
+
 // Password Reset Functions
 const forgotPassword = async (req, res) => {
   try {
@@ -419,6 +448,7 @@ module.exports = {
   login,
   getMe,
   logout,
+  getSecurityQuestion,
   forgotPassword,
   resetPassword,
   firstLoginChangePassword,

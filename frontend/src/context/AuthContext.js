@@ -132,25 +132,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (userData) => {
-    dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
 
-    try {
-      const response = await authService.register(userData);
-      dispatch({
-        type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: response.data
-      });
-      return response;
-    } catch (error) {
-      dispatch({
-        type: AUTH_ACTIONS.SET_ERROR,
-        payload: error.message || 'Registration failed'
-      });
-      throw error;
-    }
-  };
 
   const logout = async () => {
     dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
@@ -230,7 +212,6 @@ export const AuthProvider = ({ children }) => {
   const value = {
     ...state,
     login,
-    register,
     logout,
     clearError,
     updateUser,

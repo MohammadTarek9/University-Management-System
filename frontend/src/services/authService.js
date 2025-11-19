@@ -14,18 +14,7 @@ export const authService = {
     }
   },
 
-  register: async (userData) => {
-    try {
-      const response = await api.post('/auth/register', userData);
-      if (response.data.success) {
-        localStorage.setItem('token', response.data.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      }
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Registration failed' };
-    }
-  },
+
 
   getCurrentUser: async () => {
     try {
@@ -48,6 +37,15 @@ export const authService = {
   },
 
   // ADDED PASSWORD RESET METHODS
+  getSecurityQuestion: async (email) => {
+    try {
+      const response = await api.get(`/auth/security-question?email=${encodeURIComponent(email)}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch security question' };
+    }
+  },
+
   forgotPassword: async (credentials) => {
     try {
       const response = await api.post('/auth/forgot-password', credentials);
