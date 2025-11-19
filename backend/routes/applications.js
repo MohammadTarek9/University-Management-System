@@ -6,7 +6,8 @@ const {
   createApplication,
   updateApplicationStatus,
   deleteApplication,
-  getApplicationStats
+  getApplicationStats,
+  getFilterOptions
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -142,6 +143,9 @@ router.use(protect);
 
 // GET /api/facilities/applications/stats - Get application statistics
 router.get('/stats', authorize(['admin', 'staff']), getApplicationStats);
+
+// GET /api/facilities/applications/filters - Get filter options
+router.get('/filters', authorize(['admin', 'staff']), getFilterOptions);
 
 // GET /api/facilities/applications - Get all applications (Admin, Staff can view)
 router.get('/', authorize(['admin', 'staff']), getAllApplications);

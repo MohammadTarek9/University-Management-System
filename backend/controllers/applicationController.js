@@ -24,7 +24,10 @@ exports.getAllApplications = async (req, res) => {
       degreeLevel,
       search,
       sortBy = 'submittedAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
+      dateFrom,
+      dateTo,
+      nationality
     } = req.query;
 
     // Build filter object
@@ -42,6 +45,21 @@ exports.getAllApplications = async (req, res) => {
       filter['academicInfo.degreeLevel'] = degreeLevel;
     }
     
+    if (nationality && nationality !== 'all') {
+      filter['personalInfo.nationality'] = nationality;
+    }
+    
+    // Date range filtering
+    if (dateFrom || dateTo) {
+      filter.submittedAt = {};
+      if (dateFrom) {
+        filter.submittedAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        filter.submittedAt.$lte = new Date(dateTo);
+      }
+    }
+    
     // Search functionality
     if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
@@ -50,7 +68,9 @@ exports.getAllApplications = async (req, res) => {
         { 'personalInfo.lastName': searchRegex },
         { 'personalInfo.email': searchRegex },
         { applicationId: searchRegex },
-        { 'academicInfo.program': searchRegex }
+        { 'academicInfo.program': searchRegex },
+        { 'personalInfo.nationality': searchRegex },
+        { 'academicInfo.previousEducation.institution': searchRegex }
       ];
     }
 
@@ -242,6 +262,50 @@ exports.deleteApplication = async (req, res) => {
     }
     
     sendResponse(res, 500, false, 'Server error while deleting application');
+  }
+};
+
+// @desc    Get filter options for dropdowns
+// @route   GET /api/facilities/applications/filters
+// @access  Private (Admin/Staff)
+exports.getFilterOptions = async (req, res) => {
+  try {
+    // Get unique nationalities from existing applications
+    const nationalities = await Application.distinct('personalInfo.nationality');
+    
+    // Get unique previous institutions
+    const institutions = await Application.distinct('academicInfo.previousEducation.institution');
+    
+    // Static options
+    const programs = [
+      'Computer Science',
+      'Engineering',
+      'Business Administration',
+      'Medicine',
+      'Law',
+      'Arts',
+      'Sciences',
+      'Education',
+      'Nursing',
+      'Economics'
+    ];
+    
+    const degreeLevels = ['Bachelor', 'Master', 'Doctorate', 'Certificate'];
+    const statuses = ['Pending Review', 'Under Review', 'Approved', 'Rejected', 'Waitlisted'];
+    
+    const filterOptions = {
+      programs,
+      degreeLevels,
+      statuses,
+      nationalities: nationalities.filter(n => n).sort(),
+      institutions: institutions.filter(i => i).sort()
+    };
+
+    sendResponse(res, 200, true, 'Filter options retrieved successfully', filterOptions);
+
+  } catch (error) {
+    console.error('Error fetching filter options:', error);
+    sendResponse(res, 500, false, 'Server error while fetching filter options');
   }
 };
 
