@@ -163,9 +163,6 @@ const Header = () => {
             <Button color="inherit" onClick={() => navigate('/login')}>
               Login
             </Button>
-            <Button color="inherit" onClick={() => navigate('/register')}>
-              Register
-            </Button>
           </Box>
         )}
       </Toolbar>

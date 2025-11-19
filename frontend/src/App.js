@@ -10,7 +10,6 @@ import { AuthProvider } from './context/AuthContext';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
 import Login from './components/auth/Login';
-import Register from './components/auth/Register';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ForgotPassword from './components/auth/ForgotPassword';
 import MainLayout from './components/layout/MainLayout';
@@ -76,7 +75,6 @@ function App() {
                 <Routes>
                   {/* Public routes */}
                   <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
                   <Route path="/unauthorized" element={<Unauthorized />} />
                   
                   {/* Protected routes */}
