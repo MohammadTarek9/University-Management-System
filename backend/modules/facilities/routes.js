@@ -7,7 +7,9 @@ const roomRoutes = require('../../routes/rooms');
 // Import booking routes
 const bookingRoutes = require('../../routes/bookings');
 // Import application routes
-const applicationRoutes = require('../../routes/applications'); 
+const applicationRoutes = require('../../routes/applications');
+// Import maintenance routes
+const maintenanceRoutes = require('../../routes/maintenance');
 
 router.get('/health', (req, res) => {
   res.json({
@@ -16,12 +18,14 @@ router.get('/health', (req, res) => {
     features: [
       'Classroom and Laboratory Management',
       'Administrative Office Automation', 
-      'Resource Allocation'
+      'Resource Allocation',
+      'Maintenance Request System'
     ],
     activeRoutes: [
       'GET /api/facilities/rooms - Room management',
       'GET /api/facilities/bookings - Booking management',
-      'GET /api/facilities/applications - Admission applications management'
+      'GET /api/facilities/applications - Admission applications management',
+      'GET /api/facilities/maintenance - Maintenance requests management'
     ]
   });
 });
@@ -32,6 +36,8 @@ router.use('/rooms', roomRoutes);
 router.use('/bookings', bookingRoutes);
 // Mount application management routes
 router.use('/applications', applicationRoutes);
+// Mount maintenance routes
+router.use('/maintenance', maintenanceRoutes);
 
 // Future routes (commented for now)
 // router.get('/classrooms', protect, getClassrooms);

@@ -13,6 +13,8 @@ import Login from './components/auth/Login';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ForgotPassword from './components/auth/ForgotPassword';
 import MainLayout from './components/layout/MainLayout';
+import MaintenanceDashboard from './components/Maintenance/MaintenanceDashboard';
+
 // Pages
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
@@ -111,7 +113,7 @@ function App() {
                   <Route
                     path="/facilities"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor']}>
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor','student']}>
                         <Facilities />
                       </ProtectedRoute>
                     }
@@ -140,7 +142,16 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  
+
+                  <Route
+                    path="/facilities/maintenance-dashboard"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin']}> {/* Only admin can access */}
+                        <MaintenanceDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                                    
                   <Route
                     path="/curriculum/*"
                     element={
