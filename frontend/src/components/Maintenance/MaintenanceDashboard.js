@@ -1,5 +1,5 @@
 // components/Maintenance/MaintenanceDashboard.js
-import React, { useState, useEffect, useCallback } from 'react'; // Add useCallback
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -33,10 +33,11 @@ import {
   Refresh,
   Edit,
   Visibility,
-  Assignment
-} from '@mui/icons-material'; // Remove Warning import
-import maintenanceService from '../../services/maintenanceService'; // Fix import path
-import { useAuth } from '../../context/AuthContext'; // Fix import path
+  Assignment,
+  Delete
+} from '@mui/icons-material';
+import maintenanceService from '../../services/maintenanceService';
+import { useAuth } from '../../context/AuthContext';
 
 const MaintenanceDashboard = () => {
   const { user } = useAuth();
@@ -55,6 +56,8 @@ const MaintenanceDashboard = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Wrap fetchData in useCallback to fix the useEffect dependency
   const fetchData = useCallback(async () => {
@@ -83,13 +86,13 @@ const MaintenanceDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, filters]); // Add dependencies
+  }, [page, rowsPerPage, filters]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchData();
     }
-  }, [fetchData, user]); // Add fetchData to dependencies
+  }, [fetchData, user]);
 
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({
@@ -137,11 +140,34 @@ const MaintenanceDashboard = () => {
     }
   };
 
+  const handleDeleteRequest = async () => {
+    if (!selectedRequest) return;
+    
+    try {
+      setDeleteLoading(true);
+      await maintenanceService.deleteMaintenanceRequest(selectedRequest._id);
+      setDeleteDialogOpen(false);
+      setSelectedRequest(null);
+      fetchData(); // Refresh data
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete maintenance request');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const openDeleteDialog = (request) => {
+    setSelectedRequest(request);
+    setDeleteDialogOpen(true);
+  };
+
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
   };
 
   const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString();
   };
 
@@ -378,6 +404,13 @@ const MaintenanceDashboard = () => {
                         >
                           <Edit />
                         </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => openDeleteDialog(request)}
+                        >
+                          <Delete />
+                        </IconButton>
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -455,6 +488,31 @@ const MaintenanceDashboard = () => {
                   size="small"
                 />
               </Grid>
+              
+              {/* Completion Time Section */}
+              {selectedRequest.status === 'Completed' && selectedRequest.actualCompletion && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="success.main">
+                    Completed On
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatDateTime(selectedRequest.actualCompletion)}
+                  </Typography>
+                </Grid>
+              )}
+
+              {/* Estimated Completion Section */}
+              {selectedRequest.estimatedCompletion && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2">
+                    Estimated Completion
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatDateTime(selectedRequest.estimatedCompletion)}
+                  </Typography>
+                </Grid>
+              )}
+
               {selectedRequest.adminNotes && (
                 <Grid item xs={12}>
                   <Typography variant="subtitle2">Admin Notes</Typography>
@@ -491,6 +549,50 @@ const MaintenanceDashboard = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setStatusDialogOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Maintenance Request</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            Are you sure you want to delete this maintenance request?
+          </Typography>
+          {selectedRequest && (
+            <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Typography variant="subtitle2">Request Details:</Typography>
+              <Typography variant="body2">
+                <strong>Title:</strong> {selectedRequest.title}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Submitted by:</strong> {selectedRequest.submittedBy?.firstName} {selectedRequest.submittedBy?.lastName}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Status:</strong> {selectedRequest.status}
+              </Typography>
+            </Box>
+          )}
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deleteLoading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteRequest}
+            variant="contained"
+            color="error"
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={20} /> : <Delete />}
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete Request'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>

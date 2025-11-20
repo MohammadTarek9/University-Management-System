@@ -32,6 +32,11 @@ const maintenanceService = {
     return response.data;
   },
 
+  deleteMaintenanceRequest: async (id) => {
+    const response = await api.delete(`/facilities/maintenance/${id}`);
+    return response.data;
+  },
+
   // Get maintenance statistics
   getMaintenanceStats: async () => {
     const response = await api.get('/facilities/maintenance/stats');
