@@ -27,14 +27,14 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const modules = [
-    {
+      {
       title: 'Facilities Module',
       description: 'Manage classrooms, laboratories, and administrative offices',
       icon: <MeetingRoom color="primary" />,
       color: '#1976d2',
       features: ['Room Management', 'Equipment Tracking', 'Resource Allocation'],
       path: '/facilities',
-      available: ['admin', 'staff', 'professor'].includes(user?.role)
+      available: ['admin', 'staff', 'professor', 'student'].includes(user?.role) 
     },
     {
       title: 'Curriculum Module',
