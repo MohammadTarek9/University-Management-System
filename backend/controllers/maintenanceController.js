@@ -280,6 +280,32 @@ exports.submitFeedback = async (req, res) => {
   }
 };
 
+// @desc    Delete maintenance request
+// @route   DELETE /api/facilities/maintenance/:id
+// @access  Private (Admin)
+exports.deleteMaintenanceRequest = async (req, res) => {
+  try {
+    const request = await MaintenanceRequest.findById(req.params.id);
+    
+    if (!request) {
+      return sendResponse(res, 404, false, 'Maintenance request not found');
+    }
+
+    await MaintenanceRequest.findByIdAndDelete(req.params.id);
+
+    sendResponse(res, 200, true, 'Maintenance request deleted successfully');
+
+  } catch (error) {
+    console.error('Error deleting maintenance request:', error);
+    
+    if (error.name === 'CastError') {
+      return sendResponse(res, 400, false, 'Invalid maintenance request ID');
+    }
+    
+    sendResponse(res, 500, false, 'Server error while deleting maintenance request');
+  }
+};
+
 // @desc    Get maintenance statistics
 // @route   GET /api/facilities/maintenance/stats
 // @access  Private (Admin)

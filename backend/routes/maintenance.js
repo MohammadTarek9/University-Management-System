@@ -6,7 +6,8 @@ const {
   getMaintenanceRequestById,
   updateMaintenanceRequestStatus,
   submitFeedback,
-  getMaintenanceStats
+  getMaintenanceStats,
+  deleteMaintenanceRequest
 } = require('../controllers/maintenanceController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -77,5 +78,8 @@ router.put('/:id/status', authorize(['admin']), updateMaintenanceRequestStatus);
 
 // POST /api/facilities/maintenance/:id/feedback - Submit feedback (Student only)
 router.post('/:id/feedback', authorize(['student']), feedbackValidation, submitFeedback);
+
+// DELETE /api/facilities/maintenance/:id - Delete maintenance request (Admin only)
+router.delete('/:id', authorize(['admin']), deleteMaintenanceRequest);
 
 module.exports = router;
