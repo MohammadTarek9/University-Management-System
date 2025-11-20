@@ -1,4 +1,5 @@
-import React from 'react';
+// Facilities.js
+import React, { useState } from 'react';
 import {
   Container,
   Typography,
@@ -8,21 +9,55 @@ import {
   CardActions,
   Button,
   Box,
-  Chip
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  CircularProgress,
+  IconButton
 } from '@mui/material';
 import {
   MeetingRoom,
   School,
   Assignment,
   Business,
-  ArrowForward
+  Warning,
+  ArrowForward,
+  Add,
+  Close
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import maintenanceService from '../services/maintenanceService';
 
 const Facilities = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  // Maintenance dialog state
+  const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+  const [maintenanceError, setMaintenanceError] = useState('');
+  const [maintenanceSuccess, setMaintenanceSuccess] = useState('');
+
+  const [maintenanceForm, setMaintenanceForm] = useState({
+    title: '',
+    description: '',
+    category: '',
+    priority: 'Medium',
+    location: {
+      building: '',
+      roomNumber: '',
+      floor: ''
+    }
+  });
 
   const facilityModules = [
     {
@@ -44,7 +79,6 @@ const Facilities = () => {
       color: 'secondary',
       permissions: ['admin', 'staff', 'professor'],
       features: ['Schedule Rooms', 'Manage Reservations', 'Conflict Detection', 'Calendar View'],
-      //comingSoon: true
     },
     {
       id: 'admissions',
@@ -57,6 +91,26 @@ const Facilities = () => {
       features: ['Review Applications', 'Status Management', 'Approval Workflow', 'Application Analytics']
     },
     {
+      id: 'maintenance',
+      title: 'Maintenance Requests',
+      description: 'Report and track maintenance issues. Submit requests for facility repairs and get updates on resolution progress.',
+      icon: <Warning sx={{ fontSize: 40 }} />,
+      path: '#',
+      color: 'warning',
+      permissions: ['admin', 'staff', 'professor', 'student', 'ta', 'parent'],
+      features: ['Issue Reporting', 'Status Tracking', 'Quick Submission', 'Progress Updates']
+    },
+    {
+      id: 'maintenance-dashboard',
+      title: 'Maintenance Dashboard',
+      description: 'View and manage all maintenance requests. Track status, assign technicians, and monitor resolution progress.',
+      icon: <Assignment sx={{ fontSize: 40 }} />,
+      path: '/facilities/maintenance-dashboard',
+      color: 'error',
+      permissions: ['admin'], // Only admin can access
+      features: ['View All Requests', 'Status Management', 'Assignment Tracking', 'Analytics']
+    },
+    {
       id: 'resources',
       title: 'Resource Allocation',
       description: 'Track and allocate equipment, software licenses, and other resources across departments and faculty.',
@@ -66,19 +120,85 @@ const Facilities = () => {
       permissions: ['admin', 'staff'],
       features: ['Equipment Tracking', 'License Management', 'Department Allocation', 'Usage Reports'],
       comingSoon: true
-    },
-    {
-      id: 'maintenance',
-      title: 'Maintenance Management',
-      description: 'Report and track maintenance issues. Schedule routine maintenance and monitor facility conditions.',
-      icon: <School sx={{ fontSize: 40 }} />,
-      path: '/facilities/maintenance',
-      color: 'warning',
-      permissions: ['admin', 'staff'],
-      features: ['Issue Reporting', 'Maintenance Scheduling', 'Status Tracking', 'Work Orders'],
-      comingSoon: true
     }
   ];
+
+  // Filter modules to show only what the user has permission to see
+  const visibleModules = facilityModules.filter(module => 
+    module.permissions.includes(user?.role)
+  );
+
+  // Maintenance request functions
+  const handleMaintenanceChange = (field, value) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setMaintenanceForm(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setMaintenanceForm(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  const handleMaintenanceSubmit = async (e) => {
+    e.preventDefault();
+    setMaintenanceLoading(true);
+    setMaintenanceError('');
+    setMaintenanceSuccess('');
+
+    try {
+      await maintenanceService.createMaintenanceRequest(maintenanceForm);
+      setMaintenanceSuccess('Maintenance request submitted successfully!');
+      
+      // Reset form
+      setMaintenanceForm({
+        title: '',
+        description: '',
+        category: '',
+        priority: 'Medium',
+        location: {
+          building: '',
+          roomNumber: '',
+          floor: ''
+        }
+      });
+
+      // Close dialog after success
+      setTimeout(() => {
+        setMaintenanceDialogOpen(false);
+        setMaintenanceSuccess('');
+      }, 2000);
+
+    } catch (err) {
+      setMaintenanceError(err.response?.data?.message || 'Failed to submit maintenance request');
+    } finally {
+      setMaintenanceLoading(false);
+    }
+  };
+
+  const openMaintenanceDialog = () => {
+    setMaintenanceForm({
+      title: '',
+      description: '',
+      category: '',
+      priority: 'Medium',
+      location: {
+        building: '',
+        roomNumber: '',
+        floor: ''
+      }
+    });
+    setMaintenanceError('');
+    setMaintenanceSuccess('');
+    setMaintenanceDialogOpen(true);
+  };
 
   // Check user permissions for each module
   const canAccessModule = (modulePermissions) => {
@@ -87,7 +207,9 @@ const Facilities = () => {
 
   // Handle module navigation
   const handleModuleClick = (module) => {
-    if (!module.comingSoon && canAccessModule(module.permissions)) {
+    if (module.id === 'maintenance') {
+      openMaintenanceDialog();
+    } else if (!module.comingSoon && canAccessModule(module.permissions)) {
       navigate(module.path);
     }
   };
@@ -100,16 +222,22 @@ const Facilities = () => {
           Facilities Management
         </Typography>
         <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-          Comprehensive management of university infrastructure and resources
+          {user?.role === 'student' 
+            ? 'Report maintenance issues and access facility information' 
+            : 'Comprehensive management of university infrastructure and resources'
+          }
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Access tools for room management, booking systems, resource allocation, and maintenance tracking
+          {user?.role === 'student'
+            ? ''
+            : 'Access tools for room management, booking systems, resource allocation, and maintenance tracking'
+          }
         </Typography>
       </Box>
 
-      {/* Module Cards */}
+      {/* Module Cards - Use filtered modules */}
       <Grid container spacing={3}>
-        {facilityModules.map((module) => (
+        {visibleModules.map((module) => (
           <Grid item xs={12} md={6} key={module.id}>
             <Card 
               sx={{ 
@@ -117,7 +245,6 @@ const Facilities = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 cursor: (!module.comingSoon && canAccessModule(module.permissions)) ? 'pointer' : 'default',
-                opacity: !canAccessModule(module.permissions) ? 0.6 : 1,
                 '&:hover': (!module.comingSoon && canAccessModule(module.permissions)) ? {
                   transform: 'translateY(-4px)',
                   boxShadow: 4,
@@ -137,9 +264,6 @@ const Facilities = () => {
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                       {module.comingSoon && (
                         <Chip label="Coming Soon" color="warning" size="small" />
-                      )}
-                      {!canAccessModule(module.permissions) && (
-                        <Chip label="Access Restricted" color="error" size="small" />
                       )}
                       {!module.comingSoon && canAccessModule(module.permissions) && (
                         <Chip label="Available" color="success" size="small" />
@@ -177,9 +301,8 @@ const Facilities = () => {
                   endIcon={<ArrowForward />}
                   onClick={() => handleModuleClick(module)}
                 >
-                  {module.comingSoon ? 'Coming Soon' : 
-                   !canAccessModule(module.permissions) ? 'Access Restricted' : 
-                   'Access Module'}
+                  {module.id === 'maintenance' ? 'Report Issue' : 
+                   module.comingSoon ? 'Coming Soon' : 'Access Module'}
                 </Button>
               </CardActions>
             </Card>
@@ -190,21 +313,191 @@ const Facilities = () => {
       {/* Access Information */}
       <Box sx={{ mt: 4, p: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom>
-          Access Permissions
+          Access Information
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Your current role: <strong>{user?.role}</strong>
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          • <strong>Administrators:</strong> Full access to all facility management features
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          • <strong>Staff:</strong> Access to room management, bookings, and resource allocation
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          • <strong>Professors:</strong> View rooms and create bookings
-        </Typography>
+        {user?.role === 'student' ? (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              • <strong>Students:</strong> Can report maintenance issues for any facility problems
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • Contact facility staff for urgent maintenance needs
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • You will receive email updates about your maintenance requests
+            </Typography>
+          </>
+        ) : (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              • <strong>Administrators:</strong> Full access to all facility management features
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Staff:</strong> Access to room management, bookings, and resource allocation
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Professors:</strong> View rooms and create bookings
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Students:</strong> Report maintenance issues
+            </Typography>
+          </>
+        )}
       </Box>
+
+      {/* Maintenance Request Dialog */}
+      <Dialog 
+        open={maintenanceDialogOpen} 
+        onClose={() => setMaintenanceDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Warning sx={{ mr: 1 }} />
+            Report Maintenance Issue
+            <IconButton
+              aria-label="close"
+              onClick={() => setMaintenanceDialogOpen(false)}
+              sx={{ position: 'absolute', right: 8, top: 8 }}
+            >
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {maintenanceError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {maintenanceError}
+            </Alert>
+          )}
+          {maintenanceSuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {maintenanceSuccess}
+            </Alert>
+          )}
+          
+          <form onSubmit={handleMaintenanceSubmit}>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Issue Title"
+                  value={maintenanceForm.title}
+                  onChange={(e) => handleMaintenanceChange('title', e.target.value)}
+                  required
+                  placeholder="Brief description of the issue"
+                  disabled={maintenanceLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Detailed Description"
+                  value={maintenanceForm.description}
+                  onChange={(e) => handleMaintenanceChange('description', e.target.value)}
+                  required
+                  multiline
+                  rows={4}
+                  placeholder="Please describe the issue in detail. Include any specific symptoms, when it started, and any other relevant information."
+                  disabled={maintenanceLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth required disabled={maintenanceLoading}>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    value={maintenanceForm.category}
+                    label="Category"
+                    onChange={(e) => handleMaintenanceChange('category', e.target.value)}
+                  >
+                    <MenuItem value="Electrical">Electrical</MenuItem>
+                    <MenuItem value="Plumbing">Plumbing</MenuItem>
+                    <MenuItem value="HVAC">HVAC</MenuItem>
+                    <MenuItem value="Furniture">Furniture</MenuItem>
+                    <MenuItem value="Equipment">Equipment</MenuItem>
+                    <MenuItem value="Structural">Structural</MenuItem>
+                    <MenuItem value="Cleaning">Cleaning</MenuItem>
+                    <MenuItem value="Other">Other</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth disabled={maintenanceLoading}>
+                  <InputLabel>Priority</InputLabel>
+                  <Select
+                    value={maintenanceForm.priority}
+                    label="Priority"
+                    onChange={(e) => handleMaintenanceChange('priority', e.target.value)}
+                  >
+                    <MenuItem value="Low">Low</MenuItem>
+                    <MenuItem value="Medium">Medium</MenuItem>
+                    <MenuItem value="High">High</MenuItem>
+                    <MenuItem value="Urgent">Urgent</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Building"
+                  value={maintenanceForm.location.building}
+                  onChange={(e) => handleMaintenanceChange('location.building', e.target.value)}
+                  required
+                  placeholder="e.g., Science Building"
+                  disabled={maintenanceLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Room Number"
+                  value={maintenanceForm.location.roomNumber}
+                  onChange={(e) => handleMaintenanceChange('location.roomNumber', e.target.value)}
+                  required
+                  placeholder="e.g., 205"
+                  disabled={maintenanceLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Floor (Optional)"
+                  value={maintenanceForm.location.floor}
+                  onChange={(e) => handleMaintenanceChange('location.floor', e.target.value)}
+                  placeholder="e.g., 2nd Floor"
+                  disabled={maintenanceLoading}
+                />
+              </Grid>
+            </Grid>
+          </form>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setMaintenanceDialogOpen(false)}
+            disabled={maintenanceLoading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleMaintenanceSubmit}
+            variant="contained"
+            disabled={maintenanceLoading}
+            startIcon={maintenanceLoading ? <CircularProgress size={20} /> : <Add />}
+          >
+            {maintenanceLoading ? 'Submitting...' : 'Submit Request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
