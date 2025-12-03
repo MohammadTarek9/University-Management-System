@@ -1,19 +1,22 @@
-CREATE DATABASE university_mgmt
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+-- CREATE DATABASE university_mgmt
+  -- CHARACTER SET utf8mb4
+  -- COLLATE utf8mb4_unicode_ci;
   
-  SHOW databases;
+  -- SHOW databases;
   
-USE university_mgmt;
+-- USE university_mgmt;
   
-CREATE USER 'uni_user'@'%' IDENTIFIED BY 'user_root';
+-- CREATE USER 'uni_user'@'%' IDENTIFIED BY 'user_root';
   
-GRANT ALL PRIVILEGES ON university_mgmt.* TO 'uni_user'@'%';
-FLUSH PRIVILEGES;
+-- GRANT ALL PRIVILEGES ON university_mgmt.* TO 'uni_user'@'%';
+-- FLUSH PRIVILEGES;
     
-SHOW GRANTS FOR 'uni_user'@'%';
+-- SHOW GRANTS FOR 'uni_user'@'%';
 
-USE university_mgmt;
+-- USE university_mgmt;
+
+USE sql7810552;
+
 
 CREATE TABLE entity_types (
     id    INT AUTO_INCREMENT PRIMARY KEY,
@@ -24,16 +27,19 @@ CREATE TABLE entity_types (
 CREATE TABLE entities (
     id             INT AUTO_INCREMENT PRIMARY KEY,
     entity_type_id INT NOT NULL,
-    natural_key    VARCHAR(150),   -- e.g. email, room name, booking code...
-    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    natural_key    VARCHAR(150),
+
+    created_at     TIMESTAMP NULL DEFAULT NULL,
     updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                       ON UPDATE CURRENT_TIMESTAMP,
+                               ON UPDATE CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_entities_entitytype
       FOREIGN KEY (entity_type_id) REFERENCES entity_types(id),
 
     UNIQUE KEY uq_entitytype_naturalkey (entity_type_id, natural_key)
 ) ENGINE=InnoDB;
+
+
 
 CREATE TABLE attributes (
     id             INT AUTO_INCREMENT PRIMARY KEY,
@@ -78,14 +84,14 @@ INSERT INTO entity_types (code, label) VALUES
 SELECT * FROM entity_types;
 
 
-USE university_mgmt;
+-- USE university_mgmt;
 
 SELECT id, code, label
 FROM entity_types;
 
 -- User Attributes
 
-USE university_mgmt;
+-- USE university_mgmt;
 
 -- Get the ID of the 'user' entity type
 SET @user_type_id = (
@@ -150,7 +156,7 @@ FROM attributes
 WHERE entity_type_id = @user_type_id;
 
 -- Room Attributes
-USE university_mgmt;
+-- USE university_mgmt;
 
 -- Get the ID of the 'room' entity type
 SET @room_type_id = (
@@ -196,7 +202,7 @@ FROM attributes
 WHERE entity_type_id = @room_type_id;
 
 -- Booking Attributes
-USE university_mgmt;
+-- USE university_mgmt;
 
 -- Get the ID of the 'booking' entity type
 SET @booking_type_id = (
@@ -246,7 +252,7 @@ WHERE entity_type_id = @booking_type_id;
 
 
 -- Maintenence Request Attributes
-USE university_mgmt;
+-- USE university_mgmt;
 
 -- Get the ID of the 'maintenance_request' entity type
 SET @maint_type_id = (
@@ -303,7 +309,7 @@ FROM attributes
 WHERE entity_type_id = @maint_type_id;
 
 -- Application Attributes
-USE university_mgmt;
+-- USE university_mgmt;
 
 -- Get the ID of the 'application' entity type
 SET @application_type_id = (
@@ -391,7 +397,7 @@ SELECT id
 FROM entity_types
 WHERE code = 'user';
 
-USE university_mgmt;
+-- USE university_mgmt;
 
 -- 1) Get the user entity_type_id
 SET @user_type_id = (
@@ -497,7 +503,7 @@ ORDER BY a.name;
 
 -- TEST ROOM MODEL --
 
-USE university_mgmt;
+-- USE university_mgmt;
 
 -- 1) Get the room entity_type_id
 SET @room_type_id = (
