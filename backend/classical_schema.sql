@@ -101,9 +101,6 @@ CREATE TABLE IF NOT EXISTS applications (
     student_credentials_temporary_password VARCHAR(255) NULL,
     student_credentials_generated_at       DATETIME NULL,
     student_credentials_generated_by       INT(11) NULL,
-    student_credentials_account_created    TINYINT(1) DEFAULT 0,
-    student_credentials_account_created_at DATETIME NULL,
-    student_credentials_account_created_by INT(11) NULL,
 
     submitted_at   DATETIME NULL,
     last_modified  DATETIME NULL,
@@ -119,10 +116,6 @@ CREATE TABLE IF NOT EXISTS applications (
         ON DELETE SET NULL,
 
     FOREIGN KEY (student_credentials_generated_by)
-        REFERENCES users(id)
-        ON DELETE SET NULL,
-
-    FOREIGN KEY (student_credentials_account_created_by)
         REFERENCES users(id)
         ON DELETE SET NULL,
 
@@ -553,13 +546,13 @@ INSERT INTO maintenance_requests (
 );
 
 
-SELECT id, first_name, last_name, email, role
+SELECT *
 FROM users;
 
 SELECT id, name, type, location_building, location_room_number
 FROM rooms;
 
-SELECT id, application_id, email, status
+SELECT *
 FROM applications;
 
 SELECT id, room_id, user_id, title, start_time, end_time

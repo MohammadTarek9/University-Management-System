@@ -13,6 +13,7 @@ const {
   createStudentAccount
 } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/auth');
+const { handleValidationErrors } = require('../utils/responseHelpers');
 
 const router = express.Router();
 
@@ -148,37 +149,34 @@ const statusUpdateValidation = [
     .withMessage('Notes cannot exceed 1000 characters')
 ];
 
-// Apply authentication to all routes
-router.use(protect);
-
 // GET /api/facilities/applications/stats - Get application statistics
-router.get('/stats', authorize(['admin', 'staff']), getApplicationStats);
+router.get('/stats', protect, authorize(['admin', 'staff']), getApplicationStats);
 
 // GET /api/facilities/applications/filters - Get filter options
-router.get('/filters', authorize(['admin', 'staff']), getFilterOptions);
+router.get('/filters', protect, authorize(['admin', 'staff']), getFilterOptions);
 
 // GET /api/facilities/applications - Get all applications (Admin, Staff can view)
-router.get('/', authorize(['admin', 'staff']), getAllApplications);
+router.get('/', protect, authorize(['admin', 'staff']), getAllApplications);
 
 // POST /api/facilities/applications - Create new application (Admin only)
-router.post('/', authorize(['admin']), applicationValidation, createApplication);
+router.post('/', protect, authorize(['admin']), applicationValidation, handleValidationErrors, createApplication);
 
 // GET /api/facilities/applications/:id - Get single application
-router.get('/:id', authorize(['admin', 'staff']), getApplicationById);
+router.get('/:id', protect, authorize(['admin', 'staff']), getApplicationById);
 
 // PUT /api/facilities/applications/:id - Update entire application (Admin only)
-router.put('/:id', authorize(['admin']), applicationValidation, updateApplication);
+router.put('/:id', protect, authorize(['admin']), applicationValidation, handleValidationErrors, updateApplication);
 
 // PUT /api/facilities/applications/:id/status - Update application status (Admin, Staff)
-router.put('/:id/status', authorize(['admin', 'staff']), statusUpdateValidation, updateApplicationStatus);
+router.put('/:id/status', protect, authorize(['admin', 'staff']), statusUpdateValidation, handleValidationErrors, updateApplicationStatus);
 
 // GET /api/facilities/applications/:id/credentials - Get student credentials (Admin only)
-router.get('/:id/credentials', authorize(['admin']), getStudentCredentials);
+router.get('/:id/credentials', protect, authorize(['admin']), getStudentCredentials);
 
 // POST /api/facilities/applications/:id/create-account - Create student account (Admin only)
-router.post('/:id/create-account', authorize(['admin']), createStudentAccount);
+router.post('/:id/create-account', protect, authorize(['admin']), createStudentAccount);
 
 // DELETE /api/facilities/applications/:id - Delete application (Admin only)
-router.delete('/:id', authorize(['admin']), deleteApplication);
+router.delete('/:id', protect, authorize(['admin']), deleteApplication);
 
 module.exports = router;
