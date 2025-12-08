@@ -190,7 +190,7 @@ const RoomManagement = () => {
     
     try {
       setLoading(true);
-      await roomService.updateRoom(selectedRoom._id, formData);
+      await roomService.updateRoom(selectedRoom.id || selectedRoom._id, formData);
       setSuccessMessage('Room updated successfully');
       setOpenEditDialog(false);
       setSelectedRoom(null);
@@ -210,7 +210,7 @@ const RoomManagement = () => {
     
     try {
       setLoading(true);
-      await roomService.deleteRoom(selectedRoom._id);
+      await roomService.deleteRoom(selectedRoom.id || selectedRoom._id);
       setSuccessMessage('Room deleted successfully');
       setOpenDeleteDialog(false);
       setSelectedRoom(null);
@@ -547,7 +547,7 @@ const RoomManagement = () => {
                 </TableRow>
               ) : (
                 rooms.map((room) => (
-                  <TableRow key={room._id} hover>
+                  <TableRow key={room.id || room._id} hover>
                     <TableCell>
                       <Typography variant="body1" fontWeight="medium">
                         {formatRoomName(room)}
