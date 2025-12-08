@@ -86,7 +86,11 @@ exports.getAllRooms = async (req, res) => {
 // @access  Private (Admin, Staff, Professor)
 exports.getRoomById = async (req, res) => {
   try {
-    const room = await roomRepo.getRoomById(parseInt(req.params.id));
+    const roomId = parseInt(req.params.id);
+    if (!Number.isInteger(roomId) || isNaN(roomId)) {
+      return errorResponse(res, 400, 'Invalid room ID');
+    }
+    const room = await roomRepo.getRoomById(roomId);
 
     if (!room) {
       return errorResponse(res, 404, 'Room not found');
@@ -191,6 +195,9 @@ exports.updateRoom = async (req, res) => {
     }
 
     const roomId = parseInt(req.params.id);
+    if (!Number.isInteger(roomId) || isNaN(roomId)) {
+      return errorResponse(res, 400, 'Invalid room ID');
+    }
     const room = await roomRepo.getRoomById(roomId);
 
     if (!room) {
@@ -269,6 +276,9 @@ exports.updateRoom = async (req, res) => {
 exports.deleteRoom = async (req, res) => {
   try {
     const roomId = parseInt(req.params.id);
+    if (!Number.isInteger(roomId) || isNaN(roomId)) {
+      return errorResponse(res, 400, 'Invalid room ID');
+    }
     const room = await roomRepo.getRoomById(roomId);
 
     if (!room) {
