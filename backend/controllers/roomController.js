@@ -1,6 +1,8 @@
-const Room = require('../models/Room');
+const roomRepo = require('../repositories/roomRepo');
+const userRepo = require('../repositories/userRepo');
 const { successResponse, errorResponse } = require('../utils/responseHelpers');
 const { validationResult } = require('express-validator');
+const pool = require('../db/mysql');
 
 // @desc    Get all rooms
 // @route   GET /api/facilities/rooms
@@ -9,58 +11,68 @@ exports.getAllRooms = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
     const search = req.query.search || '';
     const type = req.query.type || '';
     const building = req.query.building || '';
-    const capacity = req.query.capacity || ''; 
+    const capacity = req.query.capacity || '';
     const isActive = req.query.isActive;
 
-    // Build filter object
-    const filter = {};
-    
+    const filters = {};
+
     if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { 'location.building': { $regex: search, $options: 'i' } },
-        { 'location.roomNumber': { $regex: search, $options: 'i' } }
-      ];
-    }
-    
-    if (type && type !== 'all') {
-      filter.type = type;
-    }
-    
-    if (building && building !== 'all') {
-      filter['location.building'] = building;
-    }
-    
-    if (capacity && !isNaN(capacity)) {
-      filter.capacity = { $gte: parseInt(capacity) };
-    }
-    
-    if (isActive !== undefined && isActive !== 'all') {
-      filter.isActive = isActive === 'true';
+      filters.search = search;
     }
 
-    const totalRooms = await Room.countDocuments(filter);
-    const rooms = await Room.find(filter)
-      .populate('createdBy', 'firstName lastName')
-      .populate('updatedBy', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    if (type && type !== 'all') {
+      filters.type = type;
+    }
+
+    if (building && building !== 'all') {
+      filters.building = building;
+    }
+
+    if (capacity && !isNaN(capacity)) {
+      filters.capacity = parseInt(capacity);
+    }
+
+    if (isActive !== undefined && isActive !== 'all') {
+      filters.isActive = isActive === 'true' || isActive === true;
+    }
+
+    const result = await roomRepo.getAllRooms(filters, page, limit);
+
+    // Fetch user details for createdBy and updatedBy
+    const roomsWithUsers = await Promise.all(
+      result.rooms.map(async (room) => {
+        const createdByUser = room.createdBy ? await userRepo.getUserById(room.createdBy) : null;
+        const updatedByUser = room.updatedBy ? await userRepo.getUserById(room.updatedBy) : null;
+
+        return {
+          ...room,
+          createdBy: createdByUser ? {
+            id: createdByUser.id,
+            firstName: createdByUser.firstName,
+            lastName: createdByUser.lastName
+          } : null,
+          updatedBy: updatedByUser ? {
+            id: updatedByUser.id,
+            firstName: updatedByUser.firstName,
+            lastName: updatedByUser.lastName
+          } : null
+        };
+      })
+    );
 
     const pagination = {
       currentPage: page,
-      totalPages: Math.ceil(totalRooms / limit),
-      totalRooms,
-      hasNext: page < Math.ceil(totalRooms / limit),
+      totalPages: result.pages,
+      totalRooms: result.total,
+      hasNext: page < result.pages,
       hasPrev: page > 1
     };
 
     return successResponse(res, 200, 'Rooms retrieved successfully', {
-      rooms,
+      rooms: roomsWithUsers,
       pagination
     });
   } catch (error) {
@@ -74,20 +86,35 @@ exports.getAllRooms = async (req, res) => {
 // @access  Private (Admin, Staff, Professor)
 exports.getRoomById = async (req, res) => {
   try {
-    const room = await Room.findById(req.params.id)
-      .populate('createdBy', 'firstName lastName email')
-      .populate('updatedBy', 'firstName lastName email');
+    const room = await roomRepo.getRoomById(parseInt(req.params.id));
 
     if (!room) {
       return errorResponse(res, 404, 'Room not found');
     }
 
-    return successResponse(res, 200, 'Room retrieved successfully', { room });
+    // Fetch user details
+    const createdByUser = room.createdBy ? await userRepo.getUserById(room.createdBy) : null;
+    const updatedByUser = room.updatedBy ? await userRepo.getUserById(room.updatedBy) : null;
+
+    const roomWithUsers = {
+      ...room,
+      createdBy: createdByUser ? {
+        id: createdByUser.id,
+        firstName: createdByUser.firstName,
+        lastName: createdByUser.lastName,
+        email: createdByUser.email
+      } : null,
+      updatedBy: updatedByUser ? {
+        id: updatedByUser.id,
+        firstName: updatedByUser.firstName,
+        lastName: updatedByUser.lastName,
+        email: updatedByUser.email
+      } : null
+    };
+
+    return successResponse(res, 200, 'Room retrieved successfully', { room: roomWithUsers });
   } catch (error) {
     console.error('Error fetching room:', error);
-    if (error.name === 'CastError') {
-      return errorResponse(res, 404, 'Room not found');
-    }
     return errorResponse(res, 500, 'Failed to fetch room');
   }
 };
@@ -105,22 +132,25 @@ exports.createRoom = async (req, res) => {
     const { name, type, capacity, location, equipment = [], amenities = [], maintenanceNotes } = req.body;
 
     // Check for duplicate room name
-    const existingRoom = await Room.findOne({ name });
-    if (existingRoom) {
+    const [existingByName] = await pool.query(
+      'SELECT id FROM rooms WHERE name = ?',
+      [name]
+    );
+    if (existingByName.length > 0) {
       return errorResponse(res, 409, 'A room with this name already exists');
     }
 
-    // Check for duplicate location (building + floor + roomNumber)
-    const existingLocation = await Room.findOne({
-      'location.building': location.building,
-      'location.floor': location.floor,
-      'location.roomNumber': location.roomNumber
-    });
-    if (existingLocation) {
+    // Check for duplicate location
+    const [existingByLocation] = await pool.query(
+      `SELECT id FROM rooms 
+       WHERE location_building = ? AND location_floor = ? AND location_room_number = ?`,
+      [location.building, location.floor, location.roomNumber]
+    );
+    if (existingByLocation.length > 0) {
       return errorResponse(res, 409, 'A room already exists at this location');
     }
 
-    const room = await Room.create({
+    const room = await roomRepo.createRoom({
       name,
       type,
       capacity,
@@ -131,22 +161,21 @@ exports.createRoom = async (req, res) => {
       createdBy: req.user.id
     });
 
-    const populatedRoom = await Room.findById(room._id)
-      .populate('createdBy', 'firstName lastName');
+    const createdByUser = await userRepo.getUserById(room.createdBy);
+    const roomWithUser = {
+      ...room,
+      createdBy: {
+        id: createdByUser.id,
+        firstName: createdByUser.firstName,
+        lastName: createdByUser.lastName
+      }
+    };
 
     return successResponse(res, 201, 'Room created successfully', {
-      room: populatedRoom
+      room: roomWithUser
     });
   } catch (error) {
     console.error('Error creating room:', error);
-    if (error.code === 11000) {
-      if (error.keyPattern?.name) {
-        return errorResponse(res, 409, 'A room with this name already exists');
-      }
-      if (error.keyPattern?.['location.building']) {
-        return errorResponse(res, 409, 'A room already exists at this location');
-      }
-    }
     return errorResponse(res, 500, 'Failed to create room');
   }
 };
@@ -161,7 +190,9 @@ exports.updateRoom = async (req, res) => {
       return errorResponse(res, 400, 'Validation failed', errors.array());
     }
 
-    const room = await Room.findById(req.params.id);
+    const roomId = parseInt(req.params.id);
+    const room = await roomRepo.getRoomById(roomId);
+
     if (!room) {
       return errorResponse(res, 404, 'Room not found');
     }
@@ -170,21 +201,23 @@ exports.updateRoom = async (req, res) => {
 
     // Check for duplicate name (excluding current room)
     if (name && name !== room.name) {
-      const existingRoom = await Room.findOne({ name });
-      if (existingRoom) {
+      const [existingByName] = await pool.query(
+        'SELECT id FROM rooms WHERE name = ? AND id != ?',
+        [name, roomId]
+      );
+      if (existingByName.length > 0) {
         return errorResponse(res, 409, 'A room with this name already exists');
       }
     }
 
     // Check for duplicate location (excluding current room)
     if (location) {
-      const existingLocation = await Room.findOne({
-        _id: { $ne: req.params.id },
-        'location.building': location.building,
-        'location.floor': location.floor,
-        'location.roomNumber': location.roomNumber
-      });
-      if (existingLocation) {
+      const [existingByLocation] = await pool.query(
+        `SELECT id FROM rooms 
+         WHERE location_building = ? AND location_floor = ? AND location_room_number = ? AND id != ?`,
+        [location.building, location.floor, location.roomNumber, roomId]
+      );
+      if (existingByLocation.length > 0) {
         return errorResponse(res, 409, 'A room already exists at this location');
       }
     }
@@ -194,38 +227,38 @@ exports.updateRoom = async (req, res) => {
       ...(type && { type }),
       ...(capacity !== undefined && { capacity }),
       ...(location && { location }),
-      ...(equipment && { equipment }),
-      ...(amenities && { amenities }),
+      ...(equipment !== undefined && { equipment }),
+      ...(amenities !== undefined && { amenities }),
       ...(isActive !== undefined && { isActive }),
       ...(maintenanceNotes !== undefined && { maintenanceNotes }),
       ...(nextMaintenanceDate && { nextMaintenanceDate }),
       updatedBy: req.user.id
     };
 
-    const updatedRoom = await Room.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    )
-      .populate('createdBy', 'firstName lastName')
-      .populate('updatedBy', 'firstName lastName');
+    const updatedRoom = await roomRepo.updateRoom(roomId, updateData);
+
+    const createdByUser = updatedRoom.createdBy ? await userRepo.getUserById(updatedRoom.createdBy) : null;
+    const updatedByUser = updatedRoom.updatedBy ? await userRepo.getUserById(updatedRoom.updatedBy) : null;
+
+    const roomWithUsers = {
+      ...updatedRoom,
+      createdBy: createdByUser ? {
+        id: createdByUser.id,
+        firstName: createdByUser.firstName,
+        lastName: createdByUser.lastName
+      } : null,
+      updatedBy: updatedByUser ? {
+        id: updatedByUser.id,
+        firstName: updatedByUser.firstName,
+        lastName: updatedByUser.lastName
+      } : null
+    };
 
     return successResponse(res, 200, 'Room updated successfully', {
-      room: updatedRoom
+      room: roomWithUsers
     });
   } catch (error) {
     console.error('Error updating room:', error);
-    if (error.name === 'CastError') {
-      return errorResponse(res, 404, 'Room not found');
-    }
-    if (error.code === 11000) {
-      if (error.keyPattern?.name) {
-        return errorResponse(res, 409, 'A room with this name already exists');
-      }
-      if (error.keyPattern?.['location.building']) {
-        return errorResponse(res, 409, 'A room already exists at this location');
-      }
-    }
     return errorResponse(res, 500, 'Failed to update room');
   }
 };
@@ -235,20 +268,22 @@ exports.updateRoom = async (req, res) => {
 // @access  Private (Admin only)
 exports.deleteRoom = async (req, res) => {
   try {
-    const room = await Room.findById(req.params.id);
-    
+    const roomId = parseInt(req.params.id);
+    const room = await roomRepo.getRoomById(roomId);
+
     if (!room) {
       return errorResponse(res, 404, 'Room not found');
     }
 
-    await Room.findByIdAndDelete(req.params.id);
+    const deleted = await roomRepo.deleteRoom(roomId);
+
+    if (!deleted) {
+      return errorResponse(res, 404, 'Room not found');
+    }
 
     return successResponse(res, 200, 'Room deleted successfully');
   } catch (error) {
     console.error('Error deleting room:', error);
-    if (error.name === 'CastError') {
-      return errorResponse(res, 404, 'Room not found');
-    }
     return errorResponse(res, 500, 'Failed to delete room');
   }
 };
@@ -258,16 +293,27 @@ exports.deleteRoom = async (req, res) => {
 // @access  Private (Admin, Staff)
 exports.getRoomStats = async (req, res) => {
   try {
-    const totalRooms = await Room.countDocuments();
-    const activeRooms = await Room.countDocuments({ isActive: true });
-    const roomsByType = await Room.aggregate([
-      { $group: { _id: '$type', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-    const roomsByBuilding = await Room.aggregate([
-      { $group: { _id: '$location.building', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
+    const [totalResult] = await pool.query('SELECT COUNT(*) as count FROM rooms');
+    const totalRooms = totalResult[0].count;
+
+    const [activeResult] = await pool.query('SELECT COUNT(*) as count FROM rooms WHERE is_active = 1');
+    const activeRooms = activeResult[0].count;
+
+    const [typeResult] = await pool.query(
+      'SELECT type, COUNT(*) as count FROM rooms GROUP BY type ORDER BY count DESC'
+    );
+    const roomsByType = typeResult.map(row => ({
+      _id: row.type,
+      count: row.count
+    }));
+
+    const [buildingResult] = await pool.query(
+      'SELECT location_building, COUNT(*) as count FROM rooms GROUP BY location_building ORDER BY count DESC'
+    );
+    const roomsByBuilding = buildingResult.map(row => ({
+      _id: row.location_building,
+      count: row.count
+    }));
 
     return successResponse(res, 200, 'Room statistics retrieved successfully', {
       totalRooms,
