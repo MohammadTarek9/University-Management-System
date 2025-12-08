@@ -1,4 +1,4 @@
-const User = require('../models/User');
+const userRepo = require('../repositories/userRepo');
 const { body } = require('express-validator');
 const { successResponse, errorResponse } = require('../utils/responseHelpers');
 
@@ -7,7 +7,7 @@ const { successResponse, errorResponse } = require('../utils/responseHelpers');
 // @access  Private
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await userRepo.getUserById(req.user.id);
     
     if (!user) {
       return errorResponse(res, 404, 'User not found');
@@ -15,10 +15,9 @@ exports.getProfile = async (req, res) => {
 
     successResponse(res, 200, 'Profile retrieved successfully', {
       user: {
-        id: user._id,
+        id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
-        fullName: user.fullName,
         email: user.email,
         role: user.role,
         studentId: user.studentId,
@@ -52,37 +51,43 @@ exports.updateProfile = async (req, res) => {
       department
     } = req.body;
 
-    const user = await User.findById(req.user.id);
+    const user = await userRepo.getUserById(req.user.id);
     
     if (!user) {
       return errorResponse(res, 404, 'User not found');
     }
 
-    // Update allowed fields (users can only update specific fields)
-    if (firstName !== undefined) user.firstName = firstName;
-    if (lastName !== undefined) user.lastName = lastName;
-    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
-    if (department !== undefined) user.department = department;
+    // Prepare update data (only non-undefined fields)
+    const updateData = {};
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (department !== undefined) updateData.department = department;
 
-    await user.save();
+    // Only update if there are changes
+    if (Object.keys(updateData).length > 0) {
+      await userRepo.updateUser(req.user.id, updateData);
+    }
+
+    // Fetch updated user
+    const updatedUser = await userRepo.getUserById(req.user.id);
 
     successResponse(res, 200, 'Profile updated successfully', {
       user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        studentId: user.studentId,
-        employeeId: user.employeeId,
-        department: user.department,
-        phoneNumber: user.phoneNumber,
-        isActive: user.isActive,
-        isEmailVerified: user.isEmailVerified,
-        profilePicture: user.profilePicture,
-        lastLogin: user.lastLogin,
-        updatedAt: user.updatedAt
+        id: updatedUser.id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        studentId: updatedUser.studentId,
+        employeeId: updatedUser.employeeId,
+        department: updatedUser.department,
+        phoneNumber: updatedUser.phoneNumber,
+        isActive: updatedUser.isActive,
+        isEmailVerified: updatedUser.isEmailVerified,
+        profilePicture: updatedUser.profilePicture,
+        lastLogin: updatedUser.lastLogin,
+        updatedAt: updatedUser.updatedAt
       }
     });
 
