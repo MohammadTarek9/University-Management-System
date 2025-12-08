@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 
 const { errorResponse, successResponse } = require('../utils/responseHelpers');
 const userRepo = require('../repositories/userRepo');
+const { generateSequentialId, generateUniversityEmail } = require('../utils/idGenerator');
 
 // ===================================================================
 // @desc    Get all users (Admin only)
@@ -113,20 +114,43 @@ const createUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 5) Create user in MySQL
+    // 5) Generate sequential IDs if not provided
+    let finalStudentId = studentId && studentId.trim() !== '' ? studentId : null;
+    let finalEmployeeId = employeeId && employeeId.trim() !== '' ? employeeId : null;
+    let finalEmail = email;
+
+    const userRole = role || 'student';
+    
+    // Auto-generate ID if not provided
+    if (userRole === 'student' && !finalStudentId) {
+      finalStudentId = await generateSequentialId('student');
+      // If email not customized, generate university email
+      if (!email || email.trim() === '') {
+        finalEmail = generateUniversityEmail(finalStudentId);
+      }
+    } else if (['professor', 'admin', 'staff', 'ta'].includes(userRole) && !finalEmployeeId) {
+      finalEmployeeId = await generateSequentialId(userRole);
+      // If email not customized, generate university email
+      if (!email || email.trim() === '') {
+        finalEmail = generateUniversityEmail(finalEmployeeId);
+      }
+    }
+
+    // 6) Create user in MySQL
     const user = await userRepo.createUser({
       firstName,
       lastName,
-      email,
+      email: finalEmail,
       password: hashedPassword,
-      role: role || 'student',
-      studentId: studentId && studentId.trim() !== '' ? studentId : null,
-      employeeId: employeeId && employeeId.trim() !== '' ? employeeId : null,
+      role: userRole,
+      studentId: finalStudentId,
+      employeeId: finalEmployeeId,
       department,
       major,
       phoneNumber,
-      firstLogin: !!firstLogin,
-      mustChangePassword: !!mustChangePassword,
+      // Default to true if not explicitly provided (for manually created users)
+      firstLogin: firstLogin !== undefined ? !!firstLogin : true,
+      mustChangePassword: mustChangePassword !== undefined ? !!mustChangePassword : true,
       securityQuestion,
       securityAnswer
     });

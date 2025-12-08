@@ -270,7 +270,7 @@ const AdmissionsManagement = () => {
   // Handle select all
   const handleSelectAll = (checked) => {
     if (checked) {
-      setSelectedApplications(applications.map(app => app._id));
+      setSelectedApplications(applications.map(app => app.id));
     } else {
       setSelectedApplications([]);
     }
@@ -445,7 +445,7 @@ const AdmissionsManagement = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <CheckCircle sx={{ mr: 2, color: 'success.main' }} />
                   <Box>
-                    <Typography variant="h6">{stats.byStatus['Approved'] || 0}</Typography>
+                    <Typography variant="h6">{stats?.approved || 0}</Typography>
                     <Typography variant="body2" color="text.secondary">
                       Approved
                     </Typography>
@@ -460,7 +460,7 @@ const AdmissionsManagement = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <TrendingUp sx={{ mr: 2, color: 'warning.main' }} />
                   <Box>
-                    <Typography variant="h6">{stats.byStatus['Pending Review'] || 0}</Typography>
+                    <Typography variant="h6">{stats?.pending_review || 0}</Typography>
                     <Typography variant="body2" color="text.secondary">
                       Pending Review
                     </Typography>
@@ -475,9 +475,9 @@ const AdmissionsManagement = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <School sx={{ mr: 2, color: 'info.main' }} />
                   <Box>
-                    <Typography variant="h6">{stats.recentApplications || 0}</Typography>
+                    <Typography variant="h6">{stats?.rejected || 0}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Recent (7 days)
+                      Rejected
                     </Typography>
                   </Box>
                 </Box>
@@ -673,13 +673,13 @@ const AdmissionsManagement = () => {
                 </TableRow>
               ) : (
                 applications.map((application) => {
-                  const isSelected = selectedApplications.includes(application._id);
+                  const isSelected = selectedApplications.includes(application.id);
                   return (
-                    <TableRow key={application._id} hover selected={isSelected}>
+                    <TableRow key={application.id} hover selected={isSelected}>
                       <TableCell padding="checkbox">
                         <Checkbox
                           checked={isSelected}
-                          onChange={(e) => handleSelectApplication(application._id, e.target.checked)}
+                          onChange={(e) => handleSelectApplication(application.id, e.target.checked)}
                           disabled={loading}
                         />
                       </TableCell>
@@ -750,7 +750,7 @@ const AdmissionsManagement = () => {
                                 <IconButton 
                                   size="small" 
                                   color="success"
-                                  onClick={() => handleApproveApplication(application._id)}
+                                  onClick={() => handleApproveApplication(application.id)}
                                   disabled={application.status === 'Approved'}
                                 >
                                   <CheckCircle />
@@ -762,7 +762,7 @@ const AdmissionsManagement = () => {
                                 <IconButton 
                                   size="small" 
                                   color="error"
-                                  onClick={() => handleRejectApplication(application._id)}
+                                  onClick={() => handleRejectApplication(application.id)}
                                   disabled={application.status === 'Rejected'}
                                 >
                                   <Cancel />
@@ -786,7 +786,7 @@ const AdmissionsManagement = () => {
                               <IconButton 
                                 size="small" 
                                 color="error"
-                                onClick={() => handleDeleteApplication(application._id)}
+                                onClick={() => handleDeleteApplication(application.id)}
                               >
                                 <Delete />
                               </IconButton>

@@ -12,6 +12,7 @@ import Footer from './components/common/Footer';
 import Login from './components/auth/Login';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ForgotPassword from './components/auth/ForgotPassword';
+import FirstLoginPasswordChange from './components/auth/FirstLoginPasswordChange';
 import MainLayout from './components/layout/MainLayout';
 import MaintenanceDashboard from './components/Maintenance/MaintenanceDashboard';
 
@@ -77,6 +78,7 @@ function App() {
                 <Routes>
                   {/* Public routes */}
                   <Route path="/login" element={<Login />} />
+                  <Route path="/first-login-password-change" element={<FirstLoginPasswordChange />} />
                   <Route path="/unauthorized" element={<Unauthorized />} />
                   
                   {/* Protected routes */}

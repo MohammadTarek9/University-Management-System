@@ -193,17 +193,15 @@ const UserManagement = () => {
     setError('');
 
     try {
-      // Add firstLogin flag if this is from student credentials
+      // Add firstLogin and mustChangePassword flags for all new users
       const userData = { 
         ...newUser,
         // Clean up empty ID values to prevent duplicate key errors
         studentId: newUser.studentId?.trim() || undefined,
         employeeId: newUser.employeeId?.trim() || undefined,
-        // Add firstLogin fields for pre-populated student accounts
-        ...(newUser.studentId && newUser.email && newUser.email.includes('@uni.edu.eg') && {
-          firstLogin: true,
-          mustChangePassword: true
-        })
+        // Always set firstLogin and mustChangePassword flags for new users
+        firstLogin: true,
+        mustChangePassword: true
       };
       
       console.log('Creating user with data:', { ...userData, password: '[HIDDEN]' });
