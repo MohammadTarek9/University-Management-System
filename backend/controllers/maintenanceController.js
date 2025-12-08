@@ -1,4 +1,5 @@
-const MaintenanceRequest = require('../models/MaintenanceRequest');
+const maintenanceRepo = require('../repositories/maintenanceRepo');
+const userRepo = require('../repositories/userRepo');
 const { validationResult } = require('express-validator');
 
 // Helper function for consistent API responses
@@ -22,37 +23,29 @@ exports.createMaintenanceRequest = async (req, res) => {
       return sendResponse(res, 400, false, 'Validation failed', null, errors.array());
     }
 
-    const { title, description, category, priority, location, images } = req.body;
+    const { title, description, category, priority, location } = req.body;
 
     // Create new maintenance request
-    const maintenanceRequest = new MaintenanceRequest({
+    const maintenanceRequest = await maintenanceRepo.createMaintenanceRequest({
       title,
       description,
       category,
       priority: priority || 'Medium',
       location,
-      images: images || [],
       submittedBy: req.user.id
     });
 
-    await maintenanceRequest.save();
-
     // Populate submitter info
-    await maintenanceRequest.populate('submittedBy', 'firstName lastName email');
+    const submitter = await userRepo.getUserById(maintenanceRequest.submittedBy);
+    const response = {
+      ...maintenanceRequest,
+      submittedBy: submitter ? { id: submitter.id, firstName: submitter.firstName, lastName: submitter.lastName, email: submitter.email } : null
+    };
 
-    sendResponse(res, 201, true, 'Maintenance request submitted successfully', maintenanceRequest);
+    sendResponse(res, 201, true, 'Maintenance request submitted successfully', response);
 
   } catch (error) {
     console.error('Error creating maintenance request:', error);
-    
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => ({
-        field: err.path,
-        message: err.message
-      }));
-      return sendResponse(res, 400, false, 'Validation failed', null, validationErrors);
-    }
-    
     sendResponse(res, 500, false, 'Server error while submitting maintenance request');
   }
 };
@@ -68,9 +61,7 @@ exports.getAllMaintenanceRequests = async (req, res) => {
       status,
       category,
       priority,
-      search,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
+      search
     } = req.query;
 
     // Build filter object
@@ -96,47 +87,40 @@ exports.getAllMaintenanceRequests = async (req, res) => {
 
     // Search functionality
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
-      filter.$or = [
-        { title: searchRegex },
-        { description: searchRegex },
-        { 'location.building': searchRegex },
-        { 'location.roomNumber': searchRegex }
-      ];
+      filter.search = search.trim();
     }
 
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    
-    // Build sort object
-    const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    // Execute query
+    const { requests, total, pages } = await maintenanceRepo.getAllMaintenanceRequests(
+      filter,
+      parseInt(page),
+      parseInt(limit)
+    );
 
-    // Execute queries
-    const [requests, totalRequests] = await Promise.all([
-      MaintenanceRequest.find(filter)
-        .populate('submittedBy', 'firstName lastName email')
-        .populate('assignedTo', 'firstName lastName email')
-        .sort(sort)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean(),
-      MaintenanceRequest.countDocuments(filter)
-    ]);
+    // Populate user details for each request
+    const enrichedRequests = await Promise.all(
+      requests.map(async (request) => {
+        const [submitter, assigned] = await Promise.all([
+          request.submittedBy ? userRepo.getUserById(request.submittedBy) : null,
+          request.assignedTo ? userRepo.getUserById(request.assignedTo) : null
+        ]);
 
-    // Calculate pagination info
-    const totalPages = Math.ceil(totalRequests / parseInt(limit));
-    const hasNextPage = parseInt(page) < totalPages;
-    const hasPrevPage = parseInt(page) > 1;
+        return {
+          ...request,
+          submittedBy: submitter ? { id: submitter.id, firstName: submitter.firstName, lastName: submitter.lastName, email: submitter.email } : null,
+          assignedTo: assigned ? { id: assigned.id, firstName: assigned.firstName, lastName: assigned.lastName, email: assigned.email } : null
+        };
+      })
+    );
 
     sendResponse(res, 200, true, 'Maintenance requests retrieved successfully', {
-      requests,
+      requests: enrichedRequests,
       pagination: {
         currentPage: parseInt(page),
-        totalPages,
-        totalRequests,
-        hasNextPage,
-        hasPrevPage,
+        totalPages: pages,
+        totalRequests: total,
+        hasNextPage: parseInt(page) < pages,
+        hasPrevPage: parseInt(page) > 1,
         limit: parseInt(limit)
       }
     });
@@ -152,28 +136,38 @@ exports.getAllMaintenanceRequests = async (req, res) => {
 // @access  Private (Student - own requests, Admin - all requests)
 exports.getMaintenanceRequestById = async (req, res) => {
   try {
-    const request = await MaintenanceRequest.findById(req.params.id)
-      .populate('submittedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email');
+    const id = parseInt(req.params.id);
+    if (!Number.isInteger(id)) {
+      return sendResponse(res, 400, false, 'Invalid maintenance request ID');
+    }
+
+    const request = await maintenanceRepo.getMaintenanceRequestById(id);
 
     if (!request) {
       return sendResponse(res, 404, false, 'Maintenance request not found');
     }
 
     // Students can only view their own requests
-    if (req.user.role === 'student' && request.submittedBy._id.toString() !== req.user.id) {
+    if (req.user.role === 'student' && request.submittedBy !== req.user.id) {
       return sendResponse(res, 403, false, 'Access denied');
     }
 
-    sendResponse(res, 200, true, 'Maintenance request retrieved successfully', request);
+    // Populate user details
+    const [submitter, assigned] = await Promise.all([
+      request.submittedBy ? userRepo.getUserById(request.submittedBy) : null,
+      request.assignedTo ? userRepo.getUserById(request.assignedTo) : null
+    ]);
+
+    const response = {
+      ...request,
+      submittedBy: submitter ? { id: submitter.id, firstName: submitter.firstName, lastName: submitter.lastName, email: submitter.email } : null,
+      assignedTo: assigned ? { id: assigned.id, firstName: assigned.firstName, lastName: assigned.lastName, email: assigned.email } : null
+    };
+
+    sendResponse(res, 200, true, 'Maintenance request retrieved successfully', response);
 
   } catch (error) {
     console.error('Error fetching maintenance request:', error);
-    
-    if (error.name === 'CastError') {
-      return sendResponse(res, 400, false, 'Invalid maintenance request ID');
-    }
-    
     sendResponse(res, 500, false, 'Server error while fetching maintenance request');
   }
 };
@@ -183,9 +177,14 @@ exports.getMaintenanceRequestById = async (req, res) => {
 // @access  Private (Admin)
 exports.updateMaintenanceRequestStatus = async (req, res) => {
   try {
+    const id = parseInt(req.params.id);
+    if (!Number.isInteger(id)) {
+      return sendResponse(res, 400, false, 'Invalid maintenance request ID');
+    }
+
     const { status, assignedTo, adminNotes, estimatedCompletion } = req.body;
     
-    const request = await MaintenanceRequest.findById(req.params.id);
+    const request = await maintenanceRepo.getMaintenanceRequestById(id);
     
     if (!request) {
       return sendResponse(res, 404, false, 'Maintenance request not found');
@@ -193,45 +192,42 @@ exports.updateMaintenanceRequestStatus = async (req, res) => {
 
     // Validate status
     const validStatuses = ['Submitted', 'In Progress', 'Completed', 'Cancelled'];
-    if (!validStatuses.includes(status)) {
+    if (status && !validStatuses.includes(status)) {
       return sendResponse(res, 400, false, 'Invalid status');
     }
 
-    // Update request
-    request.status = status;
-    
-    if (assignedTo) {
-      request.assignedTo = assignedTo;
-    }
-    
-    if (adminNotes) {
-      request.adminNotes = adminNotes;
-    }
-    
-    if (estimatedCompletion) {
-      request.estimatedCompletion = estimatedCompletion;
-    }
+    // Prepare update data
+    const updateData = {
+      status,
+      adminNotes,
+      estimatedCompletion,
+      assignedTo
+    };
 
     // Set actual completion date if status is completed
     if (status === 'Completed' && !request.actualCompletion) {
-      request.actualCompletion = new Date();
+      updateData.actualCompletion = new Date();
     }
 
-    await request.save();
+    // Update request
+    const updatedRequest = await maintenanceRepo.updateMaintenanceRequest(id, updateData);
 
-    // Populate for response
-    await request.populate('submittedBy', 'firstName lastName email');
-    await request.populate('assignedTo', 'firstName lastName email');
+    // Populate user details
+    const [submitter, assigned] = await Promise.all([
+      updatedRequest.submittedBy ? userRepo.getUserById(updatedRequest.submittedBy) : null,
+      updatedRequest.assignedTo ? userRepo.getUserById(updatedRequest.assignedTo) : null
+    ]);
 
-    sendResponse(res, 200, true, `Maintenance request ${status.toLowerCase()} successfully`, request);
+    const response = {
+      ...updatedRequest,
+      submittedBy: submitter ? { id: submitter.id, firstName: submitter.firstName, lastName: submitter.lastName, email: submitter.email } : null,
+      assignedTo: assigned ? { id: assigned.id, firstName: assigned.firstName, lastName: assigned.lastName, email: assigned.email } : null
+    };
+
+    sendResponse(res, 200, true, `Maintenance request ${status.toLowerCase()} successfully`, response);
 
   } catch (error) {
     console.error('Error updating maintenance request status:', error);
-    
-    if (error.name === 'CastError') {
-      return sendResponse(res, 400, false, 'Invalid maintenance request ID');
-    }
-    
     sendResponse(res, 500, false, 'Server error while updating maintenance request');
   }
 };
@@ -241,16 +237,21 @@ exports.updateMaintenanceRequestStatus = async (req, res) => {
 // @access  Private (Student - own requests)
 exports.submitFeedback = async (req, res) => {
   try {
+    const id = parseInt(req.params.id);
+    if (!Number.isInteger(id)) {
+      return sendResponse(res, 400, false, 'Invalid maintenance request ID');
+    }
+
     const { rating, comment } = req.body;
     
-    const request = await MaintenanceRequest.findById(req.params.id);
+    const request = await maintenanceRepo.getMaintenanceRequestById(id);
     
     if (!request) {
       return sendResponse(res, 404, false, 'Maintenance request not found');
     }
 
     // Students can only submit feedback for their own completed requests
-    if (request.submittedBy.toString() !== req.user.id) {
+    if (request.submittedBy !== req.user.id) {
       return sendResponse(res, 403, false, 'Access denied');
     }
 
@@ -259,23 +260,12 @@ exports.submitFeedback = async (req, res) => {
     }
 
     // Update feedback
-    request.userFeedback = {
-      rating,
-      comment,
-      submittedAt: new Date()
-    };
+    const updatedRequest = await maintenanceRepo.submitFeedback(id, { rating, comment });
 
-    await request.save();
-
-    sendResponse(res, 200, true, 'Feedback submitted successfully', request);
+    sendResponse(res, 200, true, 'Feedback submitted successfully', updatedRequest);
 
   } catch (error) {
     console.error('Error submitting feedback:', error);
-    
-    if (error.name === 'CastError') {
-      return sendResponse(res, 400, false, 'Invalid maintenance request ID');
-    }
-    
     sendResponse(res, 500, false, 'Server error while submitting feedback');
   }
 };
@@ -285,23 +275,27 @@ exports.submitFeedback = async (req, res) => {
 // @access  Private (Admin)
 exports.deleteMaintenanceRequest = async (req, res) => {
   try {
-    const request = await MaintenanceRequest.findById(req.params.id);
+    const id = parseInt(req.params.id);
+    if (!Number.isInteger(id)) {
+      return sendResponse(res, 400, false, 'Invalid maintenance request ID');
+    }
+
+    const request = await maintenanceRepo.getMaintenanceRequestById(id);
     
     if (!request) {
       return sendResponse(res, 404, false, 'Maintenance request not found');
     }
 
-    await MaintenanceRequest.findByIdAndDelete(req.params.id);
+    const deleted = await maintenanceRepo.deleteMaintenanceRequest(id);
+
+    if (!deleted) {
+      return sendResponse(res, 400, false, 'Failed to delete maintenance request');
+    }
 
     sendResponse(res, 200, true, 'Maintenance request deleted successfully');
 
   } catch (error) {
     console.error('Error deleting maintenance request:', error);
-    
-    if (error.name === 'CastError') {
-      return sendResponse(res, 400, false, 'Invalid maintenance request ID');
-    }
-    
     sendResponse(res, 500, false, 'Server error while deleting maintenance request');
   }
 };
@@ -311,55 +305,38 @@ exports.deleteMaintenanceRequest = async (req, res) => {
 // @access  Private (Admin)
 exports.getMaintenanceStats = async (req, res) => {
   try {
-    const stats = await MaintenanceRequest.aggregate([
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    const categoryStats = await MaintenanceRequest.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { count: -1 } }
-    ]);
-
-    const priorityStats = await MaintenanceRequest.aggregate([
-      {
-        $group: {
-          _id: '$priority',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    const totalRequests = await MaintenanceRequest.countDocuments();
-    const completedThisWeek = await MaintenanceRequest.countDocuments({
-      status: 'Completed',
-      actualCompletion: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-    });
+    const [statusRows] = await require('../db/mysql').query(
+      'SELECT status, COUNT(*) as count FROM maintenance_requests GROUP BY status'
+    );
+    const [categoryRows] = await require('../db/mysql').query(
+      'SELECT category, COUNT(*) as count FROM maintenance_requests GROUP BY category ORDER BY count DESC'
+    );
+    const [priorityRows] = await require('../db/mysql').query(
+      'SELECT priority, COUNT(*) as count FROM maintenance_requests GROUP BY priority'
+    );
+    const [totalRows] = await require('../db/mysql').query(
+      'SELECT COUNT(*) as count FROM maintenance_requests'
+    );
+    const [completedWeekRows] = await require('../db/mysql').query(
+      'SELECT COUNT(*) as count FROM maintenance_requests WHERE status = ? AND actual_completion >= DATE_SUB(NOW(), INTERVAL 7 DAY)',
+      ['Completed']
+    );
 
     const responseData = {
-      total: totalRequests,
-      byStatus: stats.reduce((acc, stat) => {
-        acc[stat._id] = stat.count;
+      total: totalRows[0].count,
+      byStatus: statusRows.reduce((acc, row) => {
+        acc[row.status] = row.count;
         return acc;
       }, {}),
-      byCategory: categoryStats.reduce((acc, stat) => {
-        acc[stat._id] = stat.count;
+      byCategory: categoryRows.reduce((acc, row) => {
+        acc[row.category] = row.count;
         return acc;
       }, {}),
-      byPriority: priorityStats.reduce((acc, stat) => {
-        acc[stat._id] = stat.count;
+      byPriority: priorityRows.reduce((acc, row) => {
+        acc[row.priority] = row.count;
         return acc;
       }, {}),
-      completedThisWeek
+      completedThisWeek: completedWeekRows[0].count
     };
 
     sendResponse(res, 200, true, 'Maintenance statistics retrieved successfully', responseData);
