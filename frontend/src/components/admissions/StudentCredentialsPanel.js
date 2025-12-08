@@ -28,10 +28,10 @@ const StudentCredentialsPanel = ({ application, onAccountCreated }) => {
   const handleGetCredentials = async () => {
     setLoading(true);
     setError('');
-    console.log('Attempting to fetch credentials for application:', application._id);
+    console.log('Attempting to fetch credentials for application:', application.id);
     
     try {
-      const response = await api.get(`/facilities/applications/${application._id}/credentials`);
+      const response = await api.get(`/facilities/applications/${application.id}/credentials`);
       console.log('Credentials response:', response);
       setCredentials(response.data.data);
       setShowPassword(false); // Reset to hidden state

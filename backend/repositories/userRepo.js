@@ -183,8 +183,8 @@ async function createUser(userData) {
     department,
     major,
     phoneNumber,
-    firstLogin = false,
-    mustChangePassword = false,
+    firstLogin = true,
+    mustChangePassword = true,
     securityQuestion,
     securityAnswer
   } = userData;

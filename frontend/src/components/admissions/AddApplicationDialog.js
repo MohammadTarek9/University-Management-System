@@ -362,7 +362,7 @@ const AddApplicationDialog = ({ open, onClose, onSuccess, editMode = false, exis
 
       let response;
       if (editMode && existingApplication) {
-        response = await applicationService.updateApplication(existingApplication._id, submissionData);
+        response = await applicationService.updateApplication(existingApplication.id, submissionData);
       } else {
         response = await applicationService.createApplication(submissionData);
       }

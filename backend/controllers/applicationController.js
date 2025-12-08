@@ -2,6 +2,7 @@ const applicationRepo = require('../repositories/applicationRepo');
 const userRepo = require('../repositories/userRepo');
 const { validationResult } = require('express-validator');
 const { generateSecurePassword } = require('../utils/passwordValidator');
+const { generateSequentialId, generateUniversityEmail } = require('../utils/idGenerator');
 const bcrypt = require('bcryptjs');
 
 
@@ -158,15 +159,16 @@ exports.updateApplication = async (req, res) => {
 
 
 // Helper function to generate student credentials
-function generateStudentCredentials(intendedStartDate) {
+async function generateStudentCredentials(intendedStartDate) {
   const year = new Date(intendedStartDate).getFullYear();
-  const random = Math.random().toString(36).substr(2, 6).toUpperCase();
-  const studentId = `STU-${year}-${random}`;
+  
+  // Generate sequential student ID based on year
+  const studentId = await generateSequentialId('student', year);
 
   const temporaryPassword = generateSecurePassword(9);
 
   // Generate university email based on student ID
-  const universityEmail = `${studentId.toLowerCase()}@university.edu`;
+  const universityEmail = generateUniversityEmail(studentId);
 
   return {
     studentId,
@@ -209,7 +211,7 @@ exports.updateApplicationStatus = async (req, res) => {
     let credentials = null;
     if (status === 'Approved' && !application.studentCredentials?.studentId) {
       try {
-        credentials = generateStudentCredentials(application.academicInfo.intendedStartDate);
+        credentials = await generateStudentCredentials(application.academicInfo.intendedStartDate);
 
         updateData.studentCredentials = {
           studentId: credentials.studentId,
