@@ -200,7 +200,7 @@ const BookingManagement = () => {
   const handleRoomSelect = (room) => {
     setSelectedRoom(room);
     setFormData({
-      roomId: room._id,
+      roomId: room.id || room._id,
       title: `Meeting in ${room.name}`,
       description: '',
       startTime: filters.startTime || new Date().toISOString().slice(0, 16),
@@ -250,7 +250,7 @@ const BookingManagement = () => {
     
     try {
       setLoading(true);
-      await bookingService.cancelBooking(selectedBooking._id);
+      await bookingService.cancelBooking(selectedBooking.id || selectedBooking._id);
       setSuccessMessage('Booking cancelled successfully');
       setOpenCancelDialog(false);
       setSelectedBooking(null);
@@ -280,7 +280,8 @@ const BookingManagement = () => {
 
   // Check if user can cancel booking
   const canCancelBooking = (booking) => {
-    return (user?.role === 'admin' || booking.user?._id === user?.id) && 
+    const bookingOwnerId = booking.user?.id || booking.user?._id;
+    return (user?.role === 'admin' || bookingOwnerId === user?.id) &&
            booking.status === 'approved' &&
            new Date(booking.startTime) > new Date();
   };
@@ -441,7 +442,7 @@ const BookingManagement = () => {
         ) : (
           <Grid container spacing={3}>
             {availableRooms.map((room) => (
-              <Grid item xs={12} sm={6} md={4} key={room._id}>
+              <Grid item xs={12} sm={6} md={4} key={room.id || room._id}>
                 <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Typography variant="h6" gutterBottom>
@@ -654,7 +655,7 @@ const BookingManagement = () => {
                   </TableRow>
                 ) : (
                   currentBookings.map((booking) => (
-                    <TableRow key={booking._id} hover>
+                    <TableRow key={booking.id || booking._id} hover>
                       <TableCell>
                         <Typography variant="body1" fontWeight="medium">
                           {booking.title}
