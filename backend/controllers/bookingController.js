@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
-const Booking = require('../models/Booking');
-const Room = require('../models/Room');
+const bookingRepo = require('../repositories/bookingRepo');
+const roomRepo = require('../repositories/roomRepo');
+const userRepo = require('../repositories/userRepo');
 const { successResponse, errorResponse } = require('../utils/responseHelpers');
 const { validationResult } = require('express-validator');
 
@@ -11,63 +11,45 @@ exports.getAllBookings = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
     const { status, room, startDate, endDate } = req.query;
-
-    // Build filter object
-    const filter = {};
-    
-    // Staff and professors can only see their own bookings
+    const filters = {};
     if (req.user.role !== 'admin') {
-      filter.user = req.user.id;
+      filters.userId = req.user.id;
     }
-    
     if (status && status !== 'all' && status !== 'undefined') {
-      filter.status = status;
+      filters.status = status;
     }
-    
     if (room && room !== 'all' && room !== 'undefined') {
-      // Validate if it's a valid MongoDB ObjectId
-      if (mongoose.Types.ObjectId.isValid(room)) {
-        filter.room = room;
-      } else {
-        return errorResponse(res, 400, 'Invalid room ID format');
-      }
+      filters.roomId = parseInt(room);
     }
-    
     if (startDate && endDate) {
-      filter.startTime = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
+      filters.startDate = startDate;
+      filters.endDate = endDate;
     }
-
-    const totalBookings = await Booking.countDocuments(filter);
-    const bookings = await Booking.find(filter)
-      .populate('room', 'name type capacity location building equipment amenities isActive')
-      .populate('user', 'firstName lastName email')
-      .sort({ startTime: -1 })
-      .skip(skip)
-      .limit(limit);
-
+    const result = await bookingRepo.getAllBookings(filters, page, limit);
+    // Populate room and user details
+    const bookingsWithDetails = await Promise.all(result.bookings.map(async (booking) => {
+      const room = booking.roomId ? await roomRepo.getRoomById(booking.roomId) : null;
+      const user = booking.userId ? await userRepo.getUserById(booking.userId) : null;
+      return {
+        ...booking,
+        room,
+        user
+      };
+    }));
     const pagination = {
       currentPage: page,
-      totalPages: Math.ceil(totalBookings / limit),
-      totalBookings,
-      hasNext: page < Math.ceil(totalBookings / limit),
+      totalPages: result.pages,
+      totalBookings: result.total,
+      hasNext: page < result.pages,
       hasPrev: page > 1
     };
-
     return successResponse(res, 200, 'Bookings retrieved successfully', {
-      bookings,
+      bookings: bookingsWithDetails,
       pagination
     });
   } catch (error) {
     console.error('Error fetching bookings:', error);
-    // Handle CastError specifically
-    if (error.name === 'CastError') {
-      return errorResponse(res, 400, `Invalid ID format: ${error.value}`);
-    }
     return errorResponse(res, 500, 'Failed to fetch bookings');
   }
 };
@@ -77,36 +59,29 @@ exports.getAllBookings = async (req, res) => {
 // @access  Private (Admin, Staff, Professor)
 exports.createBooking = async (req, res) => {
   try {
+    console.log("debug point 1");
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return errorResponse(res, 400, 'Validation failed', errors.array());
     }
-
-    const { roomId, title, description, startTime, endTime, attendees, recurring } = req.body;
-
+    const { roomId, title, description, startTime, endTime, attendees, isRecurring, recurringFrequency, recurringEndDate, recurringOccurrences } = req.body;
     // Check if room exists and is active
-    const room = await Room.findById(roomId)
-      .select('-equipmentCount -fullLocation') // Exclude virtual fields that cause issues
-      .lean(); // Get plain JavaScript object instead of Mongoose document
-
+    const room = await roomRepo.getRoomById(roomId);
     if (!room) {
       return errorResponse(res, 404, 'Room not found');
     }
     if (!room.isActive) {
       return errorResponse(res, 400, 'Room is not available for booking');
     }
-
     // Check capacity
     if (attendees > room.capacity) {
       return errorResponse(res, 400, `Room capacity exceeded. Maximum: ${room.capacity}`);
     }
-
     // Check for time conflicts
-    const isAvailable = await Booking.checkAvailability(roomId, new Date(startTime), new Date(endTime));
+    const isAvailable = await bookingRepo.checkAvailability(roomId, startTime, endTime);
     if (!isAvailable) {
       return errorResponse(res, 409, 'Room is already booked for the selected time slot');
     }
-
     // Validate time (minimum 30 minutes, maximum 8 hours)
     const duration = (new Date(endTime) - new Date(startTime)) / (1000 * 60);
     if (duration < 30) {
@@ -115,32 +90,34 @@ exports.createBooking = async (req, res) => {
     if (duration > 480) {
       return errorResponse(res, 400, 'Maximum booking duration is 8 hours');
     }
-
     // Cannot book in the past
     if (new Date(startTime) < new Date()) {
       return errorResponse(res, 400, 'Cannot book rooms in the past');
     }
-    
-
-    const booking = await Booking.create({
-      room: roomId,
-      user: req.user.id,
+    console.log("debug point 2");
+    const booking = await bookingRepo.createBooking({
+      roomId,
+      userId: req.user.id,
       title,
       description,
       startTime,
       endTime,
       attendees,
-      recurring,
+      isRecurring,
+      recurringFrequency,
+      recurringEndDate,
+      recurringOccurrences,
       status: 'approved',
       createdBy: req.user.id
     });
-
-    const populatedBooking = await Booking.findById(booking._id)
-      .populate('room', 'name type capacity location building equipment amenities isActive')
-      .populate('user', 'firstName lastName email');
-
+    const roomDetails = await roomRepo.getRoomById(booking.roomId);
+    const userDetails = await userRepo.getUserById(booking.userId);
     return successResponse(res, 201, 'Booking created successfully', {
-      booking: populatedBooking
+      booking: {
+        ...booking,
+        room: roomDetails,
+        user: userDetails
+      }
     });
   } catch (error) {
     console.error('Error creating booking:', error);
@@ -153,25 +130,26 @@ exports.createBooking = async (req, res) => {
 // @access  Private (Admin, Staff, Professor)
 exports.getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id)
-      .populate('room', 'name type capacity location building equipment amenities isActive')
-      .populate('user', 'firstName lastName email');
-
+    const bookingId = parseInt(req.params.id);
+    const booking = await bookingRepo.getBookingById(bookingId);
     if (!booking) {
       return errorResponse(res, 404, 'Booking not found');
     }
-
     // Staff and professors can only view their own bookings
-    if (req.user.role !== 'admin' && booking.user._id.toString() !== req.user.id) {
+    if (req.user.role !== 'admin' && booking.userId.toString() !== req.user.id.toString()) {
       return errorResponse(res, 403, 'Access denied');
     }
-
-    return successResponse(res, 200, 'Booking retrieved successfully', { booking });
+    const roomDetails = booking.roomId ? await roomRepo.getRoomById(booking.roomId) : null;
+    const userDetails = booking.userId ? await userRepo.getUserById(booking.userId) : null;
+    return successResponse(res, 200, 'Booking retrieved successfully', {
+      booking: {
+        ...booking,
+        room: roomDetails,
+        user: userDetails
+      }
+    });
   } catch (error) {
     console.error('Error fetching booking:', error);
-    if (error.name === 'CastError') {
-      return errorResponse(res, 404, 'Booking not found');
-    }
     return errorResponse(res, 500, 'Failed to fetch booking');
   }
 };
@@ -185,68 +163,57 @@ exports.updateBooking = async (req, res) => {
     if (!errors.isEmpty()) {
       return errorResponse(res, 400, 'Validation failed', errors.array());
     }
-
-    const booking = await Booking.findById(req.params.id);
+    const bookingId = parseInt(req.params.id);
+    const booking = await bookingRepo.getBookingById(bookingId);
     if (!booking) {
       return errorResponse(res, 404, 'Booking not found');
     }
-
     // Only admin or booking owner can update
-    if (req.user.role !== 'admin' && booking.user.toString() !== req.user.id) {
+    if (req.user.role !== 'admin' && booking.userId.toString() !== req.user.id.toString()) {
       return errorResponse(res, 403, 'Access denied');
     }
-
     // Cannot update cancelled booking
     if (booking.status === 'cancelled') {
       return errorResponse(res, 400, 'Cannot update cancelled bookings');
     }
-
     if (new Date(booking.startTime) < new Date()) {
       return errorResponse(res, 400, 'Cannot update past bookings');
     }
-
     const { title, description, startTime, endTime, attendees } = req.body;
-
     // Check for time conflicts if time is being updated
+    let newStartTime = startTime ? startTime : booking.startTime;
+    let newEndTime = endTime ? endTime : booking.endTime;
     if (startTime || endTime) {
-      const newStartTime = startTime ? new Date(startTime) : booking.startTime;
-      const newEndTime = endTime ? new Date(endTime) : booking.endTime;
-      
-      const isAvailable = await Booking.checkAvailability(
-        booking.room, 
-        newStartTime, 
-        newEndTime, 
-        req.params.id
+      const isAvailable = await bookingRepo.checkAvailability(
+        booking.roomId,
+        newStartTime,
+        newEndTime,
+        bookingId
       );
-      
       if (!isAvailable) {
         return errorResponse(res, 409, 'Room is already booked for the selected time slot');
       }
     }
-
     const updateData = {
       ...(title && { title }),
       ...(description !== undefined && { description }),
       ...(startTime && { startTime }),
       ...(endTime && { endTime }),
-      ...(attendees && { attendees })
+      ...(attendees && { attendees }),
+      updatedBy: req.user.id
     };
-
-    const updatedBooking = await Booking.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('room', 'name type capacity location building equipment amenities isActive')
-     .populate('user', 'firstName lastName email');
-
+    const updatedBooking = await bookingRepo.updateBooking(bookingId, updateData);
+    const roomDetails = updatedBooking.roomId ? await roomRepo.getRoomById(updatedBooking.roomId) : null;
+    const userDetails = updatedBooking.userId ? await userRepo.getUserById(updatedBooking.userId) : null;
     return successResponse(res, 200, 'Booking updated successfully', {
-      booking: updatedBooking
+      booking: {
+        ...updatedBooking,
+        room: roomDetails,
+        user: userDetails
+      }
     });
   } catch (error) {
     console.error('Error updating booking:', error);
-    if (error.name === 'CastError') {
-      return errorResponse(res, 404, 'Booking not found');
-    }
     return errorResponse(res, 500, 'Failed to update booking');
   }
 };
@@ -256,37 +223,31 @@ exports.updateBooking = async (req, res) => {
 // @access  Private (Admin, Staff, Professor)
 exports.cancelBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
-    
+    const bookingId = parseInt(req.params.id);
+    const booking = await bookingRepo.getBookingById(bookingId);
     if (!booking) {
       return errorResponse(res, 404, 'Booking not found');
     }
-
     // Only admin or booking owner can cancel
-    if (req.user.role !== 'admin' && booking.user.toString() !== req.user.id) {
+    if (req.user.role !== 'admin' && booking.userId.toString() !== req.user.id.toString()) {
       return errorResponse(res, 403, 'Access denied');
     }
-
     // Cannot cancel past bookings
     if (new Date(booking.startTime) < new Date()) {
       return errorResponse(res, 400, 'Cannot cancel past bookings');
     }
-
-    booking.status = 'cancelled';
-    await booking.save();
-
-    const populatedBooking = await Booking.findById(booking._id)
-      .populate('room', 'name type capacity location building equipment amenities isActive')
-      .populate('user', 'firstName lastName email');
-
+    const cancelledBooking = await bookingRepo.cancelBooking(bookingId);
+    const roomDetails = cancelledBooking.roomId ? await roomRepo.getRoomById(cancelledBooking.roomId) : null;
+    const userDetails = cancelledBooking.userId ? await userRepo.getUserById(cancelledBooking.userId) : null;
     return successResponse(res, 200, 'Booking cancelled successfully', {
-      booking: populatedBooking
+      booking: {
+        ...cancelledBooking,
+        room: roomDetails,
+        user: userDetails
+      }
     });
   } catch (error) {
     console.error('Error cancelling booking:', error);
-    if (error.name === 'CastError') {
-      return errorResponse(res, 404, 'Booking not found');
-    }
     return errorResponse(res, 500, 'Failed to cancel booking');
   }
 };
@@ -298,23 +259,24 @@ exports.getRoomAvailability = async (req, res) => {
   try {
     const { date } = req.query;
     const roomId = req.params.id;
-
     if (!date) {
       return errorResponse(res, 400, 'Date is required');
     }
-
     const selectedDate = new Date(date);
     const startOfDay = new Date(selectedDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(selectedDate.setHours(23, 59, 59, 999));
-
     // Get all approved bookings for the room on selected date
-    const bookings = await Booking.find({
-      room: roomId,
-      startTime: { $gte: startOfDay, $lte: endOfDay },
-      status: 'approved'
-    }).select('startTime endTime')
-      .sort({ startTime: 1 });
-
+    const filters = {
+      roomId: parseInt(roomId),
+      status: 'approved',
+      startDate: startOfDay.toISOString().slice(0, 19).replace('T', ' '),
+      endDate: endOfDay.toISOString().slice(0, 19).replace('T', ' ')
+    };
+    const result = await bookingRepo.getAllBookings(filters, 1, 100);
+    const bookings = result.bookings.map(b => ({
+      startTime: b.startTime,
+      endTime: b.endTime
+    })).sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     return successResponse(res, 200, 'Availability retrieved successfully', {
       date: selectedDate,
       bookings
@@ -324,7 +286,6 @@ exports.getRoomAvailability = async (req, res) => {
     return errorResponse(res, 500, 'Failed to fetch availability');
   }
 };
-
 
 // @desc    Search available rooms with filters
 // @route   GET /api/facilities/rooms/search/available
@@ -341,85 +302,15 @@ exports.searchAvailableRooms = async (req, res) => {
       page = 1,
       limit = 10
     } = req.query;
-
-    let start, end;
-
-    // Helper function to create valid date from time string
-    const createDateTime = (dateStr, timeStr) => {
-      if (!timeStr) return null;
-      
-      // If timeStr is already a full ISO string, use it directly
-      if (timeStr.includes('T')) {
-        return new Date(timeStr);
-      }
-      
-      // If we have a date and time, combine them
-      if (dateStr && timeStr) {
-        return new Date(`${dateStr}T${timeStr}`);
-      }
-      
-      // If only time is provided, use today's date with that time
-      if (timeStr && !dateStr) {
-        const today = new Date().toISOString().split('T')[0];
-        return new Date(`${today}T${timeStr}`);
-      }
-      
-      return null;
-    };
-
-    // Handle different input scenarios
-    if (date && startTime && endTime) {
-      // Both date and times provided - combine them
-      start = createDateTime(date, startTime);
-      end = createDateTime(date, endTime);
-    }
-    else if (date && !startTime && !endTime) {
-      // Only date provided - set to reasonable defaults
-      const selectedDate = new Date(date);
-      const now = new Date();
-      
-      // If selected date is today, start from current time + 1 hour
-      if (selectedDate.toDateString() === now.toDateString()) {
-        start = new Date(now);
-        start.setHours(now.getHours() + 1, 0, 0, 0);
-      } else {
-        // Future date - start from 8:00 AM
-        start = new Date(selectedDate);
-        start.setHours(8, 0, 0, 0);
-      }
-      
-      // End time 2 hours after start
-      end = new Date(start);
-      end.setHours(start.getHours() + 2);
-    }
-    else if (startTime && endTime) {
-      // Only times provided (with or without date) - use createDateTime
-      start = createDateTime(date, startTime);
-      end = createDateTime(date, endTime);
-      
-      // If times are invalid, use defaults
-      if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
-        start = new Date(Date.now() + 1 * 60 * 60 * 1000);
-        end = new Date(Date.now() + 2 * 60 * 60 * 1000);
-      }
-    }
-    else {
-      // Default: start from current time + 1 hour
-      start = new Date(Date.now() + 1 * 60 * 60 * 1000);
-      end = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    }
-
-    // Validate that dates are valid
+    // Validate and build time range
+    let start = startTime ? new Date(startTime) : new Date(Date.now() + 1 * 60 * 60 * 1000);
+    let end = endTime ? new Date(endTime) : new Date(Date.now() + 2 * 60 * 60 * 1000);
     if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
       return errorResponse(res, 400, 'Invalid date/time format provided');
     }
-
-    // Validate time range
     if (start >= end) {
       return errorResponse(res, 400, 'End time must be after start time');
     }
-
-    // Validate duration (minimum 30 minutes, maximum 8 hours)
     const duration = (end - start) / (1000 * 60);
     if (duration < 30) {
       return errorResponse(res, 400, 'Minimum booking duration is 30 minutes');
@@ -427,50 +318,38 @@ exports.searchAvailableRooms = async (req, res) => {
     if (duration > 480) {
       return errorResponse(res, 400, 'Maximum booking duration is 8 hours');
     }
-
     // Build room filter
-    const roomFilter = { isActive: true };
-    
+    const roomFilters = { isActive: true };
     if (capacity && !isNaN(capacity)) {
-      roomFilter.capacity = { $gte: parseInt(capacity) };
+      roomFilters.capacity = parseInt(capacity);
     }
-    
     if (building && building !== 'all') {
-      roomFilter['location.building'] = building;
+      roomFilters.building = building;
     }
-    
     if (roomType && roomType !== 'all') {
-      roomFilter.type = roomType;
+      roomFilters.type = roomType;
     }
-
     // Find all rooms that match the criteria
-    const rooms = await Room.find(roomFilter)
-      .select('-equipmentCount -fullLocation')
-      .lean();
-
+    const roomResult = await roomRepo.getAllRooms(roomFilters, 1, 1000);
+    const rooms = roomResult.rooms;
     // Check availability for each room
     const availableRooms = [];
-    
     for (const room of rooms) {
-      const isAvailable = await Booking.checkAvailability(
-        room._id, 
-        start, 
-        end
+      const isAvailable = await bookingRepo.checkAvailability(
+        room.id,
+        start.toISOString().slice(0, 19).replace('T', ' '),
+        end.toISOString().slice(0, 19).replace('T', ' ')
       );
-      
       if (isAvailable) {
         availableRooms.push(room);
       }
     }
-
     // Extract unique buildings for filter options
     const uniqueBuildings = [...new Set(rooms.map(room => room.location.building))];
-
     // Pagination
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + parseInt(limit);
     const paginatedRooms = availableRooms.slice(startIndex, endIndex);
-
     const pagination = {
       currentPage: parseInt(page),
       totalPages: Math.ceil(availableRooms.length / limit),
@@ -478,7 +357,6 @@ exports.searchAvailableRooms = async (req, res) => {
       hasNext: endIndex < availableRooms.length,
       hasPrev: startIndex > 0
     };
-
     return successResponse(res, 200, 'Available rooms retrieved successfully', {
       rooms: paginatedRooms,
       pagination,
@@ -494,15 +372,8 @@ exports.searchAvailableRooms = async (req, res) => {
         buildings: uniqueBuildings
       }
     });
-
   } catch (error) {
     console.error('Error searching available rooms:', error);
-    
-    // Handle specific CastError
-    if (error.name === 'CastError') {
-      return errorResponse(res, 400, 'Invalid date/time format provided');
-    }
-    
     return errorResponse(res, 500, 'Failed to search available rooms');
   }
 };
