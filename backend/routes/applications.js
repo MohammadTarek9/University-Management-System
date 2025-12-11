@@ -16,7 +16,7 @@ const { protect, authorize } = require('../middleware/auth');
 const { handleValidationErrors } = require('../utils/responseHelpers');
 
 const router = express.Router();
-
+// change
 // Application validation rules
 const applicationValidation = [
   // Personal Information Validation
