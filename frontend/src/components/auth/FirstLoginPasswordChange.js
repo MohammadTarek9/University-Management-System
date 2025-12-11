@@ -154,14 +154,15 @@ const FirstLoginPasswordChange = ({ open, onClose, onSuccess }) => {
     setErrors({});
 
     try {
-      await api.post('/auth/first-login-change-password', {
+      const response = await api.post('/auth/first-login-change-password', {
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
         securityQuestion: formData.securityQuestion,
         securityAnswer: formData.securityAnswer
       });
 
-      onSuccess();
+      // Pass the response data (token and user) to the success handler
+      onSuccess(response.data.data);
     } catch (error) {
       setErrors({
         general: error.response?.data?.message || 'Failed to change password'

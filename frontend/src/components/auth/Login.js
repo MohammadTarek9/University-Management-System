@@ -28,7 +28,7 @@ const validationSchema = yup.object({
 
 const Login = () => {
   const [showAlert, setShowAlert] = useState(false);
-  const { login, loading, error, clearError } = useAuth();
+  const { login, loading, error, clearError, requirePasswordChange } = useAuth();
   const navigate = useNavigate();
 
   const formik = useFormik({
@@ -40,8 +40,14 @@ const Login = () => {
     onSubmit: async (values) => {
       try {
         clearError();
-        await login(values);
-        navigate('/dashboard');
+        const response = await login(values);
+        
+        // Check if user needs to change password on first login
+        if (response.data.requirePasswordChange) {
+          navigate('/first-login-password-change');
+        } else {
+          navigate('/dashboard');
+        }
       } catch (error) {
         setShowAlert(true);
         setTimeout(() => setShowAlert(false), 5000);

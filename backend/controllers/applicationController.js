@@ -1,5 +1,10 @@
-const Application = require('../models/Application');
+const applicationRepo = require('../repositories/applicationRepo');
+const userRepo = require('../repositories/userRepo');
 const { validationResult } = require('express-validator');
+const { generateSecurePassword } = require('../utils/passwordValidator');
+const { generateSequentialId, generateUniversityEmail } = require('../utils/idGenerator');
+const bcrypt = require('bcryptjs');
+
 
 // Helper function for consistent API responses
 const sendResponse = (res, statusCode, success, message, data = null, errors = null) => {
@@ -16,132 +21,49 @@ const sendResponse = (res, statusCode, success, message, data = null, errors = n
 // @access  Private (Admin/Staff)
 exports.getAllApplications = async (req, res) => {
   try {
-  const {
-    page = 1,
-    limit = 10,
-    status,
-    department,
-    degreeLevel,
-    search,
-    sortBy = 'submittedAt',
-    sortOrder = 'desc',
-    dateFrom,
-    dateTo,
-    nationality
-  } = req.query;
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      department,
+      degreeLevel,
+      search,
+      sortBy = 'submitted_at',
+      sortOrder = 'DESC',
+      dateFrom,
+      dateTo,
+      nationality
+    } = req.query;
 
-  // Debug logging
-  console.log('Query parameters received:', req.query);
-  console.log('Department filter value:', department);
-  console.log('Department type:', typeof department);
-  console.log('Department !== "all":', department !== 'all');
+    // Build filter options for repository
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sortBy,
+      sortOrder
+    };
 
-  // Build filter object
-  let filter = {};
-  
-  if (status && status !== 'all') {
-    filter.status = status;
-    console.log('Status filter applied:', status);
-  }
-  
-    if (degreeLevel && degreeLevel !== 'all') {
-      filter['academicInfo.degreeLevel'] = degreeLevel;
-    }
-    
-    if (nationality && nationality !== 'all') {
-      filter['personalInfo.nationality'] = nationality;
-    }
-    
-    // Date range filtering
-    if (dateFrom || dateTo) {
-      filter.submittedAt = {};
-      if (dateFrom) {
-        filter.submittedAt.$gte = new Date(dateFrom);
-      }
-      if (dateTo) {
-        filter.submittedAt.$lte = new Date(dateTo);
-      }
+    // Add filters if provided
+    if (status && status !== 'all') {
+      options.status = status;
     }
 
-    // Build complex filter with proper AND/OR logic
-    const andConditions = [];
-
-    // Department filter (try both old and new locations)
     if (department && department !== 'all') {
-      andConditions.push({
-        $or: [
-          { 'personalInfo.department': department },
-          { 'academicInfo.program': department }
-        ]
-      });
-      console.log('Department filter applied with value:', department);
+      options.department = department;
     }
-    
-    // Search functionality
+
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
-      andConditions.push({
-        $or: [
-          { 'personalInfo.firstName': searchRegex },
-          { 'personalInfo.lastName': searchRegex },
-          { 'personalInfo.email': searchRegex },
-          { applicationId: searchRegex },
-          { 'personalInfo.department': searchRegex },
-          { 'personalInfo.nationality': searchRegex },
-          { 'academicInfo.previousEducation.institution': searchRegex }
-        ]
-      });
+      options.search = search.trim();
     }
 
-    // Combine with existing filter conditions
-    if (andConditions.length > 0) {
-      const baseFilter = { ...filter };
-      filter = {
-        $and: [
-          baseFilter,
-          ...andConditions
-        ]
-      };
-    }
+    // Note: Date range and degree level filtering can be added to repo if needed
+    // For now, basic filtering is implemented
 
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    
-    // Build sort object
-    const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-    // Debug: Log final filter object
-    console.log('Final MongoDB filter:', JSON.stringify(filter, null, 2));
-
-    // Execute queries
-    const [applications, totalApplications] = await Promise.all([
-      Application.find(filter)
-        .populate('processingInfo.reviewedBy', 'firstName lastName email')
-        .sort(sort)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean(),
-      Application.countDocuments(filter)
-    ]);
-
-    console.log(`Query returned ${applications.length} applications, total count: ${totalApplications}`);
-
-    // Calculate pagination info
-    const totalPages = Math.ceil(totalApplications / parseInt(limit));
-    const hasNextPage = parseInt(page) < totalPages;
-    const hasPrevPage = parseInt(page) > 1;
+    const result = await applicationRepo.getApplications(options);
 
     sendResponse(res, 200, true, 'Applications retrieved successfully', {
-      applications,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages,
-        totalApplications,
-        hasNextPage,
-        hasPrevPage,
-        limit: parseInt(limit)
-      }
+      applications: result.applications,
+      pagination: result.pagination
     });
 
   } catch (error) {
@@ -155,8 +77,7 @@ exports.getAllApplications = async (req, res) => {
 // @access  Private (Admin/Staff)
 exports.getApplicationById = async (req, res) => {
   try {
-    const application = await Application.findById(req.params.id)
-      .populate('processingInfo.reviewedBy', 'firstName lastName email role');
+    const application = await applicationRepo.getApplicationById(req.params.id);
 
     if (!application) {
       return sendResponse(res, 404, false, 'Application not found');
@@ -166,11 +87,6 @@ exports.getApplicationById = async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching application:', error);
-    
-    if (error.name === 'CastError') {
-      return sendResponse(res, 400, false, 'Invalid application ID');
-    }
-    
     sendResponse(res, 500, false, 'Server error while fetching application');
   }
 };
@@ -186,38 +102,17 @@ exports.createApplication = async (req, res) => {
       return sendResponse(res, 400, false, 'Validation failed', null, errors.array());
     }
 
-    // Check if application with same email already exists
-    const existingApplication = await Application.findOne({
-      'personalInfo.email': req.body.personalInfo.email
-    });
-
-    if (existingApplication) {
-      return sendResponse(res, 409, false, 'An application with this email already exists');
-    }
-
-    // Create new application
-    const application = new Application(req.body);
-    
-    // Set initial processing info
-    application.processingInfo.reviewedBy = req.user._id;
-    
-    await application.save();
+    // Create application via repository
+    const application = await applicationRepo.createApplication(req.body, req.user?.id);
 
     sendResponse(res, 201, true, 'Application created successfully', application);
 
   } catch (error) {
     console.error('Error creating application:', error);
     
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => ({
-        field: err.path,
-        message: err.message
-      }));
-      return sendResponse(res, 400, false, 'Validation failed', null, validationErrors);
-    }
-    
-    if (error.code === 11000) {
-      return sendResponse(res, 409, false, 'Application with this information already exists');
+    // Handle duplicate email error from database constraint
+    if (error.code === 'ER_DUP_ENTRY') {
+      return sendResponse(res, 409, false, 'An application with this email already exists');
     }
     
     sendResponse(res, 500, false, 'Server error while creating application');
@@ -235,53 +130,52 @@ exports.updateApplication = async (req, res) => {
       return sendResponse(res, 400, false, 'Validation failed', null, errors.array());
     }
 
-    const application = await Application.findById(req.params.id);
-    
+    const application = await applicationRepo.getApplicationById(req.params.id);
+
     if (!application) {
       return sendResponse(res, 404, false, 'Application not found');
     }
 
-    // Check if another application exists with the same email (excluding current one)
-    if (req.body.personalInfo?.email && req.body.personalInfo.email !== application.personalInfo.email) {
-      const existingApplication = await Application.findOne({
-        'personalInfo.email': req.body.personalInfo.email,
-        _id: { $ne: req.params.id }
-      });
+    // Update application via repository
+    const updatedApplication = await applicationRepo.updateApplication(
+      req.params.id,
+      req.body,
+      req.user?.id
+    );
 
-      if (existingApplication) {
-        return sendResponse(res, 409, false, 'An application with this email already exists');
-      }
-    }
-
-    // Update application fields
-    Object.assign(application, req.body);
-    
-    // Update processing info
-    application.processingInfo.lastModifiedBy = req.user._id;
-    application.processingInfo.lastModified = new Date();
-    
-    await application.save();
-
-    sendResponse(res, 200, true, 'Application updated successfully', application);
+    sendResponse(res, 200, true, 'Application updated successfully', updatedApplication);
 
   } catch (error) {
     console.error('Error updating application:', error);
     
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => ({
-        field: err.path,
-        message: err.message
-      }));
-      return sendResponse(res, 400, false, 'Validation failed', null, validationErrors);
-    }
-    
-    if (error.code === 11000) {
-      return sendResponse(res, 409, false, 'Application with this information already exists');
+    // Handle duplicate email error from database constraint
+    if (error.code === 'ER_DUP_ENTRY') {
+      return sendResponse(res, 409, false, 'An application with this email already exists');
     }
     
     sendResponse(res, 500, false, 'Server error while updating application');
   }
 };
+
+
+// Helper function to generate student credentials
+async function generateStudentCredentials(intendedStartDate) {
+  const year = new Date(intendedStartDate).getFullYear();
+  
+  // Generate sequential student ID based on year
+  const studentId = await generateSequentialId('student', year);
+
+  const temporaryPassword = generateSecurePassword(9);
+
+  // Generate university email based on student ID
+  const universityEmail = generateUniversityEmail(studentId);
+
+  return {
+    studentId,
+    universityEmail,
+    temporaryPassword
+  };
+}
 
 // @desc    Update application status (Approve/Reject/etc.)
 // @route   PUT /api/facilities/applications/:id/status
@@ -289,9 +183,9 @@ exports.updateApplication = async (req, res) => {
 exports.updateApplicationStatus = async (req, res) => {
   try {
     const { status, rejectionReason, notes } = req.body;
-    
-    const application = await Application.findById(req.params.id);
-    
+
+    const application = await applicationRepo.getApplicationById(req.params.id);
+
     if (!application) {
       return sendResponse(res, 404, false, 'Application not found');
     }
@@ -302,30 +196,31 @@ exports.updateApplicationStatus = async (req, res) => {
       return sendResponse(res, 400, false, 'Invalid status');
     }
 
-    // Update application
-    application.status = status;
-    application.processingInfo.reviewedBy = req.user._id;
-    application.processingInfo.reviewedAt = new Date();
-    
-    if (status === 'Rejected' && rejectionReason) {
-      application.processingInfo.rejectionReason = rejectionReason;
-    }
-    
-    if (notes) {
-      application.processingInfo.notes = notes;
-    }
+    // Build update payload
+    const updateData = {
+      status,
+      processingInfo: {
+        reviewedBy: req.user?.id,
+        reviewedAt: new Date(),
+        rejectionReason: status === 'Rejected' ? rejectionReason : null,
+        notes: notes || null
+      }
+    };
 
-    // Generate student credentials if application is approved and credentials don't exist
-    if (status === 'Approved' && !application.studentCredentials.studentId) {
+    // Generate student credentials if application is approved and doesn't have credentials yet
+    let credentials = null;
+    if (status === 'Approved' && !application.studentCredentials?.studentId) {
       try {
-        const credentials = await Application.generateStudentCredentials(application.academicInfo.intendedStartDate);
-        
-        application.studentCredentials.studentId = credentials.studentId;
-        application.studentCredentials.universityEmail = credentials.universityEmail;
-        application.studentCredentials.temporaryPassword = credentials.temporaryPassword;
-        application.studentCredentials.credentialsGeneratedAt = new Date();
-        application.studentCredentials.credentialsGeneratedBy = req.user._id;
-        
+        credentials = await generateStudentCredentials(application.academicInfo.intendedStartDate);
+
+        updateData.studentCredentials = {
+          studentId: credentials.studentId,
+          universityEmail: credentials.universityEmail,
+          temporaryPassword: credentials.temporaryPassword,
+          credentialsGeneratedAt: new Date(),
+          credentialsGeneratedBy: req.user?.id
+        };
+
         console.log(`Generated student credentials for application ${application.applicationId}:`, {
           studentId: credentials.studentId,
           universityEmail: credentials.universityEmail,
@@ -333,24 +228,29 @@ exports.updateApplicationStatus = async (req, res) => {
         });
       } catch (credentialsError) {
         console.error('Error generating student credentials:', credentialsError);
-        return sendResponse(res, 500, false, 'Application approved but failed to generate student credentials');
+        return sendResponse(res, 500, false, 'Application status updated but failed to generate student credentials');
       }
     }
 
-    await application.save();
+    // Update application status via repository
+    const updatedApplication = await applicationRepo.updateApplicationStatus(
+      req.params.id,
+      {
+        status: updateData.status,
+        rejectionReason: updateData.processingInfo.rejectionReason,
+        notes: updateData.processingInfo.notes,
+        reviewerId: updateData.processingInfo.reviewedBy,
+        studentCredentials: updateData.studentCredentials,
+        accountCreated: updateData.accountCreated,
+        accountCreatedAt: updateData.accountCreatedAt,
+        accountCreatedBy: updateData.accountCreatedBy
+      }
+    );
 
-    // Populate reviewer info for response
-    await application.populate('processingInfo.reviewedBy', 'firstName lastName email');
-
-    sendResponse(res, 200, true, `Application ${status.toLowerCase()} successfully`, application);
+    sendResponse(res, 200, true, `Application ${status.toLowerCase()} successfully`, updatedApplication);
 
   } catch (error) {
     console.error('Error updating application status:', error);
-    
-    if (error.name === 'CastError') {
-      return sendResponse(res, 400, false, 'Invalid application ID');
-    }
-    
     sendResponse(res, 500, false, 'Server error while updating application');
   }
 };
@@ -360,23 +260,22 @@ exports.updateApplicationStatus = async (req, res) => {
 // @access  Private (Admin only)
 exports.deleteApplication = async (req, res) => {
   try {
-    const application = await Application.findById(req.params.id);
-    
+    const application = await applicationRepo.getApplicationById(req.params.id);
+
     if (!application) {
       return sendResponse(res, 404, false, 'Application not found');
     }
 
-    await Application.findByIdAndDelete(req.params.id);
+    const deleted = await applicationRepo.deleteApplication(req.params.id);
+
+    if (!deleted) {
+      return sendResponse(res, 500, false, 'Failed to delete application');
+    }
 
     sendResponse(res, 200, true, 'Application deleted successfully');
 
   } catch (error) {
     console.error('Error deleting application:', error);
-    
-    if (error.name === 'CastError') {
-      return sendResponse(res, 400, false, 'Invalid application ID');
-    }
-    
     sendResponse(res, 500, false, 'Server error while deleting application');
   }
 };
@@ -386,7 +285,7 @@ exports.deleteApplication = async (req, res) => {
 // @access  Private (Admin/Staff)
 exports.getFilterOptions = async (req, res) => {
   try {
-    // Comprehensive list of nationalities (static list ensures all options are always available)
+    // Comprehensive list of nationalities
     const nationalities = [
       'Afghan', 'Albanian', 'Algerian', 'American', 'Andorran', 'Angolan', 'Argentine',
       'Armenian', 'Australian', 'Austrian', 'Azerbaijani', 'Bahamian', 'Bahraini',
@@ -420,10 +319,10 @@ exports.getFilterOptions = async (req, res) => {
       'Tunisian', 'Turkish', 'Tuvaluan', 'Ugandan', 'Ukrainian', 'Uruguayan',
       'Uzbekistani', 'Venezuelan', 'Vietnamese', 'Welsh', 'Yemenite', 'Zambian', 'Zimbabwean'
     ];
-    
+
     // Get unique previous institutions from existing applications
-    const institutions = await Application.distinct('academicInfo.previousEducation.institution');
-    
+    const institutions = await applicationRepo.getDistinctInstitutions();
+
     // Static options
     const departments = [
       'Computer Science',
@@ -437,16 +336,16 @@ exports.getFilterOptions = async (req, res) => {
       'Nursing',
       'Economics'
     ];
-    
+
     const degreeLevels = ['Bachelor', 'Master', 'Doctorate', 'Certificate'];
     const statuses = ['Pending Review', 'Under Review', 'Approved', 'Rejected', 'Waitlisted'];
-    
+
     const filterOptions = {
       departments,
       degreeLevels,
       statuses,
-      nationalities: nationalities.sort(), // Already comprehensive, just sort them
-      institutions: institutions.filter(i => i).sort()
+      nationalities: nationalities.sort(),
+      institutions: institutions.sort()
     };
 
     sendResponse(res, 200, true, 'Filter options retrieved successfully', filterOptions);
@@ -462,33 +361,9 @@ exports.getFilterOptions = async (req, res) => {
 // @access  Private (Admin/Staff)
 exports.getApplicationStats = async (req, res) => {
   try {
-    const stats = await Application.getStatistics();
-    
-    // Additional statistics
-    const recentApplications = await Application.countDocuments({
-      submittedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
-    });
-    
-    const departmentStats = await Application.aggregate([
-      {
-        $group: {
-          _id: '$personalInfo.department',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { count: -1 } }
-    ]);
+    const stats = await applicationRepo.getStatistics();
 
-    const responseData = {
-      ...stats,
-      recentApplications,
-      byDepartment: departmentStats.reduce((acc, stat) => {
-        acc[stat._id] = stat.count;
-        return acc;
-      }, {})
-    };
-
-    sendResponse(res, 200, true, 'Application statistics retrieved successfully', responseData);
+    sendResponse(res, 200, true, 'Application statistics retrieved successfully', stats);
 
   } catch (error) {
     console.error('Error fetching application statistics:', error);
@@ -501,27 +376,22 @@ exports.getApplicationStats = async (req, res) => {
 // @access  Private (Admin only)
 exports.getStudentCredentials = async (req, res) => {
   try {
-    const application = await Application.findById(req.params.id).select('+studentCredentials.temporaryPassword');
-    
+    const application = await applicationRepo.getStudentCredentialsForApplication(req.params.id);
+
     if (!application) {
       return sendResponse(res, 404, false, 'Application not found');
     }
 
-    if (application.status !== 'Approved') {
-      return sendResponse(res, 400, false, 'Application must be approved to retrieve credentials');
-    }
-
-    if (!application.studentCredentials.studentId) {
+    if (!application.studentId) {
       return sendResponse(res, 400, false, 'Student credentials not generated yet');
     }
 
-    // Only return credentials to authorized admin
+    // Return credentials
     const credentials = {
-      studentId: application.studentCredentials.studentId,
-      universityEmail: application.studentCredentials.universityEmail,
-      temporaryPassword: application.studentCredentials.temporaryPassword,
-      applicantName: `${application.personalInfo.firstName} ${application.personalInfo.lastName}`,
-      credentialsGeneratedAt: application.studentCredentials.credentialsGeneratedAt
+      studentId: application.studentId,
+      universityEmail: application.universityEmail,
+      temporaryPassword: application.temporaryPassword,
+      credentialsGeneratedAt: application.credentialsGeneratedAt
     };
 
     sendResponse(res, 200, true, 'Student credentials retrieved successfully', credentials);
@@ -536,71 +406,120 @@ exports.getStudentCredentials = async (req, res) => {
 // @route   POST /api/facilities/applications/:id/create-account
 // @access  Private (Admin only)
 exports.createStudentAccount = async (req, res) => {
-  const User = require('../models/User');
-  
   try {
-    const application = await Application.findById(req.params.id).select('+studentCredentials.temporaryPassword');
+    console.log(`Creating student account for application ID: ${req.params.id}`);
     
+    const application = await applicationRepo.getApplicationById(req.params.id);
+
     if (!application) {
+      console.error(`Application not found: ${req.params.id}`);
       return sendResponse(res, 404, false, 'Application not found');
     }
 
+    console.log(`Application found:`, {
+      id: application.id,
+      status: application.status,
+      hasCredentials: !!application.studentCredentials?.studentId
+    });
+
     if (application.status !== 'Approved') {
+      console.error(`Application status is not Approved: ${application.status}`);
       return sendResponse(res, 400, false, 'Application must be approved to create student account');
     }
 
-    if (!application.studentCredentials.studentId) {
+    if (!application.studentCredentials?.studentId) {
+      console.error(`Student credentials not generated for application: ${req.params.id}`);
       return sendResponse(res, 400, false, 'Student credentials not generated yet');
     }
 
-    // Check if user account already exists
-    const existingUser = await User.findOne({ 
-      $or: [
-        { email: application.studentCredentials.universityEmail },
-        { studentId: application.studentCredentials.studentId }
-      ]
-    });
-
-    if (existingUser) {
-      return sendResponse(res, 409, false, 'Student account already exists');
+    // Check if account already created
+    if (application.studentCredentials?.accountCreated) {
+      console.warn(`Account already created for application: ${req.params.id}`);
+      return sendResponse(res, 409, false, 'Student account has already been created for this application');
     }
 
-    // Create new student user account
-    const newUser = new User({
+    // Check if user account already exists
+    console.log(`Checking if user already exists with email: ${application.studentCredentials.universityEmail}`);
+    const existingUserByEmail = await userRepo.getUserByEmail(application.studentCredentials.universityEmail);
+    const existingUserByStudentId = await userRepo.getUserByStudentId(application.studentCredentials.studentId);
+
+    if (existingUserByEmail || existingUserByStudentId) {
+      console.error(`User already exists with email or student ID`);
+      return sendResponse(res, 409, false, 'Student account already exists with this email or student ID');
+    }
+
+    // Hash the temporary password before storing
+    console.log(`Hashing password for student: ${application.studentCredentials.studentId}`);
+    const hashedPassword = await bcrypt.hash(application.studentCredentials.temporaryPassword, 10);
+
+    // Create new student user account via userRepo
+    console.log(`Creating user in database for student: ${application.studentCredentials.studentId}`);
+    const newUser = await userRepo.createUser({
       firstName: application.personalInfo.firstName,
       lastName: application.personalInfo.lastName,
       email: application.studentCredentials.universityEmail,
-      password: application.studentCredentials.temporaryPassword,
+      password: hashedPassword,
       role: 'student',
       studentId: application.studentCredentials.studentId,
       phoneNumber: application.personalInfo.phone,
+      department: application.personalInfo.department,
+      major: application.academicInfo.major,
       isActive: true,
-      isEmailVerified: false, // Will be verified on first login
-      mustChangePassword: true, // Custom field to force password change
-      firstLogin: true // Custom field to identify first-time login
+      isEmailVerified: false,
+      firstLogin: true,
+      mustChangePassword: true,
+      securityQuestion: null,
+      securityAnswer: null,
+      createdAt: new Date()
     });
 
-    await newUser.save();
+    console.log(`User created successfully:`, {
+      userId: newUser.id,
+      studentId: newUser.studentId,
+      email: newUser.email
+    });
 
-    // Update application to mark account as created
-    application.studentCredentials.accountCreated = true;
-    application.studentCredentials.accountCreatedAt = new Date();
-    application.studentCredentials.accountCreatedBy = req.user._id;
-    await application.save();
+    // Mark account as created in the application record
+    console.log(`Marking account as created in application: ${req.params.id}`);
+    const updatedApplication = await applicationRepo.markAccountCreated(
+      req.params.id,
+      req.user?.id
+    );
 
-    sendResponse(res, 201, true, 'Student account created successfully', {
+    console.log(`Student account created successfully for application ${application.applicationId}:`, {
       studentId: newUser.studentId,
       email: newUser.email,
+      userId: newUser.id,
+      createdAt: new Date()
+    });
+
+    sendResponse(res, 201, true, 'Student account created successfully', {
+      user: {
+        id: newUser.id,
+        studentId: newUser.studentId,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        role: newUser.role
+      },
+      application: {
+        id: updatedApplication.id,
+        applicationId: updatedApplication.applicationId,
+        status: updatedApplication.status
+      },
       accountCreatedAt: new Date()
     });
 
   } catch (error) {
     console.error('Error creating student account:', error);
-    
-    if (error.code === 11000) {
-      return sendResponse(res, 409, false, 'Student account with this email or ID already exists');
+    console.error('Error stack:', error.stack);
+
+    // Handle duplicate email/student ID error from database constraint
+    if (error.code === 'ER_DUP_ENTRY') {
+      console.error('Duplicate entry error:', error.message);
+      return sendResponse(res, 409, false, 'Student account with this email or student ID already exists');
     }
-    
-    sendResponse(res, 500, false, 'Server error while creating student account');
+
+    sendResponse(res, 500, false, `Server error while creating student account: ${error.message}`);
   }
 };
