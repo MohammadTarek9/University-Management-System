@@ -129,7 +129,7 @@ const MaintenanceDashboard = () => {
 
   const handleUpdateStatus = async (request, newStatus) => {
     try {
-      await maintenanceService.updateMaintenanceRequestStatus(request._id, {
+      await maintenanceService.updateMaintenanceRequestStatus(request.id || request._id, {
         status: newStatus
       });
       setStatusDialogOpen(false);
@@ -145,7 +145,7 @@ const MaintenanceDashboard = () => {
     
     try {
       setDeleteLoading(true);
-      await maintenanceService.deleteMaintenanceRequest(selectedRequest._id);
+      await maintenanceService.deleteMaintenanceRequest(selectedRequest.id || selectedRequest._id);
       setDeleteDialogOpen(false);
       setSelectedRequest(null);
       fetchData(); // Refresh data
@@ -342,7 +342,7 @@ const MaintenanceDashboard = () => {
                 </TableRow>
               ) : (
                 requests.map((request) => (
-                  <TableRow key={request._id} hover>
+                  <TableRow key={request.id || request._id} hover>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
                         {request.title}

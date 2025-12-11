@@ -120,7 +120,10 @@ export const AuthProvider = ({ children }) => {
       const response = await authService.login(credentials);
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: response.data
+        payload: {
+          ...response.data,
+          requirePasswordChange: response.data.requirePasswordChange || false
+        }
       });
       return response;
     } catch (error) {
@@ -209,6 +212,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateAuthAfterPasswordChange = (token, user) => {
+    // Store new token and user data
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    // Update the auth state
+    dispatch({
+      type: AUTH_ACTIONS.LOGIN_SUCCESS,
+      payload: {
+        token,
+        user,
+        requirePasswordChange: false
+      }
+    });
+  };
+
   const value = {
     ...state,
     login,
@@ -218,7 +237,8 @@ export const AuthProvider = ({ children }) => {
     // ADD PASSWORD RESET FUNCTIONS TO CONTEXT VALUE
     forgotPassword,
     resetPassword,
-    firstLoginChangePassword
+    firstLoginChangePassword,
+    updateAuthAfterPasswordChange
   };
 
   return (

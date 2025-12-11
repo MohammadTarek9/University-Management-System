@@ -73,13 +73,35 @@ const ApplicationReviewDialog = ({ open, onClose, application, onSuccess }) => {
       setLoading(true);
       setError('');
 
-      const response = await applicationService.updateApplicationStatus(application._id, {
+      const response = await applicationService.updateApplicationStatus(application.id, {
         status,
         reviewComments: reviewComments.trim(),
         notes: reviewComments.trim()
       });
 
       if (response.success) {
+        // If application was approved, automatically create student account
+        if (status === 'Approved') {
+          try {
+            console.log('Calling createStudentAccount for application:', application.id);
+            const accountResponse = await applicationService.createStudentAccount(application.id);
+            console.log('Account creation response:', accountResponse);
+            
+            if (accountResponse.success) {
+              console.log('Student account created successfully:', accountResponse.data);
+            } else {
+              console.error('Failed to create student account:', accountResponse.message);
+              setError(`Application approved but account creation failed: ${accountResponse.message}`);
+              return;
+            }
+          } catch (accountError) {
+            console.error('Error creating student account:', accountError);
+            console.error('Error details:', accountError.response || accountError);
+            setError(`Application approved but account creation failed: ${accountError.message || 'Unknown error'}`);
+            return;
+          }
+        }
+        
         onSuccess && onSuccess(response.data);
         onClose();
       } else {

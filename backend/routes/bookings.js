@@ -16,7 +16,7 @@ const router = express.Router();
 // Booking validation rules
 const bookingValidation = [
   body('roomId')
-    .isMongoId()
+    .isInt({ min: 1 })
     .withMessage('Valid room ID is required'),
   body('title')
     .trim()
