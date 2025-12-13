@@ -25,6 +25,11 @@ import RoomManagement from './pages/RoomManagement';
 import ProfilePage from './pages/ProfilePage';
 import BookingManagement from './pages/BookingManagement';
 import AdmissionsManagement from './pages/AdmissionsManagement';
+import Curriculum from './pages/Curriculum';
+import CourseCatalogManagement from './pages/CurriculumManagement';
+import CourseRegistration from './pages/CourseRegistration';
+import CourseMaterials from './pages/CourseMaterials';
+import CourseGrading from './pages/CourseGrading';
 
 // Theme
 const theme = createTheme({
@@ -154,11 +159,44 @@ function App() {
                     }
                   />
                                     
+                  {/* Curriculum Module Routes */}
                   <Route
-                    path="/curriculum/*"
+                    path="/curriculum"
                     element={
-                      <ProtectedRoute>
-                        <div>Curriculum Module - Coming Soon</div>
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student']}>
+                        <Curriculum />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/curriculum/catalog"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                        <CourseCatalogManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/curriculum/registration"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student']}>
+                        <CourseRegistration />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/curriculum/materials"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}>
+                        <CourseMaterials />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/curriculum/grading"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}>
+                        <CourseGrading />
                       </ProtectedRoute>
                     }
                   />
