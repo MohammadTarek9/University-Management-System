@@ -43,7 +43,7 @@ const Dashboard = () => {
       color: '#dc004e',
       features: ['Course Catalog', 'Technology Integration', 'Assessment Tools'],
       path: '/curriculum',
-      available: false
+      available: ['admin', 'staff', 'professor'].includes(user?.role)
     },
     {
       title: 'Staff Module',
@@ -207,6 +207,19 @@ const Dashboard = () => {
                   </Box>
                   <Typography variant="body2" color="text.secondary">
                     Add, edit, and manage user accounts
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card sx={{ cursor: 'pointer' }} onClick={() => navigate('/curriculum')}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <School sx={{ mr: 1 }} />
+                    <Typography variant="h6">Curriculum Management</Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Manage departments, subjects, and courses
                   </Typography>
                 </CardContent>
               </Card>

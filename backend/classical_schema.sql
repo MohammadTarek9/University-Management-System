@@ -334,6 +334,123 @@ CREATE TABLE IF NOT EXISTS maintenance_request_images (
     INDEX idx_images_maintenance_request_id (maintenance_request_id)
 ) ENGINE=InnoDB;
 
+
+-- ===================================================================
+-- DEPARTMENTS TABLE
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS departments (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    
+    name VARCHAR(255) NOT NULL UNIQUE,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT NULL,
+    
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    
+    created_at DATETIME NULL,
+    updated_at TIMESTAMP NOT NULL
+               DEFAULT CURRENT_TIMESTAMP
+               ON UPDATE CURRENT_TIMESTAMP,
+    
+    PRIMARY KEY (id),
+    
+    INDEX idx_departments_code (code),
+    INDEX idx_departments_is_active (is_active)
+) ENGINE=InnoDB;
+
+-- ===================================================================
+-- SUBJECTS TABLE (Course Catalog)
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS subjects (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT NULL,
+    credits DECIMAL(3,1) NOT NULL,
+    
+    classification ENUM('core', 'elective') NOT NULL,
+    
+    department_id INT(11) NOT NULL,
+    
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    
+    created_by INT(11) NOT NULL,
+    updated_by INT(11) NULL,
+    
+    created_at DATETIME NULL,
+    updated_at TIMESTAMP NOT NULL
+               DEFAULT CURRENT_TIMESTAMP
+               ON UPDATE CURRENT_TIMESTAMP,
+    
+    PRIMARY KEY (id),
+    
+    FOREIGN KEY (department_id)
+        REFERENCES departments(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    
+    FOREIGN KEY (created_by)
+        REFERENCES users(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    
+    FOREIGN KEY (updated_by)
+        REFERENCES users(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    
+    INDEX idx_subjects_code (code),
+    INDEX idx_subjects_department (department_id),
+    INDEX idx_subjects_classification (classification),
+    INDEX idx_subjects_is_active (is_active)
+) ENGINE=InnoDB;
+
+-- ===================================================================
+-- COURSES TABLE (for semester-specific course instances)
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS courses (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    
+    subject_id INT(11) NOT NULL,
+    
+    semester ENUM('Fall', 'Spring', 'Summer') NOT NULL,
+    year INT(4) NOT NULL,
+    
+    instructor_id INT(11) NULL,
+    
+    max_enrollment INT(11) DEFAULT 30,
+    current_enrollment INT(11) DEFAULT 0,
+    
+    schedule TEXT NULL,
+    
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    
+    created_at DATETIME NULL,
+    updated_at TIMESTAMP NOT NULL
+               DEFAULT CURRENT_TIMESTAMP
+               ON UPDATE CURRENT_TIMESTAMP,
+    
+    PRIMARY KEY (id),
+    
+    FOREIGN KEY (subject_id)
+        REFERENCES subjects(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    
+    FOREIGN KEY (instructor_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    
+    INDEX idx_courses_subject (subject_id),
+    INDEX idx_courses_semester_year (semester, year),
+    INDEX idx_courses_instructor (instructor_id),
+    INDEX idx_courses_is_active (is_active)
+) ENGINE=InnoDB;
+
+
+
 /* ---------------------------------------------------------
    SAMPLE USERS AND ADMIN
    --------------------------------------------------------- */
@@ -544,6 +661,101 @@ INSERT INTO maintenance_requests (
     DATE_ADD(CURDATE(), INTERVAL 3 DAY),
     NOW()
 );
+
+-- ===================================================================
+-- SAMPLE DEPARTMENTS
+-- ===================================================================
+INSERT INTO departments (name, code, description, is_active, created_at) VALUES
+('Computer Science', 'CS', 'Department of Computer Science and Engineering', 1, NOW()),
+('Engineering', 'ENG', 'Department of Engineering', 1, NOW()),
+('Business Administration', 'BA', 'Department of Business Administration', 1, NOW()),
+('Mathematics', 'MATH', 'Department of Mathematics', 1, NOW()),
+('Physics', 'PHYS', 'Department of Physics', 1, NOW()),
+('Medicine', 'MED', 'Department of Medicine', 1, NOW()),
+('Law', 'LAW', 'Department of Law', 1, NOW()),
+('Arts', 'ARTS', 'Department of Arts', 1, NOW()),
+('Sciences', 'SCI', 'Department of Sciences', 1, NOW()),
+('Education', 'EDU', 'Department of Education', 1, NOW()),
+('Nursing', 'NURS', 'Department of Nursing', 1, NOW()),
+('Economics', 'ECON', 'Department of Economics', 1, NOW())
+ON DUPLICATE KEY UPDATE code = code;
+
+-- ===================================================================
+-- SAMPLE SUBJECTS
+-- ===================================================================
+-- Make sure we have the admin_id
+SET @admin_id = (
+    SELECT id FROM users WHERE email = 'admin@university.edu' LIMIT 1
+);
+
+-- Get Computer Science department ID
+SET @cs_dept_id = (
+    SELECT id FROM departments WHERE code = 'CS' LIMIT 1
+);
+
+-- Only insert if we have both admin and department
+INSERT INTO subjects (
+    name,
+    code,
+    description,
+    credits,
+    classification,
+    department_id,
+    is_active,
+    created_by,
+    created_at
+)
+SELECT 
+    'Introduction to Programming',
+    'CS101',
+    'Fundamentals of programming using Python',
+    3.0,
+    'core',
+    @cs_dept_id,
+    1,
+    @admin_id,
+    NOW()
+FROM DUAL
+WHERE @admin_id IS NOT NULL AND @cs_dept_id IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM subjects WHERE code = 'CS101')
+
+UNION ALL
+
+SELECT 
+    'Data Structures',
+    'CS201',
+    'Advanced data structures and algorithms',
+    3.0,
+    'core',
+    @cs_dept_id,
+    1,
+    @admin_id,
+    NOW()
+FROM DUAL
+WHERE @admin_id IS NOT NULL AND @cs_dept_id IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM subjects WHERE code = 'CS201')
+
+UNION ALL
+
+SELECT 
+    'Web Development',
+    'CS301',
+    'Modern web development with React and Node.js',
+    3.0,
+    'elective',
+    @cs_dept_id,
+    1,
+    @admin_id,
+    NOW()
+FROM DUAL
+WHERE @admin_id IS NOT NULL AND @cs_dept_id IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM subjects WHERE code = 'CS301');
+
+SELECT *
+FROM departments;
+
+SELECT *
+FROM subjects;
 
 
 SELECT *
