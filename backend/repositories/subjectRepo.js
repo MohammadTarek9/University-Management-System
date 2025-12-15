@@ -15,10 +15,13 @@ function mapSubjectRow(row) {
     departmentName: row.department_name || null,
     departmentCode: row.department_code || null,
     isActive: !!row.is_active,
+    semester: row.semester || null,
+    academicYear: row.academic_year || null,
     createdBy: row.created_by,
     updatedBy: row.updated_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at
+    
   };
 }
 
@@ -64,8 +67,8 @@ async function getAllSubjects({
   const offset = (page - 1) * limit;
   const { whereSql, params } = buildSubjectFilter({ search, departmentId, classification, isActive });
 
-  const [rows] = await pool.query(
-    `
+ const [rows] = await pool.query(
+  `
     SELECT
       s.id,
       s.name,
@@ -75,6 +78,8 @@ async function getAllSubjects({
       s.classification,
       s.department_id,
       s.is_active,
+      s.semester,
+      s.academic_year,
       s.created_by,
       s.updated_by,
       s.created_at,
@@ -86,9 +91,11 @@ async function getAllSubjects({
     ${whereSql}
     ORDER BY s.code ASC
     LIMIT ? OFFSET ?
-    `,
-    [...params, Number(limit), Number(offset)]
-  );
+  `,
+  [...params, Number(limit), Number(offset)]
+);
+
+
 
   const subjects = rows.map(mapSubjectRow);
 
@@ -201,8 +208,7 @@ async function getSubjectsByDepartment(departmentId) {
 
 // Create new subject
 async function createSubject(data, createdByUserId) {
-  const [result] = await pool.query(
-    `
+  const query = `
     INSERT INTO subjects (
       name,
       code,
@@ -211,22 +217,29 @@ async function createSubject(data, createdByUserId) {
       classification,
       department_id,
       is_active,
+      semester,
+      academic_year,
       created_by,
       created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-    `,
-    [
-      data.name,
-      data.code,
-      data.description || null,
-      data.credits,
-      data.classification,
-      data.departmentId,
-      data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1,
-      createdByUserId
-    ]
-  );
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+  `;
 
+  const values = [
+    data.name,
+    data.code,
+    data.description || null,
+    data.credits,
+    data.classification,
+    data.departmentId,
+    data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1,
+    data.semester || null,
+    data.academicYear || null,
+    createdByUserId
+  ];
+
+  console.log('Creating subject with values:', values); // Debug log
+
+  const [result] = await pool.query(query, values);
   return getSubjectById(result.insertId);
 }
 
@@ -291,6 +304,51 @@ async function deleteSubject(id) {
   return result.affectedRows > 0;
 }
 
+
+
+// Update subject semester availability
+const updateSubjectSemester = async (subjectId, semesterData, updatedBy) => {
+  const { semester, academicYear } = semesterData;
+
+  const query = `
+    UPDATE subjects
+    SET semester = ?, academic_year = ?, semester_updated_by = ?, semester_updated_at = NOW()
+    WHERE id = ?
+  `;
+
+  const [result] = await pool.query(query, [
+    semester,
+    academicYear || null,
+    updatedBy,
+    subjectId,
+  ]);
+
+  if (result.affectedRows === 0) return null;
+  return await getSubjectById(subjectId);
+};
+
+// Get subjects by semester
+const getSubjectsBySemester = async (semester, academicYear = null) => {
+  let query = `
+    SELECT s.*, d.name AS department_name, d.code AS department_code
+    FROM subjects s
+    LEFT JOIN departments d ON s.department_id = d.id
+    WHERE s.semester = ?
+  `;
+  const params = [semester];
+
+  if (academicYear) {
+    query += " AND s.academic_year = ?";
+    params.push(academicYear);
+  }
+
+  query += " ORDER BY s.code ASC";
+
+  const [rows] = await pool.query(query, params);
+  return rows.map(mapSubjectRow);
+};
+
+
 module.exports = {
   getAllSubjects,
   getSubjectById,
@@ -298,6 +356,8 @@ module.exports = {
   getSubjectsByDepartment,
   createSubject,
   updateSubject,
-  deleteSubject
+  deleteSubject,
+  updateSubjectSemester,
+  getSubjectsBySemester
 };
 

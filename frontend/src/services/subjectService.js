@@ -2,15 +2,16 @@ import api from './api';
 
 export const subjectService = {
   // Get all subjects with pagination and filters
-  getAllSubjects: async (params = {}) => {
-    try {
-      const queryString = new URLSearchParams(params).toString();
-      const response = await api.get(`/curriculum/subjects?${queryString}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch subjects' };
-    }
-  },
+  getAllSubjects: async (params) => {
+  try {
+    const queryString = new URLSearchParams(params).toString(); // <-- add ()
+    const response = await api.get(`/curriculum/subjects?${queryString}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch subjects' };
+  }
+},
+
 
   // Get single subject by ID
   getSubjectById: async (id) => {
@@ -40,9 +41,8 @@ export const subjectService = {
     } catch (error) {
       console.error('SubjectService createSubject error:', error.response?.data);
       const errorData = error.response?.data;
-      
+
       if (errorData?.errors && Array.isArray(errorData.errors)) {
-        // Handle validation errors
         const errorMessages = errorData.errors.map(err => err.msg).join('; ');
         throw new Error(errorMessages);
       } else if (errorData?.message) {
@@ -61,7 +61,7 @@ export const subjectService = {
     } catch (error) {
       console.error('SubjectService updateSubject error:', error.response?.data);
       const errorData = error.response?.data;
-      
+
       if (errorData?.errors && Array.isArray(errorData.errors)) {
         const errorMessages = errorData.errors.map(err => err.msg).join('; ');
         throw new Error(errorMessages);
@@ -80,11 +80,32 @@ export const subjectService = {
       return response.data;
     } catch (error) {
       const errorData = error.response?.data;
+
       if (errorData?.message) {
         throw new Error(errorData.message);
       } else {
         throw new Error('Failed to delete subject');
       }
     }
-  }
+  },
+
+  // Update subject semester (admin/staff only)
+  updateSubjectSemester: async (id, semesterData) => {
+    try {
+      const response = await api.put(`/curriculum/subjects/${id}/semester`, semesterData);
+      return response.data;
+    } catch (error) {
+      console.error('SubjectService updateSubjectSemester error:', error.response?.data);
+      const errorData = error.response?.data;
+
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        const errorMessages = errorData.errors.map(err => err.msg).join('; ');
+        throw new Error(errorMessages);
+      } else if (errorData?.message) {
+        throw new Error(errorData.message);
+      } else {
+        throw new Error('Failed to update subject semester');
+      }
+    }
+  },
 };
