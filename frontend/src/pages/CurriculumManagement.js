@@ -117,7 +117,9 @@ const CourseCatalogManagement = () => {
     credits: '',
     classification: 'core',
     departmentId: '',
-    isActive: true
+    isActive: true,
+    semester: '',        
+    academicYear: ''     
   });
   const [addSubjectLoading, setAddSubjectLoading] = useState(false);
 
@@ -367,6 +369,8 @@ const CourseCatalogManagement = () => {
 
     setAddSubjectLoading(true);
     setSubjectsError('');
+    // Add this console log to see what's being sent
+  console.log('Sending subject data:', newSubject);
 
     try {
       await subjectService.createSubject(newSubject);
@@ -378,7 +382,9 @@ const CourseCatalogManagement = () => {
         credits: '',
         classification: 'core',
         departmentId: '',
-        isActive: true
+        isActive: true,
+        semester: '',        
+        academicYear: '' 
       });
       setSubjectSuccessMessage(`Subject '${newSubject.name}' created successfully`);
       fetchSubjects();
@@ -389,27 +395,49 @@ const CourseCatalogManagement = () => {
     }
   };
 
-  const handleEditSubject = async () => {
-    if (!editSubject.name || !editSubject.code || !editSubject.credits || !editSubject.departmentId) {
-      setSubjectsError('Name, code, credits, and department are required');
-      return;
+const handleEditSubject = async () => {
+  if (
+    !editSubject.name ||
+    !editSubject.code ||
+    !editSubject.credits ||
+    !editSubject.departmentId
+  ) {
+    setSubjectsError('Name, code, credits, and department are required');
+    return;
+  }
+
+  setEditSubjectLoading(true);
+  setSubjectsError('');
+
+  try {
+    await subjectService.updateSubject(editSubject.id, editSubject);
+
+    // Always sync semester, including clearing it
+    let semesterPayload;
+    if (!editSubject.semester || editSubject.semester === 'None') {
+      // User chose None → clear semester and academic year
+      semesterPayload = { semester: null, academicYear: null };
+    } else {
+      // User chose a real semester; academic year is optional
+      semesterPayload = {
+        semester: editSubject.semester,
+        academicYear: editSubject.academicYear || null,
+      };
     }
 
-    setEditSubjectLoading(true);
-    setSubjectsError('');
+    await subjectService.updateSubjectSemester(editSubject.id, semesterPayload);
 
-    try {
-      await subjectService.updateSubject(editSubject.id, editSubject);
-      setEditSubjectDialogOpen(false);
-      setEditSubject(null);
-      setSubjectSuccessMessage(`Subject '${editSubject.name}' updated successfully`);
-      fetchSubjects();
-    } catch (error) {
-      setSubjectsError(error.message || 'Failed to update subject');
-    } finally {
-      setEditSubjectLoading(false);
-    }
-  };
+    setEditSubjectDialogOpen(false);
+    setEditSubject(null);
+    setSubjectSuccessMessage(`Subject '${editSubject.name}' updated successfully`);
+    fetchSubjects();
+  } catch (error) {
+    setSubjectsError(error.message || 'Failed to update subject');
+  } finally {
+    setEditSubjectLoading(false);
+  }
+};
+
 
   const handleDeleteSubject = async () => {
     setDeleteSubjectLoading(true);
@@ -985,6 +1013,7 @@ const CourseCatalogManagement = () => {
                       <TableCell>Department</TableCell>
                       <TableCell>Credits</TableCell>
                       <TableCell>Classification</TableCell>
+                      <TableCell>Semester</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
@@ -1022,6 +1051,11 @@ const CourseCatalogManagement = () => {
                               color={subject.classification === 'core' ? 'primary' : 'default'}
                               size="small"
                             />
+                          </TableCell>
+                           <TableCell>
+                            {subject.semester
+                              ? `${subject.semester}${subject.academicYear ? ` ${subject.academicYear}` : ''}`
+                             : '-'}
                           </TableCell>
                           <TableCell>
                             <Chip
@@ -1136,6 +1170,31 @@ const CourseCatalogManagement = () => {
                   <MenuItem value="elective">Elective</MenuItem>
                 </TextField>
               </Grid>
+               <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Semester"
+                  value={newSubject.semester}
+                  onChange={(e) => setNewSubject({ ...newSubject, semester: e.target.value })}
+                >
+                  <MenuItem value="">None</MenuItem>
+                  <MenuItem value="Fall">Fall</MenuItem>
+                  <MenuItem value="Spring">Spring</MenuItem>
+                  <MenuItem value="Summer">Summer</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Academic Year"
+                  placeholder="2025-2026"
+                  value={newSubject.academicYear}
+                  onChange={(e) => setNewSubject({ ...newSubject, academicYear: e.target.value })}
+                  helperText="Format: YYYY-YYYY (optional)"
+                />
+              </Grid>
+
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -1225,6 +1284,37 @@ const CourseCatalogManagement = () => {
                     <MenuItem value="elective">Elective</MenuItem>
                   </TextField>
                 </Grid>
+
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Semester"
+                    value={editSubject.semester || ''}
+                    onChange={(e) =>
+                      setEditSubject({ ...editSubject, semester: e.target.value })
+                    }
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    <MenuItem value="Fall">Fall</MenuItem>
+                    <MenuItem value="Spring">Spring</MenuItem>
+                    <MenuItem value="Summer">Summer</MenuItem>
+                  </TextField>
+                </Grid>
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Academic Year"
+                    placeholder="2025-2026"
+                    value={editSubject.academicYear || editSubject.academic_year || ''}
+                    onChange={(e) =>
+                      setEditSubject({ ...editSubject, academicYear: e.target.value })
+                    }
+                    helperText="Format: YYYY-YYYY (optional)"
+                  />
+                </Grid>
+
+
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -1236,17 +1326,23 @@ const CourseCatalogManagement = () => {
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    select
-                    label="Status"
-                    value={editSubject.isActive}
-                    onChange={(e) => setEditSubject({ ...editSubject, isActive: e.target.value === 'true' })}
+                <TextField
+                  fullWidth
+                  select
+                  label="Status"
+                  value={editSubject.isActive ? 'true' : 'false'}
+                  onChange={(e) =>
+                    setEditSubject({
+                    ...editSubject,
+                    isActive: e.target.value === 'true',
+                     })
+                    }
                   >
-                    <MenuItem value={true}>Active</MenuItem>
-                    <MenuItem value={false}>Inactive</MenuItem>
-                  </TextField>
+                 <MenuItem value="true">Active</MenuItem>
+                 <MenuItem value="false">Inactive</MenuItem>
+                 </TextField>
                 </Grid>
+
               </Grid>
             )}
           </DialogContent>

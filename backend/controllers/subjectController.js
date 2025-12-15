@@ -115,7 +115,7 @@ const getSubjectsByDepartment = async (req, res) => {
 // ===================================================================
 const createSubject = async (req, res) => {
   try {
-    const { name, code, description, credits, classification, departmentId, isActive } = req.body;
+    const { name, code, description, credits, classification, departmentId, isActive, semester, academicYear } = req.body;
 
     // Validate required fields
     if (!name || !name.trim()) {
@@ -134,6 +134,26 @@ const createSubject = async (req, res) => {
       return errorResponse(res, 400, 'Valid department is required');
     }
 
+    // Validate semester if provided 
+    if (semester && semester.trim() !== '') {
+      const validSemesters = ['Fall', 'Spring', 'Summer'];
+      if (!validSemesters.includes(semester.trim())) {
+        return errorResponse(
+          res,
+          400,
+          'Invalid semester value. Must be Fall, Spring, or Summer.'
+        );
+      }
+    }
+
+    // Validate academic year format if provided 
+    if (academicYear && academicYear.trim() !== '' && !/^\d{4}-\d{4}$/.test(academicYear)) {
+      return errorResponse(
+        res,
+        400,
+        'Invalid academic year format. Must be in format YYYY-YYYY (e.g., 2024-2025)'
+      );
+    }
     // Check if code already exists
     const existingSubject = await subjectRepo.getSubjectByCode(code.trim().toUpperCase());
     if (existingSubject) {
@@ -158,7 +178,9 @@ const createSubject = async (req, res) => {
         credits: parseFloat(credits),
         classification,
         departmentId: parseInt(departmentId, 10),
-        isActive: isActive !== undefined ? !!isActive : true
+        isActive: isActive !== undefined ? !!isActive : true,
+        semester: semester?.trim() || null,           
+        academicYear: academicYear?.trim() || null    
       },
       req.user.id  // createdBy user ID from auth middleware
     );
@@ -290,6 +312,116 @@ const deleteSubject = async (req, res) => {
     errorResponse(res, 500, 'Server error during subject deletion');
   }
 };
+// ===================================================================
+// @desc    Update subject semester availability
+// @route   PUT /api/curriculum/subjects/:id/semester
+// @access  Private/Admin/Staff
+// ===================================================================
+const updateSubjectSemester = async (req, res) => {
+  try {
+    const subjectId = req.params.id;
+    const { semester, academicYear } = req.body;
+
+    // Normalize values
+    let finalSemester = semester;
+    let finalAcademicYear = academicYear ?? null;
+
+    if (semester === null || semester === '' || semester === undefined) {
+      // Clearing semester
+      finalSemester = null;
+      finalAcademicYear = null;
+    } else {
+      // Validate semester value
+      const trimmedSemester = semester.trim();
+      const validSemesters = ['Fall', 'Spring', 'Summer'];
+
+      if (!validSemesters.includes(trimmedSemester)) {
+        return errorResponse(
+          res,
+          400,
+          'Invalid semester value. Must be Fall, Spring, or Summer.'
+        );
+      }
+
+      finalSemester = trimmedSemester;
+
+      // Academic year is optional; validate only if provided
+      if (
+        finalAcademicYear &&
+        !/^\d{4}-\d{4}$/.test(finalAcademicYear)
+      ) {
+        return errorResponse(
+          res,
+          400,
+          'Invalid academic year format. Must be in format YYYY-YYYY e.g., 2024-2025'
+        );
+      }
+    }
+
+    // Check if subject exists (keep your existing code here)
+    const existingSubject = await subjectRepo.getSubjectById(subjectId);
+    if (!existingSubject) {
+      return errorResponse(res, 404, 'Subject not found');
+    }
+
+    // Call repo with normalized values
+    const subject = await subjectRepo.updateSubjectSemester(
+      subjectId,
+      {
+        semester: finalSemester,
+        academicYear: finalAcademicYear,
+      },
+      req.user.id
+    );
+
+    if (!subject) {
+      return errorResponse(res, 500, 'Failed to update subject semester');
+    }
+
+    return successResponse(res, 200, 'Subject semester updated successfully', {
+      subject,
+    });
+  } catch (error) {
+    console.error(error);
+    return errorResponse(res, 500, 'Server error during semester update');
+  }
+};
+
+
+// ===================================================================
+// @desc    Get subjects by semester
+// @route   GET /api/curriculum/subjects/semester/:semester
+// @access  Private
+// ===================================================================
+const getSubjectsBySemester = async (req, res) => {
+  try {
+    const { semester } = req.params;
+    const { academicYear } = req.query;
+
+    // Validate semester
+    const validSemesters = ['Fall', 'Spring', 'Summer'];
+    if (!validSemesters.includes(semester)) {
+      return errorResponse(
+        res,
+        400,
+        'Invalid semester value. Must be Fall, Spring, or Summer.'
+      );
+    }
+
+    const subjects = await subjectRepo.getSubjectsBySemester(semester, academicYear);
+
+    successResponse(res, 200, 'Subjects retrieved successfully', { 
+      subjects,
+      semester,
+      academicYear: academicYear || 'all',
+      count: subjects.length
+    });
+  } catch (error) {
+    console.error(error);
+    errorResponse(res, 500, 'Server error while retrieving subjects');
+  }
+};
+
 
 module.exports = {
   getAllSubjects,
@@ -297,5 +429,7 @@ module.exports = {
   getSubjectsByDepartment,
   createSubject,
   updateSubject,
-  deleteSubject
+  deleteSubject,
+   updateSubjectSemester,   
+  getSubjectsBySemester    
 };
