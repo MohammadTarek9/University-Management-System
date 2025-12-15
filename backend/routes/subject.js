@@ -7,7 +7,9 @@ const {
   getSubjectsByDepartment,
   createSubject,
   updateSubject,
-  deleteSubject
+  deleteSubject,
+  updateSubjectSemester,   
+  getSubjectsBySemester    
 } = require('../controllers/subjectController');
 const { protect, authorize } = require('../middleware/auth');
 const { handleValidationErrors } = require('../utils/responseHelpers');
@@ -57,7 +59,25 @@ const createSubjectValidation = [
   body('isActive')
     .optional()
     .isBoolean()
-    .withMessage('isActive must be a boolean value')
+    .withMessage('isActive must be a boolean value'),
+
+    
+ body('semester')
+  .optional({ nullable: true })
+  .trim()
+  .custom(value => {
+    if (!value) return true; // allow null/empty = clear semester
+    const valid = ['Fall', 'Spring', 'Summer'];
+    return valid.includes(value);
+  }).withMessage('Semester must be Fall, Spring, or Summer'),
+body('academicYear')
+  .optional({ nullable: true })
+  .trim()
+  .custom(value => {
+    if (!value) return true; // allow missing/empty
+    return /^\d{4}-\d{4}$/.test(value);
+  }).withMessage('Academic year must be in format YYYY-YYYY e.g., 2024-2025'),
+
 ];
 
 // Validation rules for updating a subject
@@ -107,11 +127,44 @@ const updateSubjectValidation = [
     .withMessage('isActive must be a boolean value')
 ];
 
+// Add validation for semester update
+const updateSemesterValidation = [
+  body('semester')
+    .optional({ nullable: true })
+    .trim()
+    .custom((value) => {
+      if (!value) return true; // allow null/empty → clear semester
+      const valid = ['Fall', 'Spring', 'Summer'];
+      return valid.includes(value);
+    })
+    .withMessage('Semester must be Fall, Spring, or Summer'),
+  body('academicYear')
+    .optional({ nullable: true })
+    .trim()
+    .custom((value) => {
+      if (!value) return true; // allow missing/empty
+      return /^\d{4}-\d{4}$/.test(value);
+    })
+    .withMessage('Academic year must be in format YYYY-YYYY e.g., 2024-2025'),
+];
+
+
+
 // All routes require authentication
 router.use(protect);
 
 // Routes accessible to all authenticated users (GET)
 // Routes that modify data require admin or staff role (POST, PUT, DELETE)
+router.route('/semester/:semester')
+  .get(getSubjectsBySemester);
+
+router.route('/:id/semester')
+  .put(
+    authorize('admin', 'staff'),
+    updateSemesterValidation,
+    handleValidationErrors,
+    updateSubjectSemester
+  );
 
 router.route('/')
   .get(getAllSubjects)
