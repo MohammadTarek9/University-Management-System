@@ -465,6 +465,240 @@ async function firstLoginChangePasswordRepo(id, hashedPassword, securityQuestion
   return getUserById(id);
 }
 
+// ==================== ROLES SYSTEM ====================
+
+/**
+ * Get all roles assigned to a user
+ */
+async function getUserRoles(userId) {
+  const [rows] = await pool.query(
+    `
+    SELECT 
+      r.id,
+      r.role_code,
+      r.role_name,
+      r.description,
+      ur.assigned_at,
+      ur.assigned_by,
+      u.first_name AS assigned_by_first_name,
+      u.last_name AS assigned_by_last_name
+    FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    LEFT JOIN users u ON ur.assigned_by = u.id
+    WHERE ur.user_id = ?
+    ORDER BY ur.assigned_at DESC
+    `,
+    [userId]
+  );
+
+  return rows.map(row => ({
+    id: row.id,
+    roleCode: row.role_code,
+    roleName: row.role_name,
+    description: row.description,
+    assignedAt: row.assigned_at,
+    assignedBy: {
+      id: row.assigned_by,
+      firstName: row.assigned_by_first_name,
+      lastName: row.assigned_by_last_name
+    }
+  }));
+}
+
+/**
+ * Assign a role to a user
+ */
+async function assignRole(userId, roleCode, assignedById) {
+  // First, get the role ID from role_code
+  const [roleRows] = await pool.query(
+    `SELECT id FROM roles WHERE role_code = ? LIMIT 1`,
+    [roleCode]
+  );
+
+  if (!roleRows.length) {
+    throw new Error(`Role not found: ${roleCode}`);
+  }
+
+  const roleId = roleRows[0].id;
+
+  // Check if user already has this role
+  const [existing] = await pool.query(
+    `SELECT id FROM user_roles WHERE user_id = ? AND role_id = ? LIMIT 1`,
+    [userId, roleId]
+  );
+
+  if (existing.length > 0) {
+    throw new Error('User already has this role');
+  }
+
+  // Assign the role
+  await pool.query(
+    `
+    INSERT INTO user_roles (user_id, role_id, assigned_by)
+    VALUES (?, ?, ?)
+    `,
+    [userId, roleId, assignedById]
+  );
+
+  return { success: true, roleCode, roleName: roleRows[0].role_name };
+}
+
+/**
+ * Remove a role from a user
+ */
+async function removeRole(userId, roleCode) {
+  // Get the role ID
+  const [roleRows] = await pool.query(
+    `SELECT id FROM roles WHERE role_code = ? LIMIT 1`,
+    [roleCode]
+  );
+
+  if (!roleRows.length) {
+    throw new Error(`Role not found: ${roleCode}`);
+  }
+
+  const roleId = roleRows[0].id;
+
+  // Remove the role assignment
+  const [result] = await pool.query(
+    `DELETE FROM user_roles WHERE user_id = ? AND role_id = ?`,
+    [userId, roleId]
+  );
+
+  if (result.affectedRows === 0) {
+    throw new Error('User does not have this role');
+  }
+
+  return { success: true, roleCode };
+}
+
+/**
+ * Check if a user has a specific role
+ */
+async function hasRole(userId, roleCode) {
+  const [rows] = await pool.query(
+    `
+    SELECT 1
+    FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    WHERE ur.user_id = ? AND r.role_code = ?
+    LIMIT 1
+    `,
+    [userId, roleCode]
+  );
+
+  return rows.length > 0;
+}
+
+/**
+ * Check if a user has any of the specified roles
+ */
+async function hasAnyRole(userId, roleCodes) {
+  if (!Array.isArray(roleCodes) || roleCodes.length === 0) {
+    return false;
+  }
+
+  const placeholders = roleCodes.map(() => '?').join(',');
+  const [rows] = await pool.query(
+    `
+    SELECT 1
+    FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    WHERE ur.user_id = ? AND r.role_code IN (${placeholders})
+    LIMIT 1
+    `,
+    [userId, ...roleCodes]
+  );
+
+  return rows.length > 0;
+}
+
+/**
+ * Get all available roles in the system
+ */
+async function getAllRoles() {
+  const [rows] = await pool.query(
+    `
+    SELECT 
+      id,
+      role_code,
+      role_name,
+      description,
+      created_at
+    FROM roles
+    ORDER BY role_name
+    `
+  );
+
+  return rows.map(row => ({
+    id: row.id,
+    roleCode: row.role_code,
+    roleName: row.role_name,
+    description: row.description,
+    createdAt: row.created_at
+  }));
+}
+
+/**
+ * Get users by role
+ */
+async function getUsersByRole(roleCode, { page = 1, limit = 10 }) {
+  const offset = (page - 1) * limit;
+
+  const [rows] = await pool.query(
+    `
+    SELECT DISTINCT
+      u.id,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.role,
+      u.department,
+      u.student_id,
+      u.employee_id,
+      u.is_active,
+      ur.assigned_at
+    FROM users u
+    JOIN user_roles ur ON u.id = ur.user_id
+    JOIN roles r ON ur.role_id = r.id
+    WHERE r.role_code = ?
+    ORDER BY ur.assigned_at DESC
+    LIMIT ? OFFSET ?
+    `,
+    [roleCode, Number(limit), Number(offset)]
+  );
+
+  const users = rows.map(row => ({
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    fullName: `${row.first_name} ${row.last_name}`,
+    email: row.email,
+    role: row.role,
+    department: row.department,
+    studentId: row.student_id,
+    employeeId: row.employee_id,
+    isActive: !!row.is_active,
+    assignedAt: row.assigned_at
+  }));
+
+  // Get total count
+  const [countRows] = await pool.query(
+    `
+    SELECT COUNT(DISTINCT u.id) AS total
+    FROM users u
+    JOIN user_roles ur ON u.id = ur.user_id
+    JOIN roles r ON ur.role_id = r.id
+    WHERE r.role_code = ?
+    `,
+    [roleCode]
+  );
+
+  const totalUsers = countRows[0]?.total || 0;
+
+  return { users, totalUsers };
+}
+
 
 
 module.exports = {
@@ -486,6 +720,15 @@ module.exports = {
   saveResetPasswordToken,
   findUserByValidResetToken,
   updatePasswordAndClearReset,
-  firstLoginChangePasswordRepo
+  firstLoginChangePasswordRepo,
+
+  // roles system
+  getUserRoles,
+  assignRole,
+  removeRole,
+  hasRole,
+  hasAnyRole,
+  getAllRoles,
+  getUsersByRole
 
 };
