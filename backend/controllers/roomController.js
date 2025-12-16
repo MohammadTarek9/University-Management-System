@@ -1,4 +1,4 @@
-const roomRepo = require('../repositories/roomRepo');
+const roomRepo = require('../repositories/roomEavRepoNew'); // Using 3-table EAV repository
 const userRepo = require('../repositories/userRepo');
 const { successResponse, errorResponse } = require('../utils/responseHelpers');
 const { validationResult } = require('express-validator');
@@ -12,67 +12,41 @@ exports.getAllRooms = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
-    const type = req.query.type || '';
+    const roomType = req.query.type || '';
     const building = req.query.building || '';
     const capacity = req.query.capacity || '';
     const isActive = req.query.isActive;
 
-    const filters = {};
-
-    if (search) {
-      filters.search = search;
-    }
-
-    if (type && type !== 'all') {
-      filters.type = type;
-    }
+    const options = { page, limit };
 
     if (building && building !== 'all') {
-      filters.building = building;
+      options.building = building;
     }
 
-    if (capacity && !isNaN(capacity)) {
-      filters.capacity = parseInt(capacity);
+    if (roomType && roomType !== 'all') {
+      options.roomType = roomType;
     }
 
     if (isActive !== undefined && isActive !== 'all') {
-      filters.isActive = isActive === 'true' || isActive === true;
+      options.isActive = isActive === 'true' || isActive === true;
     }
 
-    const result = await roomRepo.getAllRooms(filters, page, limit);
+    if (capacity && !isNaN(capacity)) {
+      options.minCapacity = parseInt(capacity);
+    }
 
-    // Fetch user details for createdBy and updatedBy
-    const roomsWithUsers = await Promise.all(
-      result.rooms.map(async (room) => {
-        const createdByUser = room.createdBy ? await userRepo.getUserById(room.createdBy) : null;
-        const updatedByUser = room.updatedBy ? await userRepo.getUserById(room.updatedBy) : null;
-
-        return {
-          ...room,
-          createdBy: createdByUser ? {
-            id: createdByUser.id,
-            firstName: createdByUser.firstName,
-            lastName: createdByUser.lastName
-          } : null,
-          updatedBy: updatedByUser ? {
-            id: updatedByUser.id,
-            firstName: updatedByUser.firstName,
-            lastName: updatedByUser.lastName
-          } : null
-        };
-      })
-    );
+    const { rooms, total, totalPages } = await roomRepo.getAllRooms(options);
 
     const pagination = {
       currentPage: page,
-      totalPages: result.pages,
-      totalRooms: result.total,
-      hasNext: page < result.pages,
+      totalPages,
+      totalRooms: total,
+      hasNext: page < totalPages,
       hasPrev: page > 1
     };
 
     return successResponse(res, 200, 'Rooms retrieved successfully', {
-      rooms: roomsWithUsers,
+      rooms,
       pagination
     });
   } catch (error) {
@@ -96,27 +70,7 @@ exports.getRoomById = async (req, res) => {
       return errorResponse(res, 404, 'Room not found');
     }
 
-    // Fetch user details
-    const createdByUser = room.createdBy ? await userRepo.getUserById(room.createdBy) : null;
-    const updatedByUser = room.updatedBy ? await userRepo.getUserById(room.updatedBy) : null;
-
-    const roomWithUsers = {
-      ...room,
-      createdBy: createdByUser ? {
-        id: createdByUser.id,
-        firstName: createdByUser.firstName,
-        lastName: createdByUser.lastName,
-        email: createdByUser.email
-      } : null,
-      updatedBy: updatedByUser ? {
-        id: updatedByUser.id,
-        firstName: updatedByUser.firstName,
-        lastName: updatedByUser.lastName,
-        email: updatedByUser.email
-      } : null
-    };
-
-    return successResponse(res, 200, 'Room retrieved successfully', { room: roomWithUsers });
+    return successResponse(res, 200, 'Room retrieved successfully', { room });
   } catch (error) {
     console.error('Error fetching room:', error);
     return errorResponse(res, 500, 'Failed to fetch room');
@@ -133,51 +87,38 @@ exports.createRoom = async (req, res) => {
       return errorResponse(res, 400, 'Validation failed', errors.array());
     }
 
-    const { name, type, capacity, location, equipment = [], amenities = [], maintenanceNotes } = req.body;
+    const { 
+      roomNumber, 
+      roomName, 
+      building, 
+      floor, 
+      capacity, 
+      roomType, 
+      description,
+      isActive,
+      // Type-specific EAV attributes
+      typeSpecific
+    } = req.body;
 
-    // Check for duplicate room name
-    const [existingByName] = await pool.query(
-      'SELECT id FROM rooms WHERE name = ?',
-      [name]
-    );
-    if (existingByName.length > 0) {
-      return errorResponse(res, 409, 'A room with this name already exists');
-    }
-
-    // Check for duplicate location
-    const [existingByLocation] = await pool.query(
-      `SELECT id FROM rooms 
-       WHERE location_building = ? AND location_floor = ? AND location_room_number = ?`,
-      [location.building, location.floor, location.roomNumber]
-    );
-    if (existingByLocation.length > 0) {
-      return errorResponse(res, 409, 'A room already exists at this location');
+    // Check for duplicate room by building + room number
+    const existingRoom = await roomRepo.getRoomByNumber(building, roomNumber);
+    if (existingRoom) {
+      return errorResponse(res, 409, 'A room with this number already exists in this building');
     }
 
     const room = await roomRepo.createRoom({
-      name,
-      type,
+      roomNumber,
+      roomName,
+      building,
+      floor,
       capacity,
-      location,
-      equipment,
-      amenities,
-      maintenanceNotes,
-      createdBy: req.user.id
+      roomType,
+      description,
+      isActive: isActive !== undefined ? isActive : true,
+      typeSpecific: typeSpecific || {}
     });
 
-    const createdByUser = await userRepo.getUserById(room.createdBy);
-    const roomWithUser = {
-      ...room,
-      createdBy: {
-        id: createdByUser.id,
-        firstName: createdByUser.firstName,
-        lastName: createdByUser.lastName
-      }
-    };
-
-    return successResponse(res, 201, 'Room created successfully', {
-      room: roomWithUser
-    });
+    return successResponse(res, 201, 'Room created successfully', { room });
   } catch (error) {
     console.error('Error creating room:', error);
     return errorResponse(res, 500, 'Failed to create room');
@@ -198,72 +139,39 @@ exports.updateRoom = async (req, res) => {
     if (!Number.isInteger(roomId) || isNaN(roomId)) {
       return errorResponse(res, 400, 'Invalid room ID');
     }
-    const room = await roomRepo.getRoomById(roomId);
 
+    const room = await roomRepo.getRoomById(roomId);
     if (!room) {
       return errorResponse(res, 404, 'Room not found');
     }
 
-    const { name, type, capacity, location, equipment, amenities, isActive, maintenanceNotes, nextMaintenanceDate } = req.body;
+    const { 
+      roomNumber, 
+      roomName, 
+      building, 
+      floor, 
+      capacity, 
+      roomType, 
+      description,
+      isActive,
+      // Type-specific EAV attributes
+      typeSpecific
+    } = req.body;
 
-    // Check for duplicate name (excluding current room)
-    if (name && name !== room.name) {
-      const [existingByName] = await pool.query(
-        'SELECT id FROM rooms WHERE name = ? AND id != ?',
-        [name, roomId]
-      );
-      if (existingByName.length > 0) {
-        return errorResponse(res, 409, 'A room with this name already exists');
-      }
-    }
-
-    // Check for duplicate location (excluding current room)
-    if (location) {
-      const [existingByLocation] = await pool.query(
-        `SELECT id FROM rooms 
-         WHERE location_building = ? AND location_floor = ? AND location_room_number = ? AND id != ?`,
-        [location.building, location.floor, location.roomNumber, roomId]
-      );
-      if (existingByLocation.length > 0) {
-        return errorResponse(res, 409, 'A room already exists at this location');
-      }
-    }
-
-    const updateData = {
-      ...(name && { name }),
-      ...(type && { type }),
-      ...(capacity !== undefined && { capacity }),
-      ...(location && { location }),
-      ...(equipment !== undefined && { equipment }),
-      ...(amenities !== undefined && { amenities }),
-      ...(isActive !== undefined && { isActive }),
-      ...(maintenanceNotes !== undefined && { maintenanceNotes }),
-      ...(nextMaintenanceDate && { nextMaintenanceDate }),
-      updatedBy: req.user.id
-    };
+    const updateData = {};
+    if (roomNumber !== undefined) updateData.roomNumber = roomNumber;
+    if (roomName !== undefined) updateData.roomName = roomName;
+    if (building !== undefined) updateData.building = building;
+    if (floor !== undefined) updateData.floor = floor;
+    if (capacity !== undefined) updateData.capacity = capacity;
+    if (roomType !== undefined) updateData.roomType = roomType;
+    if (description !== undefined) updateData.description = description;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (typeSpecific !== undefined) updateData.typeSpecific = typeSpecific;
 
     const updatedRoom = await roomRepo.updateRoom(roomId, updateData);
 
-    const createdByUser = updatedRoom.createdBy ? await userRepo.getUserById(updatedRoom.createdBy) : null;
-    const updatedByUser = updatedRoom.updatedBy ? await userRepo.getUserById(updatedRoom.updatedBy) : null;
-
-    const roomWithUsers = {
-      ...updatedRoom,
-      createdBy: createdByUser ? {
-        id: createdByUser.id,
-        firstName: createdByUser.firstName,
-        lastName: createdByUser.lastName
-      } : null,
-      updatedBy: updatedByUser ? {
-        id: updatedByUser.id,
-        firstName: updatedByUser.firstName,
-        lastName: updatedByUser.lastName
-      } : null
-    };
-
-    return successResponse(res, 200, 'Room updated successfully', {
-      room: roomWithUsers
-    });
+    return successResponse(res, 200, 'Room updated successfully', { room: updatedRoom });
   } catch (error) {
     console.error('Error updating room:', error);
     return errorResponse(res, 500, 'Failed to update room');

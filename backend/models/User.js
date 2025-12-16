@@ -157,6 +157,18 @@ userSchema.methods.getResetPasswordToken = function() {
   return resetToken;
 };
 
+// Check if user has a specific role
+userSchema.methods.hasRole = function(role) {
+  return this.role === role;
+};
+
+// Check if user has any of the specified roles
+userSchema.methods.hasAnyRole = function(...roles) {
+  // Flatten the roles array in case it's passed as a single array argument
+  const allowedRoles = roles.length === 1 && Array.isArray(roles[0]) ? roles[0] : roles;
+  return allowedRoles.includes(this.role);
+};
+
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {
   return `${this.firstName} ${this.lastName}`;

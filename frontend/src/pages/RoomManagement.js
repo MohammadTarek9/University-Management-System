@@ -28,7 +28,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Autocomplete
+  Autocomplete,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import {
   Search,
@@ -78,6 +80,7 @@ const RoomManagement = () => {
     },
     equipment: [],
     amenities: [],
+    typeSpecific: {},
     isActive: true
   });
   const [formErrors, setFormErrors] = useState({});
@@ -123,6 +126,7 @@ const RoomManagement = () => {
       },
       equipment: [],
       amenities: [],
+      typeSpecific: {},
       isActive: true
     });
     setFormErrors({});
@@ -142,7 +146,9 @@ const RoomManagement = () => {
     } else {
       setFormData(prev => ({
         ...prev,
-        [field]: value
+        [field]: value,
+        // Reset typeSpecific fields when room type changes
+        ...(field === 'type' ? { typeSpecific: {} } : {})
       }));
     }
     
@@ -163,6 +169,406 @@ const RoomManagement = () => {
       condition: 'good'
     }));
     handleFormChange('equipment', equipmentObjects);
+  };
+
+  // Handle type-specific field changes
+  const handleTypeSpecificChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      typeSpecific: {
+        ...prev.typeSpecific,
+        [field]: value
+      }
+    }));
+  };
+
+  // Render type-specific fields based on room type
+  const renderTypeSpecificFields = () => {
+    switch (formData.type) {
+      case 'laboratory':
+        return (
+          <>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                Laboratory-Specific Information
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Fume Hoods Count"
+                type="number"
+                value={formData.typeSpecific.fumeHoodsCount || ''}
+                onChange={(e) => handleTypeSpecificChange('fumeHoodsCount', parseInt(e.target.value) || '')}
+                inputProps={{ min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Lab Type"
+                value={formData.typeSpecific.labType || ''}
+                onChange={(e) => handleTypeSpecificChange('labType', e.target.value)}
+                placeholder="e.g., Chemistry, Biology, Physics"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Safety Equipment"
+                value={formData.typeSpecific.safetyEquipment || ''}
+                onChange={(e) => handleTypeSpecificChange('safetyEquipment', e.target.value)}
+                placeholder="List safety equipment available in the lab"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.typeSpecific.chemicalStorage || false}
+                    onChange={(e) => handleTypeSpecificChange('chemicalStorage', e.target.checked)}
+                  />
+                }
+                label="Chemical Storage Available"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.typeSpecific.emergencyShower || false}
+                    onChange={(e) => handleTypeSpecificChange('emergencyShower', e.target.checked)}
+                  />
+                }
+                label="Emergency Shower"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.typeSpecific.eyeWashStation || false}
+                    onChange={(e) => handleTypeSpecificChange('eyeWashStation', e.target.checked)}
+                  />
+                }
+                label="Eye Wash Station"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.typeSpecific.hazmatCertified || false}
+                    onChange={(e) => handleTypeSpecificChange('hazmatCertified', e.target.checked)}
+                  />
+                }
+                label="Hazmat Certified"
+              />
+            </Grid>
+          </>
+        );
+      
+      case 'computer_lab':
+        return (
+          <>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                Computer Lab-Specific Information
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Number of Computers"
+                type="number"
+                value={formData.typeSpecific.computersCount || ''}
+                onChange={(e) => handleTypeSpecificChange('computersCount', parseInt(e.target.value) || '')}
+                inputProps={{ min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Hardware Specifications"
+                value={formData.typeSpecific.hardwareSpecs || ''}
+                onChange={(e) => handleTypeSpecificChange('hardwareSpecs', e.target.value)}
+                placeholder="e.g., i7, 16GB RAM, RTX 3060"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Software Installed"
+                value={formData.typeSpecific.softwareInstalled || ''}
+                onChange={(e) => handleTypeSpecificChange('softwareInstalled', e.target.value)}
+                placeholder="List installed software"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Network Type</InputLabel>
+                <Select
+                  value={formData.typeSpecific.networkType || ''}
+                  label="Network Type"
+                  onChange={(e) => handleTypeSpecificChange('networkType', e.target.value)}
+                >
+                  <MenuItem value="wired">Wired</MenuItem>
+                  <MenuItem value="wireless">Wireless</MenuItem>
+                  <MenuItem value="both">Both</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.typeSpecific.printerAvailable || false}
+                    onChange={(e) => handleTypeSpecificChange('printerAvailable', e.target.checked)}
+                  />
+                }
+                label="Printer Available"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.typeSpecific.scannerAvailable || false}
+                    onChange={(e) => handleTypeSpecificChange('scannerAvailable', e.target.checked)}
+                  />
+                }
+                label="Scanner Available"
+              />
+            </Grid>
+          </>
+        );
+      
+      case 'lecture_hall':
+        return (
+          <>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                Lecture Hall-Specific Information
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Seating Arrangement</InputLabel>
+                <Select
+                  value={formData.typeSpecific.seatingArrangement || ''}
+                  label="Seating Arrangement"
+                  onChange={(e) => handleTypeSpecificChange('seatingArrangement', e.target.value)}
+                >
+                  <MenuItem value="theater">Theater Style</MenuItem>
+                  <MenuItem value="tiered">Tiered</MenuItem>
+                  <MenuItem value="flexible">Flexible</MenuItem>
+                  <MenuItem value="fixed">Fixed</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Projector Type"
+                value={formData.typeSpecific.projectorType || ''}
+                onChange={(e) => handleTypeSpecificChange('projectorType', e.target.value)}
+                placeholder="e.g., 4K Laser"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="AV Equipment"
+                value={formData.typeSpecific.avEquipment || ''}
+                onChange={(e) => handleTypeSpecificChange('avEquipment', e.target.value)}
+                placeholder="List audio-visual equipment"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Sound System"
+                value={formData.typeSpecific.soundSystem || ''}
+                onChange={(e) => handleTypeSpecificChange('soundSystem', e.target.value)}
+                placeholder="e.g., Wireless microphone system"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Whiteboard Count"
+                type="number"
+                value={formData.typeSpecific.whiteboardCount || ''}
+                onChange={(e) => handleTypeSpecificChange('whiteboardCount', parseInt(e.target.value) || '')}
+                inputProps={{ min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.typeSpecific.recordingCapable || false}
+                    onChange={(e) => handleTypeSpecificChange('recordingCapable', e.target.checked)}
+                  />
+                }
+                label="Recording Capable"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.typeSpecific.documentCamera || false}
+                    onChange={(e) => handleTypeSpecificChange('documentCamera', e.target.checked)}
+                  />
+                }
+                label="Document Camera"
+              />
+            </Grid>
+          </>
+        );
+      
+      case 'office':
+        return (
+          <>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                Office-Specific Information
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Occupant Name"
+                value={formData.typeSpecific.occupantName || ''}
+                onChange={(e) => handleTypeSpecificChange('occupantName', e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Phone Extension"
+                value={formData.typeSpecific.phoneExtension || ''}
+                onChange={(e) => handleTypeSpecificChange('phoneExtension', e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Access Control Type</InputLabel>
+                <Select
+                  value={formData.typeSpecific.accessControlType || ''}
+                  label="Access Control Type"
+                  onChange={(e) => handleTypeSpecificChange('accessControlType', e.target.value)}
+                >
+                  <MenuItem value="key">Key</MenuItem>
+                  <MenuItem value="card">Card Access</MenuItem>
+                  <MenuItem value="biometric">Biometric</MenuItem>
+                  <MenuItem value="code">Access Code</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Window Count"
+                type="number"
+                value={formData.typeSpecific.windowCount || ''}
+                onChange={(e) => handleTypeSpecificChange('windowCount', parseInt(e.target.value) || '')}
+                inputProps={{ min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Network Ports"
+                type="number"
+                value={formData.typeSpecific.networkPorts || ''}
+                onChange={(e) => handleTypeSpecificChange('networkPorts', parseInt(e.target.value) || '')}
+                inputProps={{ min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Furniture List"
+                value={formData.typeSpecific.furnitureList || ''}
+                onChange={(e) => handleTypeSpecificChange('furnitureList', e.target.value)}
+                placeholder="List furniture items in the office"
+              />
+            </Grid>
+          </>
+        );
+      
+      case 'conference_room':
+        return (
+          <>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                Studio/Workshop-Specific Information
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Studio Type"
+                value={formData.typeSpecific.studioType || ''}
+                onChange={(e) => handleTypeSpecificChange('studioType', e.target.value)}
+                placeholder="e.g., Art, Music, Video Production"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Power Outlets Count"
+                type="number"
+                value={formData.typeSpecific.powerOutletsCount || ''}
+                onChange={(e) => handleTypeSpecificChange('powerOutletsCount', parseInt(e.target.value) || '')}
+                inputProps={{ min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Equipment List"
+                value={formData.typeSpecific.equipmentList || ''}
+                onChange={(e) => handleTypeSpecificChange('equipmentList', e.target.value)}
+                placeholder="List specialized equipment available"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Specialized Lighting"
+                value={formData.typeSpecific.specializedLighting || ''}
+                onChange={(e) => handleTypeSpecificChange('specializedLighting', e.target.value)}
+                placeholder="Describe lighting setup"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Storage Space"
+                value={formData.typeSpecific.storageSpace || ''}
+                onChange={(e) => handleTypeSpecificChange('storageSpace', e.target.value)}
+                placeholder="Describe available storage"
+              />
+            </Grid>
+          </>
+        );
+      
+      default:
+        return null;
+    }
   };
 
   // Handle add room
@@ -758,6 +1164,9 @@ const RoomManagement = () => {
                 )}
               />
             </Grid>
+            
+            {/* Type-Specific Fields */}
+            {renderTypeSpecificFields()}
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -900,6 +1309,9 @@ const RoomManagement = () => {
                 )}
               />
             </Grid>
+            
+            {/* Type-Specific Fields */}
+            {renderTypeSpecificFields()}
           </Grid>
         </DialogContent>
         <DialogActions>

@@ -1,6 +1,6 @@
 const { errorResponse, successResponse } = require('../utils/responseHelpers');
-const courseRepo = require('../repositories/courseRepo');
-const subjectRepo = require('../repositories/subjectRepo');
+const courseRepo = require('../repositories/courseEavRepoNew'); // Using 3-table EAV repository
+const subjectRepo = require('../repositories/subjectEavRepoNew'); // Using 3-table EAV repository
 const userRepo = require('../repositories/userRepo');
 
 // ===================================================================
@@ -126,7 +126,29 @@ const getCoursesBySubject = async (req, res) => {
 // ===================================================================
 const createCourse = async (req, res) => {
   try {
-    const { subjectId, semester, year, instructorId, maxEnrollment, schedule } = req.body;
+    const { 
+      subjectId, 
+      semester, 
+      year, 
+      instructorId, 
+      maxEnrollment, 
+      schedule,
+      // EAV flexible attributes
+      prerequisites,
+      corequisites,
+      labRequired,
+      labHours,
+      gradingRubric,
+      assessmentTypes,
+      attendancePolicy,
+      onlineMeetingLink,
+      syllabusUrl,
+      officeHours,
+      textbookTitle,
+      textbookAuthor,
+      textbookIsbn,
+      textbookRequired
+    } = req.body;
 
     // Validate required fields
     if (!subjectId || isNaN(subjectId)) {
@@ -165,14 +187,34 @@ const createCourse = async (req, res) => {
       }
     }
 
-    // Create the course
+    // Prepare flexible attributes
+    const flexibleAttributes = {};
+    if (prerequisites) flexibleAttributes.prerequisites = prerequisites;
+    if (corequisites) flexibleAttributes.corequisites = corequisites;
+    if (labRequired !== undefined) flexibleAttributes.labRequired = labRequired;
+    if (labHours) flexibleAttributes.labHours = labHours;
+    if (gradingRubric) flexibleAttributes.gradingRubric = gradingRubric;
+    if (assessmentTypes) flexibleAttributes.assessmentTypes = assessmentTypes;
+    if (attendancePolicy) flexibleAttributes.attendancePolicy = attendancePolicy;
+    if (onlineMeetingLink) flexibleAttributes.onlineMeetingLink = onlineMeetingLink;
+    if (syllabusUrl) flexibleAttributes.syllabusUrl = syllabusUrl;
+    if (officeHours) flexibleAttributes.officeHours = officeHours;
+    if (textbookTitle) flexibleAttributes.textbookTitle = textbookTitle;
+    if (textbookAuthor) flexibleAttributes.textbookAuthor = textbookAuthor;
+    if (textbookIsbn) flexibleAttributes.textbookIsbn = textbookIsbn;
+    if (textbookRequired !== undefined) flexibleAttributes.textbookRequired = textbookRequired;
+
+    // Create the course with EAV attributes
     const course = await courseRepo.createCourse({
       subjectId,
       semester,
       year,
       instructorId: instructorId || null,
       maxEnrollment: maxEnrollment || 30,
-      schedule: schedule || null
+      currentEnrollment: 0,
+      schedule: schedule || null,
+      isActive: true,
+      flexibleAttributes
     });
 
     successResponse(res, 201, 'Course created successfully', { course });
@@ -193,7 +235,31 @@ const createCourse = async (req, res) => {
 const updateCourse = async (req, res) => {
   try {
     const courseId = req.params.id;
-    const { subjectId, semester, year, instructorId, maxEnrollment, currentEnrollment, schedule, isActive } = req.body;
+    const { 
+      subjectId, 
+      semester, 
+      year, 
+      instructorId, 
+      maxEnrollment, 
+      currentEnrollment, 
+      schedule, 
+      isActive,
+      // EAV flexible attributes
+      prerequisites,
+      corequisites,
+      labRequired,
+      labHours,
+      gradingRubric,
+      assessmentTypes,
+      attendancePolicy,
+      onlineMeetingLink,
+      syllabusUrl,
+      officeHours,
+      textbookTitle,
+      textbookAuthor,
+      textbookIsbn,
+      textbookRequired
+    } = req.body;
 
     // Check if course exists
     const existingCourse = await courseRepo.getCourseById(courseId);
@@ -253,7 +319,7 @@ const updateCourse = async (req, res) => {
       return errorResponse(res, 400, 'Current enrollment cannot exceed max enrollment');
     }
 
-    // Update the course
+    // Update the course with core attributes
     const updateData = {};
     if (subjectId !== undefined) updateData.subjectId = subjectId;
     if (semester !== undefined) updateData.semester = semester;
@@ -263,6 +329,25 @@ const updateCourse = async (req, res) => {
     if (currentEnrollment !== undefined) updateData.currentEnrollment = currentEnrollment;
     if (schedule !== undefined) updateData.schedule = schedule;
     if (isActive !== undefined) updateData.isActive = isActive;
+
+    // Prepare flexible attributes
+    const flexibleAttributes = {};
+    if (prerequisites !== undefined) flexibleAttributes.prerequisites = prerequisites;
+    if (corequisites !== undefined) flexibleAttributes.corequisites = corequisites;
+    if (labRequired !== undefined) flexibleAttributes.labRequired = labRequired;
+    if (labHours !== undefined) flexibleAttributes.labHours = labHours;
+    if (gradingRubric !== undefined) flexibleAttributes.gradingRubric = gradingRubric;
+    if (assessmentTypes !== undefined) flexibleAttributes.assessmentTypes = assessmentTypes;
+    if (attendancePolicy !== undefined) flexibleAttributes.attendancePolicy = attendancePolicy;
+    if (onlineMeetingLink !== undefined) flexibleAttributes.onlineMeetingLink = onlineMeetingLink;
+    if (syllabusUrl !== undefined) flexibleAttributes.syllabusUrl = syllabusUrl;
+    if (officeHours !== undefined) flexibleAttributes.officeHours = officeHours;
+    if (textbookTitle !== undefined) flexibleAttributes.textbookTitle = textbookTitle;
+    if (textbookAuthor !== undefined) flexibleAttributes.textbookAuthor = textbookAuthor;
+    if (textbookIsbn !== undefined) flexibleAttributes.textbookIsbn = textbookIsbn;
+    if (textbookRequired !== undefined) flexibleAttributes.textbookRequired = textbookRequired;
+
+    updateData.flexibleAttributes = flexibleAttributes;
 
     const course = await courseRepo.updateCourse(courseId, updateData);
 

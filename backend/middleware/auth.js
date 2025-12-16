@@ -74,7 +74,51 @@ const authorize = (...roles) => {
   };
 };
 
+// Middleware using hasRole() - Check for single role
+const requireRole = (role) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated'
+      });
+    }
+
+    if (!req.user.hasRole(role)) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. ${role} role required.`
+      });
+    }
+
+    next();
+  };
+};
+
+// Middleware using hasAnyRole() - Check for multiple roles
+const requireAnyRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated'
+      });
+    }
+
+    if (!req.user.hasAnyRole(...roles)) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. One of these roles required: ${roles.join(', ')}`
+      });
+    }
+
+    next();
+  };
+};
+
 module.exports = {
   protect,
-  authorize
+  authorize,
+  requireRole,
+  requireAnyRole
 };
