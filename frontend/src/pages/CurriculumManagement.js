@@ -26,7 +26,9 @@ import {
   DialogActions,
   InputAdornment,
   Grid,
-  MenuItem
+  MenuItem,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import {
   School,
@@ -119,7 +121,20 @@ const CourseCatalogManagement = () => {
     departmentId: '',
     isActive: true,
     semester: '',        
-    academicYear: ''     
+    academicYear: '',
+    // EAV flexible attributes
+    prerequisites: '',
+    corequisites: '',
+    learningOutcomes: '',
+    textbooks: '',
+    labRequired: false,
+    labHours: '',
+    studioRequired: false,
+    studioHours: '',
+    certifications: '',
+    repeatability: '',
+    syllabusTemplate: '',
+    typicalOffering: ''
   });
   const [addSubjectLoading, setAddSubjectLoading] = useState(false);
 
@@ -155,7 +170,22 @@ const CourseCatalogManagement = () => {
     instructorId: '',
     maxEnrollment: 30,
     schedule: '',
-    isActive: true
+    isActive: true,
+    // EAV flexible attributes
+    prerequisites: '',
+    corequisites: '',
+    labRequired: false,
+    labHours: '',
+    gradingRubric: '',
+    assessmentTypes: '',
+    attendancePolicy: '',
+    onlineMeetingLink: '',
+    syllabusUrl: '',
+    officeHours: '',
+    textbookTitle: '',
+    textbookAuthor: '',
+    textbookIsbn: '',
+    textbookRequired: false
   });
   const [addCourseLoading, setAddCourseLoading] = useState(false);
 
@@ -384,7 +414,19 @@ const CourseCatalogManagement = () => {
         departmentId: '',
         isActive: true,
         semester: '',        
-        academicYear: '' 
+        academicYear: '',
+        prerequisites: '',
+        corequisites: '',
+        learningOutcomes: '',
+        textbooks: '',
+        labRequired: false,
+        labHours: '',
+        studioRequired: false,
+        studioHours: '',
+        certifications: '',
+        repeatability: '',
+        syllabusTemplate: '',
+        typicalOffering: ''
       });
       setSubjectSuccessMessage(`Subject '${newSubject.name}' created successfully`);
       fetchSubjects();
@@ -569,7 +611,21 @@ const handleEditSubject = async () => {
         instructorId: '',
         maxEnrollment: 30,
         schedule: '',
-        isActive: true
+        isActive: true,
+        prerequisites: '',
+        corequisites: '',
+        labRequired: false,
+        labHours: '',
+        gradingRubric: '',
+        assessmentTypes: '',
+        attendancePolicy: '',
+        onlineMeetingLink: '',
+        syllabusUrl: '',
+        officeHours: '',
+        textbookTitle: '',
+        textbookAuthor: '',
+        textbookIsbn: '',
+        textbookRequired: false
       });
       setCourseSuccessMessage('Course created successfully');
       fetchCourses();
@@ -1205,6 +1261,149 @@ const handleEditSubject = async () => {
                   onChange={(e) => setNewSubject({ ...newSubject, description: e.target.value })}
                 />
               </Grid>
+              
+              {/* EAV Flexible Attributes */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 'bold' }}>
+                  Subject Details (Optional)
+                </Typography>
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Prerequisites"
+                  value={newSubject.prerequisites}
+                  onChange={(e) => setNewSubject({ ...newSubject, prerequisites: e.target.value })}
+                  placeholder="e.g., CS101, MATH200"
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Corequisites"
+                  value={newSubject.corequisites}
+                  onChange={(e) => setNewSubject({ ...newSubject, corequisites: e.target.value })}
+                  placeholder="e.g., LAB101"
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Learning Outcomes"
+                  value={newSubject.learningOutcomes}
+                  onChange={(e) => setNewSubject({ ...newSubject, learningOutcomes: e.target.value })}
+                  multiline
+                  rows={4}
+                  placeholder="List the key learning objectives for this subject"
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Textbooks"
+                  value={newSubject.textbooks}
+                  onChange={(e) => setNewSubject({ ...newSubject, textbooks: e.target.value })}
+                  multiline
+                  rows={2}
+                  placeholder="List required and recommended textbooks"
+                />
+              </Grid>
+              
+              <Grid item xs={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={newSubject.labRequired}
+                      onChange={(e) => setNewSubject({ ...newSubject, labRequired: e.target.checked })}
+                    />
+                  }
+                  label="Lab Required"
+                />
+              </Grid>
+              
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Lab Hours per Week"
+                  value={newSubject.labHours}
+                  onChange={(e) => setNewSubject({ ...newSubject, labHours: e.target.value })}
+                  disabled={!newSubject.labRequired}
+                  inputProps={{ min: 0, max: 20 }}
+                />
+              </Grid>
+              
+              <Grid item xs={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={newSubject.studioRequired}
+                      onChange={(e) => setNewSubject({ ...newSubject, studioRequired: e.target.checked })}
+                    />
+                  }
+                  label="Studio Required"
+                />
+              </Grid>
+              
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Studio Hours per Week"
+                  value={newSubject.studioHours}
+                  onChange={(e) => setNewSubject({ ...newSubject, studioHours: e.target.value })}
+                  disabled={!newSubject.studioRequired}
+                  inputProps={{ min: 0, max: 20 }}
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Certifications"
+                  value={newSubject.certifications}
+                  onChange={(e) => setNewSubject({ ...newSubject, certifications: e.target.value })}
+                  placeholder="Any certifications students can earn"
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Repeatability"
+                  value={newSubject.repeatability}
+                  onChange={(e) => setNewSubject({ ...newSubject, repeatability: e.target.value })}
+                  placeholder="e.g., May be repeated once for credit"
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Syllabus Template"
+                  value={newSubject.syllabusTemplate}
+                  onChange={(e) => setNewSubject({ ...newSubject, syllabusTemplate: e.target.value })}
+                  multiline
+                  rows={3}
+                  placeholder="Standard syllabus template or outline"
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Typical Offering"
+                  value={newSubject.typicalOffering}
+                  onChange={(e) => setNewSubject({ ...newSubject, typicalOffering: e.target.value })}
+                  placeholder="e.g., Fall and Spring semesters"
+                />
+              </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>
@@ -1341,6 +1540,149 @@ const handleEditSubject = async () => {
                  <MenuItem value="true">Active</MenuItem>
                  <MenuItem value="false">Inactive</MenuItem>
                  </TextField>
+                </Grid>
+                
+                {/* EAV Flexible Attributes */}
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 'bold' }}>
+                    Subject Details (Optional)
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Prerequisites"
+                    value={editSubject.prerequisites || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, prerequisites: e.target.value })}
+                    placeholder="e.g., CS101, MATH200"
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Corequisites"
+                    value={editSubject.corequisites || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, corequisites: e.target.value })}
+                    placeholder="e.g., LAB101"
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Learning Outcomes"
+                    value={editSubject.learningOutcomes || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, learningOutcomes: e.target.value })}
+                    multiline
+                    rows={4}
+                    placeholder="List the key learning objectives for this subject"
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Textbooks"
+                    value={editSubject.textbooks || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, textbooks: e.target.value })}
+                    multiline
+                    rows={2}
+                    placeholder="List required and recommended textbooks"
+                  />
+                </Grid>
+                
+                <Grid item xs={6}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={editSubject.labRequired || false}
+                        onChange={(e) => setEditSubject({ ...editSubject, labRequired: e.target.checked })}
+                      />
+                    }
+                    label="Lab Required"
+                  />
+                </Grid>
+                
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Lab Hours per Week"
+                    value={editSubject.labHours || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, labHours: e.target.value })}
+                    disabled={!editSubject.labRequired}
+                    inputProps={{ min: 0, max: 20 }}
+                  />
+                </Grid>
+                
+                <Grid item xs={6}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={editSubject.studioRequired || false}
+                        onChange={(e) => setEditSubject({ ...editSubject, studioRequired: e.target.checked })}
+                      />
+                    }
+                    label="Studio Required"
+                  />
+                </Grid>
+                
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Studio Hours per Week"
+                    value={editSubject.studioHours || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, studioHours: e.target.value })}
+                    disabled={!editSubject.studioRequired}
+                    inputProps={{ min: 0, max: 20 }}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Certifications"
+                    value={editSubject.certifications || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, certifications: e.target.value })}
+                    placeholder="Any certifications students can earn"
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Repeatability"
+                    value={editSubject.repeatability || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, repeatability: e.target.value })}
+                    placeholder="e.g., May be repeated once for credit"
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Syllabus Template"
+                    value={editSubject.syllabusTemplate || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, syllabusTemplate: e.target.value })}
+                    multiline
+                    rows={3}
+                    placeholder="Standard syllabus template or outline"
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Typical Offering"
+                    value={editSubject.typicalOffering || ''}
+                    onChange={(e) => setEditSubject({ ...editSubject, typicalOffering: e.target.value })}
+                    placeholder="e.g., Fall and Spring semesters"
+                  />
                 </Grid>
 
               </Grid>
@@ -1629,6 +1971,169 @@ const handleEditSubject = async () => {
                   rows={2}
                 />
               </Grid>
+              
+              {/* EAV Flexible Attributes */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 'bold' }}>
+                  Course Details (Optional)
+                </Typography>
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Prerequisites"
+                  value={newCourse.prerequisites}
+                  onChange={(e) => setNewCourse({ ...newCourse, prerequisites: e.target.value })}
+                  placeholder="e.g., CS101, MATH200"
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Corequisites"
+                  value={newCourse.corequisites}
+                  onChange={(e) => setNewCourse({ ...newCourse, corequisites: e.target.value })}
+                  placeholder="e.g., LAB101"
+                />
+              </Grid>
+              
+              <Grid item xs={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={newCourse.labRequired}
+                      onChange={(e) => setNewCourse({ ...newCourse, labRequired: e.target.checked })}
+                    />
+                  }
+                  label="Lab Required"
+                />
+              </Grid>
+              
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Lab Hours per Week"
+                  value={newCourse.labHours}
+                  onChange={(e) => setNewCourse({ ...newCourse, labHours: e.target.value })}
+                  disabled={!newCourse.labRequired}
+                  inputProps={{ min: 0, max: 20 }}
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Grading Rubric"
+                  value={newCourse.gradingRubric}
+                  onChange={(e) => setNewCourse({ ...newCourse, gradingRubric: e.target.value })}
+                  placeholder="e.g., Exams 40%, Projects 30%, Homework 20%, Participation 10%"
+                  multiline
+                  rows={3}
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Assessment Types"
+                  value={newCourse.assessmentTypes}
+                  onChange={(e) => setNewCourse({ ...newCourse, assessmentTypes: e.target.value })}
+                  placeholder="e.g., Midterm, Final, Quizzes, Projects"
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Attendance Policy"
+                  value={newCourse.attendancePolicy}
+                  onChange={(e) => setNewCourse({ ...newCourse, attendancePolicy: e.target.value })}
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Online Meeting Link"
+                  value={newCourse.onlineMeetingLink}
+                  onChange={(e) => setNewCourse({ ...newCourse, onlineMeetingLink: e.target.value })}
+                  placeholder="Zoom, Teams, or other meeting URL"
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Syllabus URL"
+                  value={newCourse.syllabusUrl}
+                  onChange={(e) => setNewCourse({ ...newCourse, syllabusUrl: e.target.value })}
+                  placeholder="Link to course syllabus"
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Office Hours"
+                  value={newCourse.officeHours}
+                  onChange={(e) => setNewCourse({ ...newCourse, officeHours: e.target.value })}
+                  placeholder="e.g., Tue/Thu 2:00-4:00 PM"
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, fontWeight: 'bold' }}>
+                  Textbook Information
+                </Typography>
+              </Grid>
+              
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Textbook Title"
+                  value={newCourse.textbookTitle}
+                  onChange={(e) => setNewCourse({ ...newCourse, textbookTitle: e.target.value })}
+                />
+              </Grid>
+              
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Textbook Author"
+                  value={newCourse.textbookAuthor}
+                  onChange={(e) => setNewCourse({ ...newCourse, textbookAuthor: e.target.value })}
+                />
+              </Grid>
+              
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="ISBN"
+                  value={newCourse.textbookIsbn}
+                  onChange={(e) => setNewCourse({ ...newCourse, textbookIsbn: e.target.value })}
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={newCourse.textbookRequired}
+                      onChange={(e) => setNewCourse({ ...newCourse, textbookRequired: e.target.checked })}
+                    />
+                  }
+                  label="Textbook Required"
+                />
+              </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>
@@ -1747,6 +2252,169 @@ const handleEditSubject = async () => {
                     <MenuItem value={true}>Active</MenuItem>
                     <MenuItem value={false}>Inactive</MenuItem>
                   </TextField>
+                </Grid>
+                
+                {/* EAV Flexible Attributes */}
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 'bold' }}>
+                    Course Details (Optional)
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Prerequisites"
+                    value={editCourse.prerequisites || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, prerequisites: e.target.value })}
+                    placeholder="e.g., CS101, MATH200"
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Corequisites"
+                    value={editCourse.corequisites || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, corequisites: e.target.value })}
+                    placeholder="e.g., LAB101"
+                  />
+                </Grid>
+                
+                <Grid item xs={6}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={editCourse.labRequired || false}
+                        onChange={(e) => setEditCourse({ ...editCourse, labRequired: e.target.checked })}
+                      />
+                    }
+                    label="Lab Required"
+                  />
+                </Grid>
+                
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Lab Hours per Week"
+                    value={editCourse.labHours || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, labHours: e.target.value })}
+                    disabled={!editCourse.labRequired}
+                    inputProps={{ min: 0, max: 20 }}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Grading Rubric"
+                    value={editCourse.gradingRubric || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, gradingRubric: e.target.value })}
+                    placeholder="e.g., Exams 40%, Projects 30%, Homework 20%, Participation 10%"
+                    multiline
+                    rows={3}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Assessment Types"
+                    value={editCourse.assessmentTypes || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, assessmentTypes: e.target.value })}
+                    placeholder="e.g., Midterm, Final, Quizzes, Projects"
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Attendance Policy"
+                    value={editCourse.attendancePolicy || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, attendancePolicy: e.target.value })}
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Online Meeting Link"
+                    value={editCourse.onlineMeetingLink || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, onlineMeetingLink: e.target.value })}
+                    placeholder="Zoom, Teams, or other meeting URL"
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Syllabus URL"
+                    value={editCourse.syllabusUrl || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, syllabusUrl: e.target.value })}
+                    placeholder="Link to course syllabus"
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Office Hours"
+                    value={editCourse.officeHours || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, officeHours: e.target.value })}
+                    placeholder="e.g., Tue/Thu 2:00-4:00 PM"
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, fontWeight: 'bold' }}>
+                    Textbook Information
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Textbook Title"
+                    value={editCourse.textbookTitle || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, textbookTitle: e.target.value })}
+                  />
+                </Grid>
+                
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Textbook Author"
+                    value={editCourse.textbookAuthor || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, textbookAuthor: e.target.value })}
+                  />
+                </Grid>
+                
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="ISBN"
+                    value={editCourse.textbookIsbn || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, textbookIsbn: e.target.value })}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={editCourse.textbookRequired || false}
+                        onChange={(e) => setEditCourse({ ...editCourse, textbookRequired: e.target.checked })}
+                      />
+                    }
+                    label="Textbook Required"
+                  />
                 </Grid>
               </Grid>
             )}
