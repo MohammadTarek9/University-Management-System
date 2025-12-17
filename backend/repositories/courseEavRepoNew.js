@@ -15,6 +15,12 @@ function mapCourseEntity(entity) {
 
   // Helper to safely convert to integer
   const toInt = (val) => val != null ? Math.floor(Number(val)) : val;
+  
+  // Helper to convert to boolean (handles MySQL TINYINT)
+  const toBool = (val) => {
+    if (val === undefined || val === null) return true; // default to true
+    return Boolean(val);
+  };
 
   return {
     id: toInt(entity.entity_id || entity.id),
@@ -25,7 +31,7 @@ function mapCourseEntity(entity) {
     maxEnrollment: toInt(entity.max_enrollment || entity.maxEnrollment),
     currentEnrollment: toInt(entity.current_enrollment || entity.currentEnrollment),
     schedule: entity.schedule,
-    isActive: entity.is_active !== undefined ? entity.is_active : (entity.isActive !== undefined ? entity.isActive : true),
+    isActive: toBool(entity.is_active !== undefined ? entity.is_active : entity.isActive),
     
     // EAV flexible attributes
     prerequisites: entity.prerequisites,
