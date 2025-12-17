@@ -309,38 +309,47 @@ exports.deleteMaintenanceRequest = async (req, res) => {
 // @access  Private (Admin)
 exports.getMaintenanceStats = async (req, res) => {
   try {
-    const [statusRows] = await require('../db/mysql').query(
-      'SELECT status, COUNT(*) as count FROM maintenance_requests GROUP BY status'
-    );
-    const [categoryRows] = await require('../db/mysql').query(
-      'SELECT category, COUNT(*) as count FROM maintenance_requests GROUP BY category ORDER BY count DESC'
-    );
-    const [priorityRows] = await require('../db/mysql').query(
-      'SELECT priority, COUNT(*) as count FROM maintenance_requests GROUP BY priority'
-    );
-    const [totalRows] = await require('../db/mysql').query(
-      'SELECT COUNT(*) as count FROM maintenance_requests'
-    );
-    const [completedWeekRows] = await require('../db/mysql').query(
-      'SELECT COUNT(*) as count FROM maintenance_requests WHERE status = ? AND actual_completion >= DATE_SUB(NOW(), INTERVAL 7 DAY)',
-      ['Completed']
-    );
+    // Get all maintenance requests from EAV
+    const { maintenanceRequests } = await maintenanceRepo.getAllMaintenanceRequests({ 
+      limit: 10000 // Get all for stats
+    });
+
+    // Calculate stats from EAV data
+    const total = maintenanceRequests.length;
+    
+    const byStatus = maintenanceRequests.reduce((acc, req) => {
+      const status = req.status || 'Unknown';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const byCategory = maintenanceRequests.reduce((acc, req) => {
+      const category = req.category || 'Unknown';
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {});
+
+    const byPriority = maintenanceRequests.reduce((acc, req) => {
+      const priority = req.priority || req.severity || 'Unknown';
+      acc[priority] = (acc[priority] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Count completed this week
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const completedThisWeek = maintenanceRequests.filter(req => 
+      req.status === 'Completed' && 
+      req.completedDate && 
+      new Date(req.completedDate) >= oneWeekAgo
+    ).length;
 
     const responseData = {
-      total: totalRows[0].count,
-      byStatus: statusRows.reduce((acc, row) => {
-        acc[row.status] = row.count;
-        return acc;
-      }, {}),
-      byCategory: categoryRows.reduce((acc, row) => {
-        acc[row.category] = row.count;
-        return acc;
-      }, {}),
-      byPriority: priorityRows.reduce((acc, row) => {
-        acc[row.priority] = row.count;
-        return acc;
-      }, {}),
-      completedThisWeek: completedWeekRows[0].count
+      total,
+      byStatus,
+      byCategory,
+      byPriority,
+      completedThisWeek
     };
 
     sendResponse(res, 200, true, 'Maintenance statistics retrieved successfully', responseData);
