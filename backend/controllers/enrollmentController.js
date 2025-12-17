@@ -53,20 +53,16 @@ const registerForCourse = async (req, res) => {
       }
     }
 
-    // Create enrollment
+    // Create enrollment request (pending status)
     const enrollment = await enrollmentRepo.createEnrollment({
       studentId,
       courseId,
-      status: 'enrolled'
+      status: 'pending'
     });
 
-    // Update course current enrollment count
-    const newEnrollmentCount = currentEnrollment + 1;
-    await courseRepo.updateCourse(courseId, {
-      currentEnrollment: newEnrollmentCount
-    });
+    // Note: Course enrollment count is NOT updated until admin approves
 
-    successResponse(res, 201, 'Successfully registered for course', { 
+    successResponse(res, 201, 'Registration request submitted successfully', { 
       enrollment,
       course: {
         id: course.id,
@@ -320,10 +316,177 @@ async function checkPrerequisites(studentId, prerequisites) {
   }
 }
 
+/**
+ * @desc    Get all pending enrollment requests (for admins)
+ * @route   GET /api/enrollments/pending
+ * @access  Private/Admin
+ */
+const getPendingEnrollments = async (req, res) => {
+  try {
+    const { departmentId, semester, year } = req.query;
+
+    // Get all pending enrollments
+    const enrollments = await enrollmentRepo.getAllEnrollments({
+      status: 'pending',
+      isActive: true
+    });
+
+    // Enrich with student, course, and subject details
+    const enrichedEnrollments = await Promise.all(enrollments.map(async (enrollment) => {
+      const student = await userRepo.getUserById(enrollment.student_id);
+      if (!student) {
+        console.error(`Student not found for enrollment ${enrollment.enrollment_id}, student_id: ${enrollment.student_id}`);
+        return null;
+      }
+      
+      const course = await courseRepo.getCourseById(enrollment.course_id);
+      
+      if (!course) return null;
+      
+      const subject = await subjectRepo.getSubjectById(course.subjectId);
+      if (!subject) return null;
+
+      // Filter by department if specified
+      if (departmentId && subject.departmentId !== parseInt(departmentId)) {
+        return null;
+      }
+
+      // Filter by semester if specified
+      if (semester && course.semester !== semester) {
+        return null;
+      }
+
+      // Filter by year if specified
+      if (year && course.year !== parseInt(year)) {
+        return null;
+      }
+
+      return {
+        enrollmentId: enrollment.enrollment_id,
+        status: enrollment.status,
+        enrollmentDate: enrollment.enrollment_date,
+        student: {
+          id: student.id,
+          firstName: student.first_name,
+          lastName: student.last_name,
+          email: student.email,
+          studentId: student.student_id
+        },
+        course: {
+          id: course.id,
+          semester: course.semester,
+          year: course.year,
+          schedule: course.schedule,
+          maxEnrollment: course.maxEnrollment,
+          currentEnrollment: course.currentEnrollment
+        },
+        subject: {
+          id: subject.id,
+          name: subject.name,
+          code: subject.code,
+          credits: subject.credits,
+          departmentId: subject.departmentId
+        }
+      };
+    }));
+
+    const validEnrollments = enrichedEnrollments.filter(e => e !== null);
+
+    successResponse(res, 200, 'Pending enrollments retrieved successfully', {
+      enrollments: validEnrollments,
+      count: validEnrollments.length
+    });
+  } catch (error) {
+    console.error('Error in getPendingEnrollments:', error);
+    errorResponse(res, 500, 'Server error retrieving pending enrollments');
+  }
+};
+
+/**
+ * @desc    Approve an enrollment request
+ * @route   PUT /api/enrollments/:enrollmentId/approve
+ * @access  Private/Admin
+ */
+const approveEnrollment = async (req, res) => {
+  try {
+    const { enrollmentId } = req.params;
+
+    const enrollment = await enrollmentRepo.getEnrollmentById(enrollmentId);
+    if (!enrollment) {
+      return errorResponse(res, 404, 'Enrollment not found');
+    }
+
+    if (enrollment.status !== 'pending') {
+      return errorResponse(res, 400, 'Only pending enrollments can be approved');
+    }
+
+    // Check if course is still not full
+    const course = await courseRepo.getCourseById(enrollment.course_id);
+    const currentCount = await enrollmentRepo.getCourseEnrollmentCount(enrollment.course_id);
+    
+    if (currentCount >= course.maxEnrollment) {
+      return errorResponse(res, 400, 'Cannot approve - course is now full');
+    }
+
+    // Update enrollment status to enrolled
+    await enrollmentRepo.updateEnrollmentStatus(enrollmentId, 'enrolled');
+
+    // Update course enrollment count
+    await courseRepo.updateCourse(enrollment.course_id, {
+      currentEnrollment: currentCount + 1
+    });
+
+    const updatedEnrollment = await enrollmentRepo.getEnrollmentById(enrollmentId);
+
+    successResponse(res, 200, 'Enrollment approved successfully', { 
+      enrollment: updatedEnrollment 
+    });
+  } catch (error) {
+    console.error('Error in approveEnrollment:', error);
+    errorResponse(res, 500, 'Server error approving enrollment');
+  }
+};
+
+/**
+ * @desc    Reject an enrollment request
+ * @route   PUT /api/enrollments/:enrollmentId/reject
+ * @access  Private/Admin
+ */
+const rejectEnrollment = async (req, res) => {
+  try {
+    const { enrollmentId } = req.params;
+    const { reason } = req.body;
+
+    const enrollment = await enrollmentRepo.getEnrollmentById(enrollmentId);
+    if (!enrollment) {
+      return errorResponse(res, 404, 'Enrollment not found');
+    }
+
+    if (enrollment.status !== 'pending') {
+      return errorResponse(res, 400, 'Only pending enrollments can be rejected');
+    }
+
+    // Update enrollment status to rejected
+    await enrollmentRepo.updateEnrollmentStatus(enrollmentId, 'rejected', reason);
+
+    const updatedEnrollment = await enrollmentRepo.getEnrollmentById(enrollmentId);
+
+    successResponse(res, 200, 'Enrollment rejected successfully', { 
+      enrollment: updatedEnrollment 
+    });
+  } catch (error) {
+    console.error('Error in rejectEnrollment:', error);
+    errorResponse(res, 500, 'Server error rejecting enrollment');
+  }
+};
+
 module.exports = {
   registerForCourse,
   getMyEnrollments,
   dropCourse,
   getAvailableCourses,
-  getCourseEnrollments
+  getCourseEnrollments,
+  getPendingEnrollments,
+  approveEnrollment,
+  rejectEnrollment
 };

@@ -174,6 +174,50 @@ async function deleteEnrollment(enrollmentId) {
 }
 
 /**
+ * Get all enrollments with optional filters
+ */
+async function getAllEnrollments(options = {}) {
+  const { status, isActive } = options;
+  
+  let query = `SELECT * FROM enrollments WHERE 1=1`;
+  const params = [];
+  
+  if (status) {
+    query += ` AND status = ?`;
+    params.push(status);
+  }
+  
+  if (isActive !== undefined) {
+    query += ` AND is_active = ?`;
+    params.push(isActive ? 1 : 0);
+  }
+  
+  query += ` ORDER BY enrollment_date DESC`;
+  
+  const [rows] = await pool.query(query, params);
+  return rows;
+}
+
+/**
+ * Update enrollment status
+ */
+async function updateEnrollmentStatus(enrollmentId, status, reason = null) {
+  const now = new Date();
+  
+  const query = reason
+    ? `UPDATE enrollments SET status = ?, updated_at = ? WHERE enrollment_id = ?`
+    : `UPDATE enrollments SET status = ?, updated_at = ? WHERE enrollment_id = ?`;
+  
+  const params = reason
+    ? [status, now, enrollmentId]
+    : [status, now, enrollmentId];
+  
+  await pool.query(query, params);
+  
+  return await getEnrollmentById(enrollmentId);
+}
+
+/**
  * Get student's current semester enrollments
  */
 async function getStudentCurrentEnrollments(studentId) {
@@ -196,6 +240,7 @@ module.exports = {
   getEnrollmentsByCourse,
   isStudentEnrolled,
   getCourseEnrollmentCount,
+  getAllEnrollments,
   updateEnrollmentStatus,
   dropEnrollment,
   updateEnrollmentGrade,

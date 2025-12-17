@@ -12,7 +12,7 @@ CREATE TABLE enrollments (
     student_id INT NOT NULL,
     course_id INT NOT NULL,
     enrollment_date DATETIME,
-    status ENUM('enrolled', 'dropped', 'completed', 'withdrawn') DEFAULT 'enrolled',
+    status ENUM('pending', 'enrolled', 'rejected', 'dropped', 'completed', 'withdrawn') DEFAULT 'pending',
     grade VARCHAR(5) NULL,
     grade_points DECIMAL(3,2) NULL,
     is_active TINYINT(1) DEFAULT 1,

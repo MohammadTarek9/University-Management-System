@@ -40,12 +40,39 @@ export const getCourseEnrollments = async (courseId) => {
   return response.data;
 };
 
+/**
+ * Get pending enrollment requests (for admins)
+ */
+export const getPendingEnrollments = async (params = {}) => {
+  const response = await api.get('/enrollments/pending', { params });
+  return response.data;
+};
+
+/**
+ * Approve an enrollment request (for admins)
+ */
+export const approveEnrollment = async (enrollmentId) => {
+  const response = await api.put(`/enrollments/${enrollmentId}/approve`);
+  return response.data;
+};
+
+/**
+ * Reject an enrollment request (for admins)
+ */
+export const rejectEnrollment = async (enrollmentId, reason = '') => {
+  const response = await api.put(`/enrollments/${enrollmentId}/reject`, { reason });
+  return response.data;
+};
+
 const enrollmentService = {
   registerForCourse,
   getMyEnrollments,
   getAvailableCourses,
   dropCourse,
-  getCourseEnrollments
+  getCourseEnrollments,
+  getPendingEnrollments,
+  approveEnrollment,
+  rejectEnrollment
 };
 
 export default enrollmentService;

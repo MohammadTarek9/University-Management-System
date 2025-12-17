@@ -67,6 +67,51 @@ router.put(
 );
 
 /**
+ * @route   GET /api/enrollments/pending
+ * @desc    Get all pending enrollment requests
+ * @access  Private/Admin
+ */
+router.get(
+  '/pending',
+  authorize('admin'),
+  enrollmentController.getPendingEnrollments
+);
+
+/**
+ * @route   PUT /api/enrollments/:enrollmentId/approve
+ * @desc    Approve an enrollment request
+ * @access  Private/Admin
+ */
+router.put(
+  '/:enrollmentId/approve',
+  authorize('admin'),
+  [
+    param('enrollmentId')
+      .isInt({ min: 1 })
+      .withMessage('Enrollment ID must be a valid positive integer'),
+    handleValidationErrors
+  ],
+  enrollmentController.approveEnrollment
+);
+
+/**
+ * @route   PUT /api/enrollments/:enrollmentId/reject
+ * @desc    Reject an enrollment request
+ * @access  Private/Admin
+ */
+router.put(
+  '/:enrollmentId/reject',
+  authorize('admin'),
+  [
+    param('enrollmentId')
+      .isInt({ min: 1 })
+      .withMessage('Enrollment ID must be a valid positive integer'),
+    handleValidationErrors
+  ],
+  enrollmentController.rejectEnrollment
+);
+
+/**
  * @route   GET /api/enrollments/course/:courseId
  * @desc    Get enrollments for a course (for instructors)
  * @access  Private/Instructor/Admin/Staff
