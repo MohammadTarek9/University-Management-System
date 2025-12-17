@@ -13,45 +13,91 @@ const ENTITY_TYPE = 'course';
 function mapCourseEntity(entity) {
   if (!entity) return null;
 
+  // Helper to safely convert to integer
+  const toInt = (val) => val != null ? Math.floor(Number(val)) : val;
+
   return {
-    id: entity.id,
-    subjectId: entity.subjectId || entity.subject_id,
+    id: toInt(entity.entity_id || entity.id),
+    subjectId: toInt(entity.subject_id || entity.subjectId),
     semester: entity.semester,
-    year: entity.year,
-    instructorId: entity.instructorId || entity.instructor_id,
-    maxEnrollment: entity.maxEnrollment || entity.max_enrollment,
-    currentEnrollment: entity.currentEnrollment || entity.current_enrollment,
+    year: toInt(entity.year),
+    instructorId: toInt(entity.instructor_id || entity.instructorId),
+    maxEnrollment: toInt(entity.max_enrollment || entity.maxEnrollment),
+    currentEnrollment: toInt(entity.current_enrollment || entity.currentEnrollment),
     schedule: entity.schedule,
-    isActive: entity.isActive !== undefined ? entity.isActive : true,
+    isActive: entity.is_active !== undefined ? entity.is_active : (entity.isActive !== undefined ? entity.isActive : true),
     
     // EAV flexible attributes
     prerequisites: entity.prerequisites,
     corequisites: entity.corequisites,
-    labRequired: entity.labRequired || entity.lab_required,
-    labHours: entity.labHours || entity.lab_hours,
-    gradingRubric: entity.gradingRubric || entity.grading_rubric,
-    assessmentTypes: entity.assessmentTypes || entity.assessment_types,
-    attendancePolicy: entity.attendancePolicy || entity.attendance_policy,
-    onlineMeetingLink: entity.onlineMeetingLink || entity.online_meeting_link,
-    syllabusUrl: entity.syllabusUrl || entity.syllabus_url,
-    officeHours: entity.officeHours || entity.office_hours,
-    textbookTitle: entity.textbookTitle || entity.textbook_title,
-    textbookAuthor: entity.textbookAuthor || entity.textbook_author,
-    textbookIsbn: entity.textbookIsbn || entity.textbook_isbn,
-    textbookRequired: entity.textbookRequired || entity.textbook_required,
+    labRequired: entity.lab_required || entity.labRequired,
+    labHours: toInt(entity.lab_hours || entity.labHours),
+    gradingRubric: entity.grading_rubric || entity.gradingRubric,
+    assessmentTypes: entity.assessment_types || entity.assessmentTypes,
+    attendancePolicy: entity.attendance_policy || entity.attendancePolicy,
+    onlineMeetingLink: entity.online_meeting_link || entity.onlineMeetingLink,
+    syllabusUrl: entity.syllabus_url || entity.syllabusUrl,
+    officeHours: entity.office_hours || entity.officeHours,
+    textbookTitle: entity.textbook_title || entity.textbookTitle,
+    textbookAuthor: entity.textbook_author || entity.textbookAuthor,
+    textbookIsbn: entity.textbook_isbn || entity.textbookIsbn,
+    textbookRequired: entity.textbook_required || entity.textbookRequired,
     
-    createdAt: entity.createdAt,
-    updatedAt: entity.updatedAt
+    createdAt: entity.created_at || entity.createdAt,
+    updatedAt: entity.updated_at || entity.updatedAt
   };
 }
 
 /**
- * Get all courses
+ * Get all courses with filtering and pagination
  */
-async function getAllCourses() {
+async function getAllCourses(options = {}) {
   try {
-    const entities = await eav.getEntitiesByType(ENTITY_TYPE, { isActive: 1 });
-    return entities.map(mapCourseEntity);
+    const { page = 1, limit = 50, search = '', subjectId, semester, year, instructorId, isActive } = options;
+    
+    // Get all courses
+    const allEntities = await eav.getEntitiesByType(ENTITY_TYPE);
+    let courses = allEntities.map(mapCourseEntity);
+    
+    // Apply filters
+    if (search) {
+      const searchLower = search.toLowerCase();
+      courses = courses.filter(c => 
+        c.schedule?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    if (subjectId) {
+      courses = courses.filter(c => c.subjectId === subjectId);
+    }
+    
+    if (semester) {
+      courses = courses.filter(c => c.semester === semester);
+    }
+    
+    if (year) {
+      courses = courses.filter(c => c.year === parseInt(year));
+    }
+    
+    if (instructorId) {
+      courses = courses.filter(c => c.instructorId === instructorId);
+    }
+    
+    if (isActive !== null && isActive !== undefined) {
+      courses = courses.filter(c => c.isActive === isActive);
+    }
+    
+    const totalCourses = courses.length;
+    
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedCourses = courses.slice(startIndex, endIndex);
+    
+    return {
+      courses: paginatedCourses,
+      totalCourses
+    };
   } catch (error) {
     console.error('Error in getAllCourses:', error);
     throw error;
@@ -64,7 +110,7 @@ async function getAllCourses() {
 async function getCourseById(id) {
   try {
     const entity = await eav.getEntityById(id);
-    if (!entity || entity.entityType !== ENTITY_TYPE) {
+    if (!entity || entity.entity_type !== ENTITY_TYPE) {
       return null;
     }
     return mapCourseEntity(entity);
@@ -141,18 +187,18 @@ async function createCourse(courseData) {
  */
 async function updateCourse(id, courseData) {
   try {
-    // Update entity base fields if provided
+    // Update entity base fields (only name and is_active)
     const entityUpdates = {};
     if (courseData.name) entityUpdates.name = courseData.name;
-    if (courseData.subjectId !== undefined) entityUpdates.subject_id = courseData.subjectId;
     if (courseData.isActive !== undefined) entityUpdates.is_active = courseData.isActive;
 
     if (Object.keys(entityUpdates).length > 0) {
       await eav.updateEntity(id, entityUpdates);
     }
 
-    // Update attributes
+    // Update attributes (subject_id is an attribute, not a column)
     const attributes = {
+      subject_id: { value: courseData.subjectId, type: 'number' },
       semester: { value: courseData.semester, type: 'string' },
       year: { value: courseData.year, type: 'number' },
       instructor_id: { value: courseData.instructorId, type: 'number' },

@@ -13,41 +13,84 @@ const ENTITY_TYPE = 'subject';
 function mapSubjectEntity(entity) {
   if (!entity) return null;
 
+  // Helper to safely convert to integer
+  const toInt = (val) => val != null ? Math.floor(Number(val)) : val;
+
   return {
-    id: entity.id,
+    id: toInt(entity.entity_id || entity.id),
     name: entity.name,
     code: entity.code,
     description: entity.description,
-    credits: entity.credits,
-    departmentId: entity.departmentId || entity.department_id,
-    isActive: entity.isActive !== undefined ? entity.isActive : true,
+    credits: toInt(entity.credits),
+    classification: entity.classification,
+    semester: entity.semester,
+    academicYear: entity.academic_year || entity.academicYear,
+    departmentId: toInt(entity.department_id || entity.departmentId),
+    isActive: entity.is_active !== undefined ? entity.is_active : (entity.isActive !== undefined ? entity.isActive : true),
     
     // EAV flexible attributes
     prerequisites: entity.prerequisites,
     corequisites: entity.corequisites,
-    learningOutcomes: entity.learningOutcomes || entity.learning_outcomes,
+    learningOutcomes: entity.learning_outcomes || entity.learningOutcomes,
     textbooks: entity.textbooks,
-    labRequired: entity.labRequired || entity.lab_required,
-    labHours: entity.labHours || entity.lab_hours,
-    studioRequired: entity.studioRequired || entity.studio_required,
-    studioHours: entity.studioHours || entity.studio_hours,
+    labRequired: entity.lab_required || entity.labRequired,
+    labHours: toInt(entity.lab_hours || entity.labHours),
+    studioRequired: entity.studio_required || entity.studioRequired,
+    studioHours: toInt(entity.studio_hours || entity.studioHours),
     certifications: entity.certifications,
     repeatability: entity.repeatability,
-    syllabusTemplate: entity.syllabusTemplate || entity.syllabus_template,
-    typicalOffering: entity.typicalOffering || entity.typical_offering,
+    syllabusTemplate: entity.syllabus_template || entity.syllabusTemplate,
+    typicalOffering: entity.typical_offering || entity.typicalOffering,
     
-    createdAt: entity.createdAt,
-    updatedAt: entity.updatedAt
+    createdAt: entity.created_at || entity.createdAt,
+    updatedAt: entity.updated_at || entity.updatedAt
   };
 }
 
 /**
- * Get all subjects
+ * Get all subjects with filtering and pagination
  */
-async function getAllSubjects() {
+async function getAllSubjects(options = {}) {
   try {
-    const entities = await eav.getEntitiesByType(ENTITY_TYPE, { isActive: 1 });
-    return entities.map(mapSubjectEntity);
+    const { page = 1, limit = 50, search = '', departmentId, classification, isActive } = options;
+    
+    // Get all subjects
+    const allEntities = await eav.getEntitiesByType(ENTITY_TYPE);
+    let subjects = allEntities.map(mapSubjectEntity);
+    
+    // Apply filters
+    if (search) {
+      const searchLower = search.toLowerCase();
+      subjects = subjects.filter(s => 
+        s.name?.toLowerCase().includes(searchLower) ||
+        s.code?.toLowerCase().includes(searchLower) ||
+        s.description?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    if (departmentId) {
+      subjects = subjects.filter(s => s.departmentId === departmentId);
+    }
+    
+    if (classification) {
+      subjects = subjects.filter(s => s.classification === classification);
+    }
+    
+    if (isActive !== null && isActive !== undefined) {
+      subjects = subjects.filter(s => s.isActive === isActive);
+    }
+    
+    const totalSubjects = subjects.length;
+    
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedSubjects = subjects.slice(startIndex, endIndex);
+    
+    return {
+      subjects: paginatedSubjects,
+      totalSubjects
+    };
   } catch (error) {
     console.error('Error in getAllSubjects:', error);
     throw error;
@@ -60,7 +103,7 @@ async function getAllSubjects() {
 async function getSubjectById(id) {
   try {
     const entity = await eav.getEntityById(id);
-    if (!entity || entity.entityType !== ENTITY_TYPE) {
+    if (!entity || entity.entity_type !== ENTITY_TYPE) {
       return null;
     }
     return mapSubjectEntity(entity);
@@ -88,6 +131,8 @@ async function getSubjectsByDepartment(departmentId) {
  */
 async function createSubject(subjectData) {
   try {
+    console.log('Creating subject with data:', JSON.stringify(subjectData, null, 2));
+    
     // Create entity (truly generic - no specific columns)
     const entityId = await eav.createEntity(ENTITY_TYPE, subjectData.name, {
       isActive: subjectData.isActive !== undefined ? subjectData.isActive : 1
@@ -99,6 +144,9 @@ async function createSubject(subjectData) {
       code: { value: subjectData.code, type: 'string' },
       description: { value: subjectData.description, type: 'text' },
       credits: { value: subjectData.credits, type: 'number' },
+      classification: { value: subjectData.classification, type: 'string' },
+      semester: { value: subjectData.semester, type: 'string' },
+      academic_year: { value: subjectData.academicYear, type: 'string' },
       
       // Flexible EAV attributes
       prerequisites: { value: subjectData.prerequisites, type: 'text' },
@@ -129,21 +177,24 @@ async function createSubject(subjectData) {
  */
 async function updateSubject(id, subjectData) {
   try {
-    // Update entity base fields
+    // Update entity base fields (only name and is_active)
     const entityUpdates = {};
     if (subjectData.name) entityUpdates.name = subjectData.name;
-    if (subjectData.departmentId !== undefined) entityUpdates.department_id = subjectData.departmentId;
     if (subjectData.isActive !== undefined) entityUpdates.is_active = subjectData.isActive;
 
     if (Object.keys(entityUpdates).length > 0) {
       await eav.updateEntity(id, entityUpdates);
     }
 
-    // Update attributes
+    // Update attributes (department_id is an attribute, not a column)
     const attributes = {
+      department_id: { value: subjectData.departmentId, type: 'number' },
       code: { value: subjectData.code, type: 'string' },
       description: { value: subjectData.description, type: 'text' },
       credits: { value: subjectData.credits, type: 'number' },
+      classification: { value: subjectData.classification, type: 'string' },
+      semester: { value: subjectData.semester, type: 'string' },
+      academic_year: { value: subjectData.academicYear, type: 'string' },
       
       // Flexible attributes
       prerequisites: { value: subjectData.prerequisites, type: 'text' },
@@ -195,6 +246,20 @@ async function searchSubjects(searchTerm) {
   }
 }
 
+/**
+ * Get subject by code
+ */
+async function getSubjectByCode(code) {
+  try {
+    const allEntities = await eav.getEntitiesByType(ENTITY_TYPE);
+    const subject = allEntities.find(entity => entity.code === code);
+    return subject ? mapSubjectEntity(subject) : null;
+  } catch (error) {
+    console.error('Error in getSubjectByCode:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getAllSubjects,
   getSubjectById,
@@ -202,5 +267,6 @@ module.exports = {
   createSubject,
   updateSubject,
   deleteSubject,
-  searchSubjects
+  searchSubjects,
+  getSubjectByCode
 };

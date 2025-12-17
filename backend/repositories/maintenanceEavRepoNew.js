@@ -17,7 +17,11 @@ function mapMaintenanceEntity(entity) {
     description: entity.description,
     severity: entity.severity,
     priority: entity.priority,
-    location: entity.location,
+    location: {
+      building: entity.location_building,
+      roomNumber: entity.location_room_number,
+      floor: entity.location_floor
+    },
     status: entity.status,
     reportedBy: entity.reported_by || entity.submitted_by,
     submittedBy: entity.submitted_by || entity.reported_by,
@@ -123,7 +127,9 @@ async function createMaintenanceRequest(maintenanceData) {
       description: { value: maintenanceData.description, type: 'text' },
       severity: { value: maintenanceData.severity || maintenanceData.priority || 'medium', type: 'string' },
       priority: { value: maintenanceData.priority, type: 'string' },
-      location: { value: maintenanceData.location, type: 'string' },
+      location_building: { value: maintenanceData.location?.building, type: 'string' },
+      location_room_number: { value: maintenanceData.location?.roomNumber, type: 'string' },
+      location_floor: { value: maintenanceData.location?.floor, type: 'string' },
       status: { value: maintenanceData.status || 'pending', type: 'string' },
       reported_by: { value: reportedBy, type: 'number' },
       submitted_by: { value: maintenanceData.submittedBy, type: 'number' },
@@ -207,6 +213,17 @@ async function updateMaintenanceRequest(id, maintenanceData) {
     }
     if (maintenanceData.recurrencePattern !== undefined) {
       attributes.recurrence_pattern = { value: maintenanceData.recurrencePattern, type: 'text' };
+    }
+    if (maintenanceData.location) {
+      if (maintenanceData.location.building !== undefined) {
+        attributes.location_building = { value: maintenanceData.location.building, type: 'string' };
+      }
+      if (maintenanceData.location.roomNumber !== undefined) {
+        attributes.location_room_number = { value: maintenanceData.location.roomNumber, type: 'string' };
+      }
+      if (maintenanceData.location.floor !== undefined) {
+        attributes.location_floor = { value: maintenanceData.location.floor, type: 'string' };
+      }
     }
 
     if (Object.keys(attributes).length > 0) {

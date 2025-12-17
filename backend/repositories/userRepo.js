@@ -4,13 +4,14 @@ const pool = require('../db/mysql'); // your mysql2/promise pool
 function mapUserRow(row) {
   if (!row) return null;
 
-  return {
+  const user = {
     id: row.id,
     firstName: row.first_name,
     lastName: row.last_name,
     fullName: `${row.first_name} ${row.last_name}`,
     email: row.email,
-    role: row.role,
+    role: row.role, // Keep for backward compatibility
+    roles: row.roles || [], // Array of role names from user_roles
 
     studentId: row.student_id,
     employeeId: row.employee_id,
@@ -35,6 +36,17 @@ function mapUserRow(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+
+  // Add helper methods for role checking
+  user.hasRole = function(roleName) {
+    return this.roles.includes(roleName);
+  };
+
+  user.hasAnyRole = function(...roleNames) {
+    return roleNames.some(role => this.roles.includes(role));
+  };
+
+  return user;
 }
 
 // Build WHERE clause for filtering in list endpoint
@@ -112,37 +124,46 @@ async function getUserById(id) {
   const [rows] = await pool.query(
     `
     SELECT
-      id,
-      first_name,
-      last_name,
-      email,
-      role,
-      student_id,
-      employee_id,
-      department,
-      major,
-      phone_number,
-      is_active,
-      is_email_verified,
-      profile_picture,
-      last_login,
-      first_login,
-      must_change_password,
-      security_question,
-      reset_password_token,
-      reset_password_expire,
-      email_verification_token,
-      email_verification_expire,
-      created_at,
-      updated_at
-    FROM users
-    WHERE id = ?
+      u.id,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.role,
+      u.student_id,
+      u.employee_id,
+      u.department,
+      u.major,
+      u.phone_number,
+      u.is_active,
+      u.is_email_verified,
+      u.profile_picture,
+      u.last_login,
+      u.first_login,
+      u.must_change_password,
+      u.security_question,
+      u.reset_password_token,
+      u.reset_password_expire,
+      u.email_verification_token,
+      u.email_verification_expire,
+      u.created_at,
+      u.updated_at,
+      GROUP_CONCAT(DISTINCT r.role_name) as roles
+    FROM users u
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
+    LEFT JOIN roles r ON ur.role_id = r.role_id
+    WHERE u.id = ?
+    GROUP BY u.id
     LIMIT 1
     `,
     [id]
   );
 
-  return mapUserRow(rows[0]);
+  if (!rows[0]) return null;
+  
+  const user = rows[0];
+  user.roles = user.roles ? user.roles.split(',') : [];
+  
+  return mapUserRow(user);
 }
 
 // Lookups for unique fields
@@ -186,7 +207,8 @@ async function createUser(userData) {
     firstLogin = true,
     mustChangePassword = true,
     securityQuestion,
-    securityAnswer
+    securityAnswer,
+    roleDetails = null // Optional: student_details or employee_details
   } = userData;
 
   const [result] = await pool.query(
@@ -236,7 +258,31 @@ async function createUser(userData) {
     ]
   );
 
-  return getUserById(result.insertId);
+  const userId = result.insertId;
+
+  // Assign role in user_roles table
+  const roleRepo = require('./roleRepo');
+  try {
+    await roleRepo.assignRoleByNameToUser(userId, role);
+  } catch (error) {
+    console.error(`Failed to assign role ${role} to user ${userId}:`, error.message);
+  }
+
+  // Create role-specific details if provided
+  if (roleDetails) {
+    const userDetailsRepo = require('./userDetailsRepo');
+    try {
+      if (role === 'student' && roleDetails.student_id) {
+        await userDetailsRepo.createStudentDetails(userId, roleDetails);
+      } else if (['professor', 'staff', 'admin'].includes(role) && roleDetails.employee_id) {
+        await userDetailsRepo.createEmployeeDetails(userId, roleDetails);
+      }
+    } catch (error) {
+      console.error(`Failed to create role details for user ${userId}:`, error.message);
+    }
+  }
+
+  return getUserById(userId);
 }
 
 // Update user (partial update)

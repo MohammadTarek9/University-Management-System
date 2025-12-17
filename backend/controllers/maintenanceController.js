@@ -81,7 +81,10 @@ exports.getAllMaintenanceRequests = async (req, res) => {
     };
 
     // Students can only see their own requests
-    if (req.user.role === 'student') {
+    if (req.user.hasRole && req.user.hasRole('student')) {
+      options.submittedBy = req.user.id;
+    } else if (req.user.role === 'student') {
+      // Backward compatibility
       options.submittedBy = req.user.id;
     }
 
@@ -152,7 +155,8 @@ exports.getMaintenanceRequestById = async (req, res) => {
     }
 
     // Students can only view their own requests
-    if (req.user.role === 'student' && request.submittedBy !== req.user.id) {
+    const isStudent = req.user.hasRole ? req.user.hasRole('student') : req.user.role === 'student';
+    if (isStudent && request.submittedBy !== req.user.id) {
       return sendResponse(res, 403, false, 'Access denied');
     }
 

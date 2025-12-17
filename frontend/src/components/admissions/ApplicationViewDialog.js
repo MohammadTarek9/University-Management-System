@@ -220,7 +220,7 @@ const ApplicationViewDialog = ({ open, onClose, application }) => {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">Program</Typography>
-                  <Chip label={application.academicInfo.program} color="primary" />
+                  <Typography variant="body1">{application.academicInfo.major || 'Not specified'}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">Degree Level</Typography>
