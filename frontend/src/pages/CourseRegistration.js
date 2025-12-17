@@ -126,12 +126,12 @@ const CourseRegistration = () => {
     setError('');
     try {
       await enrollmentService.registerForCourse(selectedCourse.courseId);
-      setSuccess(`Successfully registered for ${selectedCourse.subjectName}!`);
+      setSuccess(`Registration request submitted for ${selectedCourse.subjectName}! Awaiting admin approval.`);
       setConfirmDialogOpen(false);
       fetchAvailableCourses();
       fetchMyEnrollments();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to register for course');
+      setError(err.response?.data?.message || 'Failed to submit registration request');
     } finally {
       setActionLoading(false);
     }
@@ -384,8 +384,14 @@ const CourseRegistration = () => {
                         <TableCell>{enrollment.course?.year || 'N/A'}</TableCell>
                         <TableCell>
                           <Chip
-                            label={enrollment.status}
-                            color={enrollment.status === 'enrolled' ? 'success' : 'default'}
+                            label={(enrollment.status || 'pending').toUpperCase()}
+                            color={
+                              enrollment.status === 'enrolled' ? 'success' : 
+                              enrollment.status === 'pending' ? 'warning' : 
+                              enrollment.status === 'rejected' ? 'error' : 
+                              enrollment.status === 'dropped' ? 'default' :
+                              'warning'
+                            }
                             size="small"
                           />
                         </TableCell>
@@ -401,6 +407,12 @@ const CourseRegistration = () => {
                                 <Delete />
                               </IconButton>
                             </Tooltip>
+                          )}
+                          {enrollment.status === 'pending' && (
+                            <Chip label="Awaiting Approval" size="small" color="info" />
+                          )}
+                          {enrollment.status === 'rejected' && (
+                            <Chip label="Request Denied" size="small" color="error" />
                           )}
                         </TableCell>
                       </TableRow>

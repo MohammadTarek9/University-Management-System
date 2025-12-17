@@ -21,7 +21,8 @@ import {
   MeetingRoom,
   Person,
   School,
-  Assignment
+  Assignment,
+  HowToReg
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -126,6 +127,14 @@ const Header = () => {
                     <Assignment fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>Course Registration</ListItemText>
+                </MenuItem>
+              )}
+              {user?.role === 'admin' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/curriculum/enrollment-requests'); }}>
+                  <ListItemIcon>
+                    <HowToReg fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Enrollment Requests</ListItemText>
                 </MenuItem>
               )}
               {['admin', 'staff', 'professor'].includes(user?.role) && (
