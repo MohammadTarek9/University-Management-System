@@ -15,6 +15,12 @@ function mapSubjectEntity(entity) {
 
   // Helper to safely convert to integer
   const toInt = (val) => val != null ? Math.floor(Number(val)) : val;
+  
+  // Helper to convert to boolean (handles MySQL TINYINT)
+  const toBool = (val) => {
+    if (val === undefined || val === null) return true; // default to true
+    return Boolean(val);
+  };
 
   return {
     id: toInt(entity.entity_id || entity.id),
@@ -22,11 +28,11 @@ function mapSubjectEntity(entity) {
     code: entity.code,
     description: entity.description,
     credits: toInt(entity.credits),
-    classification: entity.classification,
+    classification: entity.classification || 'elective', // Default to elective if not specified
     semester: entity.semester,
     academicYear: entity.academic_year || entity.academicYear,
     departmentId: toInt(entity.department_id || entity.departmentId),
-    isActive: entity.is_active !== undefined ? entity.is_active : (entity.isActive !== undefined ? entity.isActive : true),
+    isActive: toBool(entity.is_active !== undefined ? entity.is_active : entity.isActive),
     
     // EAV flexible attributes
     prerequisites: entity.prerequisites,

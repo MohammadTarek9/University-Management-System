@@ -29,6 +29,7 @@ import Curriculum from './pages/Curriculum';
 import CourseCatalogManagement from './pages/CurriculumManagement';
 import CourseRegistration from './pages/CourseRegistration';
 import AdminEnrollmentRequests from './pages/AdminEnrollmentRequests';
+import BrowseSubjects from './pages/BrowseSubjects';
 import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
 
@@ -182,6 +183,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student']}>
                         <CourseRegistration />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/curriculum/browse"
+                    element={
+                      <ProtectedRoute allowedRoles={['student']}>
+                        <BrowseSubjects />
                       </ProtectedRoute>
                     }
                   />
