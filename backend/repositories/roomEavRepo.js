@@ -11,6 +11,7 @@ const ENTITY_TYPE_CODE = 'room';
  * Map EAV entity to Room object format
  */
 function mapRoomEntity(entity) {
+  console.log('Mapping room entity old:', entity);
   if (!entity) return null;
 
   const baseData = {

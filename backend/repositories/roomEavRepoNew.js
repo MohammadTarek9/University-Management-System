@@ -6,34 +6,153 @@ const ENTITY_TYPE = 'room';
  * Map EAV entity to room object
  */
 function mapRoomEntity(entity) {
+  console.log('Mapping room entity:', entity);
   if (!entity) return null;
 
-  return {
+  // Check if equipment/amenities/typeSpecific are stored as JSON (old format) or normalized (new format)
+  let equipment = [];
+  let amenities = [];
+  let typeSpecific = {};
+
+  // Handle OLD format: JSON arrays/objects stored directly
+  if (entity.equipment && !entity.equipment_0_name) {
+    // Old format: equipment is a JSON array
+    equipment = Array.isArray(entity.equipment) ? entity.equipment : [];
+  } else {
+    // NEW format: reconstruct from equipment_* attributes
+    const equipmentMap = new Map();
+    Object.keys(entity).forEach(key => {
+      if (key.startsWith('equipment_')) {
+        const match = key.match(/equipment_(\d+)(?:_(.+))?/);
+        if (match) {
+          const index = parseInt(match[1]);
+          const property = match[2];
+          
+          if (!equipmentMap.has(index)) {
+            equipmentMap.set(index, {});
+          }
+          
+          if (property) {
+            equipmentMap.get(index)[property] = entity[key];
+          } else {
+            equipmentMap.set(index, entity[key]);
+          }
+        }
+      }
+    });
+    equipmentMap.forEach(value => equipment.push(value));
+  }
+
+  // Handle OLD format for amenities
+  if (entity.amenities && !entity.amenity_0) {
+    amenities = Array.isArray(entity.amenities) ? entity.amenities : [];
+  } else {
+    // NEW format: reconstruct from amenity_* attributes
+    Object.keys(entity).forEach(key => {
+      if (key.startsWith('amenity_')) {
+        amenities.push(entity[key]);
+      }
+    });
+  }
+
+  // Handle OLD format for typeSpecific
+  if (entity.type_specific && !Object.keys(entity).some(k => k.startsWith('typespec_'))) {
+    typeSpecific = typeof entity.type_specific === 'object' ? entity.type_specific : {};
+  } else {
+    // NEW format: reconstruct from typespec_* attributes
+    Object.keys(entity).forEach(key => {
+      if (key.startsWith('typespec_')) {
+        const propName = key.replace('typespec_', '');
+        typeSpecific[propName] = entity[key];
+      }
+    });
+  }
+
+  const mapped = {
     id: entity.entity_id,
-    buildingName: entity.building_name,
-    roomNumber: entity.room_number,
+    name: entity.room_name,
+    type: entity.room_type,
     capacity: entity.capacity,
-    roomType: entity.room_type,
-    features: entity.features,
-    isAvailable: entity.is_available,
-    maintenanceSchedule: entity.maintenance_schedule,
-    lastInspectionDate: entity.last_inspection_date,
-    notes: entity.notes,
-    accessibility: entity.accessibility,
-    equipmentList: entity.equipment_list,
-    bookingRules: entity.booking_rules,
+    location: {
+      building: entity.building,
+      floor: entity.floor,
+      roomNumber: entity.room_number
+    },
+    equipment,
+    amenities,
+    typeSpecific,
+    isActive: entity.is_active,
+    description: entity.description,
     createdAt: entity.created_at,
     updatedAt: entity.updated_at
   };
+
+  console.log('Mapped room:', mapped);
+  return mapped;
 }
 
 /**
  * Get all rooms
  */
-async function getAllRooms() {
+async function getAllRooms(options = {}) {
   try {
-    const entities = await eavUtil.getEntitiesByType(ENTITY_TYPE);
-    return entities.map(mapRoomEntity);
+    const { page = 1, limit = 10, building, roomType, isActive, minCapacity, search } = options;
+    
+    // Get all entities of type room
+    let entities = await eavUtil.getEntitiesByType(ENTITY_TYPE);
+    
+    // Map to room objects
+    let rooms = entities.map(mapRoomEntity);
+
+    // Apply filters
+    if (building) {
+      rooms = rooms.filter(room => room.location?.building === building);
+    }
+
+    if (roomType) {
+      rooms = rooms.filter(room => room.type === roomType);
+    }
+
+    if (isActive !== undefined) {
+      // Handle both boolean and number (1/0) values
+      const activeValue = isActive ? 1 : 0;
+      rooms = rooms.filter(room => {
+        const roomActiveValue = room.isActive === true || room.isActive === 1 ? 1 : 0;
+        return roomActiveValue === activeValue;
+      });
+    }
+
+    if (minCapacity) {
+      rooms = rooms.filter(room => {
+        const capacity = parseFloat(room.capacity);
+        return !isNaN(capacity) && capacity >= minCapacity;
+      });
+    }
+
+    if (search) {
+      const searchLower = search.toLowerCase();
+      rooms = rooms.filter(room => 
+        room.name?.toLowerCase().includes(searchLower) ||
+        room.location?.building?.toLowerCase().includes(searchLower) ||
+        room.location?.roomNumber?.toLowerCase().includes(searchLower) ||
+        room.type?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Calculate pagination
+    const total = rooms.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+
+    // Apply pagination
+    const paginatedRooms = rooms.slice(startIndex, endIndex);
+
+    return {
+      rooms: paginatedRooms,
+      total,
+      totalPages
+    };
   } catch (error) {
     console.error('Error getting all rooms:', error);
     throw error;
@@ -61,28 +180,68 @@ async function getRoomById(id) {
  */
 async function createRoom(roomData) {
   try {
-    // Create the entity first
+    console.log('Creating room with data:', JSON.stringify(roomData, null, 2));
+    
+    // Create the entity first with proper name
+    const roomName = roomData.roomName || roomData.name || `${roomData.building} ${roomData.roomNumber}`;
     const entityId = await eavUtil.createEntity(
       ENTITY_TYPE,
-      `${roomData.buildingName} ${roomData.roomNumber}`,
-      { isActive: roomData.isAvailable !== false }
+      roomName,
+      { isActive: roomData.isActive !== false }
     );
 
-    // Set all attributes
-    await eavUtil.setEntityAttributes(entityId, {
-      building_name: { value: roomData.buildingName, type: 'string' },
-      room_number: { value: roomData.roomNumber, type: 'string' },
-      capacity: { value: roomData.capacity, type: 'number' },
-      room_type: { value: roomData.roomType, type: 'string' },
-      features: { value: roomData.features, type: 'text' },
-      is_available: { value: roomData.isAvailable !== false, type: 'boolean' },
-      maintenance_schedule: { value: roomData.maintenanceSchedule, type: 'text' },
-      last_inspection_date: { value: roomData.lastInspectionDate, type: 'date' },
-      notes: { value: roomData.notes, type: 'text' },
-      accessibility: { value: roomData.accessibility, type: 'text' },
-      equipment_list: { value: roomData.equipmentList, type: 'text' },
-      booking_rules: { value: roomData.bookingRules, type: 'text' }
-    });
+    console.log('Created entity with ID:', entityId);
+
+    // Build attributes object, only including defined values
+    const attributes = {};
+    
+    if (roomName) attributes.room_name = { value: roomName, type: 'string' };
+    if (roomData.building) attributes.building = { value: roomData.building, type: 'string' };
+    if (roomData.floor) attributes.floor = { value: roomData.floor, type: 'string' };
+    if (roomData.roomNumber) attributes.room_number = { value: roomData.roomNumber, type: 'string' };
+    if (roomData.capacity !== undefined) attributes.capacity = { value: roomData.capacity, type: 'number' };
+    if (roomData.roomType || roomData.type) attributes.room_type = { value: roomData.roomType || roomData.type, type: 'string' };
+    if (roomData.description) attributes.description = { value: roomData.description, type: 'text' };
+
+    // Handle equipment array - store each as separate attribute
+    if (Array.isArray(roomData.equipment)) {
+      roomData.equipment.forEach((item, index) => {
+        if (item && typeof item === 'object') {
+          // If equipment items are objects with name/quantity/condition
+          attributes[`equipment_${index}_name`] = { value: item.name, type: 'string' };
+          if (item.quantity) attributes[`equipment_${index}_quantity`] = { value: item.quantity, type: 'number' };
+          if (item.condition) attributes[`equipment_${index}_condition`] = { value: item.condition, type: 'string' };
+        } else {
+          // If equipment items are just strings
+          attributes[`equipment_${index}`] = { value: item, type: 'string' };
+        }
+      });
+    }
+
+    // Handle amenities array - store each as separate attribute
+    if (Array.isArray(roomData.amenities)) {
+      roomData.amenities.forEach((amenity, index) => {
+        attributes[`amenity_${index}`] = { value: amenity, type: 'string' };
+      });
+    }
+
+    // Handle typeSpecific object - store each property as separate attribute
+    if (roomData.typeSpecific && typeof roomData.typeSpecific === 'object') {
+      Object.entries(roomData.typeSpecific).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          // Determine type based on value
+          let attrType = 'string';
+          if (typeof value === 'number') attrType = 'number';
+          else if (typeof value === 'boolean') attrType = 'boolean';
+          else if (typeof value === 'string' && value.length > 255) attrType = 'text';
+          
+          attributes[`typespec_${key}`] = { value: value, type: attrType };
+        }
+      });
+    }
+
+    console.log('Setting attributes:', Object.keys(attributes));
+    await eavUtil.setEntityAttributes(entityId, attributes);
 
     return await getRoomById(entityId);
   } catch (error) {
@@ -97,50 +256,24 @@ async function createRoom(roomData) {
 async function updateRoom(id, roomData) {
   try {
     // Update base entity
+    const roomName = roomData.roomName || roomData.name;
     await eavUtil.updateEntity(id, {
-      name: roomData.buildingName && roomData.roomNumber ? 
-        `${roomData.buildingName} ${roomData.roomNumber}` : undefined,
-      isActive: roomData.isAvailable
+      name: roomName,
+      isActive: roomData.isActive
     });
 
     // Update attributes
     const attributes = {};
-    if (roomData.buildingName !== undefined) {
-      attributes.building_name = { value: roomData.buildingName, type: 'string' };
-    }
-    if (roomData.roomNumber !== undefined) {
-      attributes.room_number = { value: roomData.roomNumber, type: 'string' };
-    }
-    if (roomData.capacity !== undefined) {
-      attributes.capacity = { value: roomData.capacity, type: 'number' };
-    }
-    if (roomData.roomType !== undefined) {
-      attributes.room_type = { value: roomData.roomType, type: 'string' };
-    }
-    if (roomData.features !== undefined) {
-      attributes.features = { value: roomData.features, type: 'text' };
-    }
-    if (roomData.isAvailable !== undefined) {
-      attributes.is_available = { value: roomData.isAvailable, type: 'boolean' };
-    }
-    if (roomData.maintenanceSchedule !== undefined) {
-      attributes.maintenance_schedule = { value: roomData.maintenanceSchedule, type: 'text' };
-    }
-    if (roomData.lastInspectionDate !== undefined) {
-      attributes.last_inspection_date = { value: roomData.lastInspectionDate, type: 'date' };
-    }
-    if (roomData.notes !== undefined) {
-      attributes.notes = { value: roomData.notes, type: 'text' };
-    }
-    if (roomData.accessibility !== undefined) {
-      attributes.accessibility = { value: roomData.accessibility, type: 'text' };
-    }
-    if (roomData.equipmentList !== undefined) {
-      attributes.equipment_list = { value: roomData.equipmentList, type: 'text' };
-    }
-    if (roomData.bookingRules !== undefined) {
-      attributes.booking_rules = { value: roomData.bookingRules, type: 'text' };
-    }
+    if (roomName) attributes.room_name = { value: roomName, type: 'string' };
+    if (roomData.building) attributes.building = { value: roomData.building, type: 'string' };
+    if (roomData.floor) attributes.floor = { value: roomData.floor, type: 'string' };
+    if (roomData.roomNumber) attributes.room_number = { value: roomData.roomNumber, type: 'string' };
+    if (roomData.capacity !== undefined) attributes.capacity = { value: roomData.capacity, type: 'number' };
+    if (roomData.roomType || roomData.type) attributes.room_type = { value: roomData.roomType || roomData.type, type: 'string' };
+    if (roomData.description) attributes.description = { value: roomData.description, type: 'text' };
+    if (roomData.equipment) attributes.equipment = { value: roomData.equipment, type: 'text' };
+    if (roomData.amenities) attributes.amenities = { value: roomData.amenities, type: 'text' };
+    if (roomData.typeSpecific) attributes.type_specific = { value: roomData.typeSpecific, type: 'text' };
 
     if (Object.keys(attributes).length > 0) {
       await eavUtil.setEntityAttributes(id, attributes);
@@ -228,6 +361,21 @@ async function getRoomsByBuilding(buildingName) {
   }
 }
 
+/**
+ * Get room by building and room number (for duplicate checking)
+ */
+async function getRoomByNumber(building, roomNumber) {
+  try {
+    const allRooms = await getAllRooms();
+    return allRooms.find(room => 
+      room.location?.building === building && room.location?.roomNumber === roomNumber
+    );
+  } catch (error) {
+    console.error(`Error checking for room ${building} ${roomNumber}:`, error);
+    throw error;
+  }
+}
+
 module.exports = {
   getAllRooms,
   getRoomById,
@@ -236,5 +384,6 @@ module.exports = {
   deleteRoom,
   searchRooms,
   getAvailableRooms,
-  getRoomsByBuilding
+  getRoomsByBuilding,
+  getRoomByNumber
 };

@@ -643,12 +643,13 @@ const RoomManagement = () => {
       type: room.type,
       capacity: room.capacity,
       location: {
-        building: room.location.building,
-        floor: room.location.floor,
-        roomNumber: room.location.roomNumber
+        building: room.location?.building || '',
+        floor: room.location?.floor || '',
+        roomNumber: room.location?.roomNumber || ''
       },
       equipment: room.equipment || [],
       amenities: room.amenities || [],
+      typeSpecific: room.typeSpecific || {},
       isActive: room.isActive
     });
     setOpenEditDialog(true);
@@ -680,8 +681,8 @@ const RoomManagement = () => {
 
       const response = await roomService.getAllRooms(params);
       
-      setRooms(response.data.rooms);
-      setTotalRooms(response.data.pagination.totalRooms);
+      setRooms(response.data.rooms || []);
+      setTotalRooms(response.data.pagination?.totalRooms || 0);
       
     } catch (error) {
       console.error('Error fetching rooms:', error);
@@ -774,6 +775,7 @@ const RoomManagement = () => {
 
   // Get buildings for filter dropdown (from current rooms)
   const getAvailableBuildings = () => {
+    if (!rooms || !Array.isArray(rooms)) return [];
     const buildings = [...new Set(rooms.map(room => room.location?.building).filter(Boolean))];
     return buildings.sort();
   };
@@ -940,7 +942,7 @@ const RoomManagement = () => {
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
-              ) : rooms.length === 0 ? (
+              ) : (!rooms || rooms.length === 0) ? (
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <Typography variant="body1" color="text.secondary">
@@ -1031,7 +1033,7 @@ const RoomManagement = () => {
       {/* Summary */}
       <Box sx={{ mt: 2, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          Showing {rooms.length} of {totalRooms} rooms
+          Showing {rooms?.length || 0} of {totalRooms} rooms
           {(searchTerm || typeFilter !== 'all' || buildingFilter !== 'all' || statusFilter !== 'all') && ' (filtered)'}
         </Typography>
       </Box>

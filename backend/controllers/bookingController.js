@@ -1,5 +1,5 @@
 const bookingRepo = require('../repositories/bookingRepo');
-const roomRepo = require('../repositories/roomRepo');
+const roomRepo = require('../repositories/roomEavRepoNew'); // Using EAV repository
 const userRepo = require('../repositories/userRepo');
 const { successResponse, errorResponse } = require('../utils/responseHelpers');
 const { validationResult } = require('express-validator');

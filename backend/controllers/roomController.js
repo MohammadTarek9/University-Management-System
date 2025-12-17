@@ -8,6 +8,7 @@ const pool = require('../db/mysql');
 // @route   GET /api/facilities/rooms
 // @access  Private (Admin, Staff, Professor)
 exports.getAllRooms = async (req, res) => {
+  console.log('Fetching rooms with query:', req.query);
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -18,6 +19,10 @@ exports.getAllRooms = async (req, res) => {
     const isActive = req.query.isActive;
 
     const options = { page, limit };
+
+    if (search && search.trim()) {
+      options.search = search.trim();
+    }
 
     if (building && building !== 'all') {
       options.building = building;
@@ -36,6 +41,8 @@ exports.getAllRooms = async (req, res) => {
     }
 
     const { rooms, total, totalPages } = await roomRepo.getAllRooms(options);
+
+    console.log(`fetched ${rooms}`);
 
     const pagination = {
       currentPage: page,
@@ -87,18 +94,27 @@ exports.createRoom = async (req, res) => {
       return errorResponse(res, 400, 'Validation failed', errors.array());
     }
 
+    // Extract fields - handle both flat and nested location structure
     const { 
-      roomNumber, 
-      roomName, 
-      building, 
-      floor, 
+      name,
+      roomName,
+      type,
+      roomType,
       capacity, 
-      roomType, 
       description,
+      equipment,
+      amenities,
+      typeSpecific,
       isActive,
-      // Type-specific EAV attributes
-      typeSpecific
+      location
     } = req.body;
+
+    // Handle nested location object or flat fields
+    const building = location?.building || req.body.building;
+    const floor = location?.floor || req.body.floor;
+    const roomNumber = location?.roomNumber || req.body.roomNumber;
+    const actualRoomName = name || roomName || `${building} ${roomNumber}`;
+    const actualRoomType = type || roomType;
 
     // Check for duplicate room by building + room number
     const existingRoom = await roomRepo.getRoomByNumber(building, roomNumber);
@@ -107,15 +123,19 @@ exports.createRoom = async (req, res) => {
     }
 
     const room = await roomRepo.createRoom({
+      roomName: actualRoomName,
+      name: actualRoomName,
       roomNumber,
-      roomName,
       building,
       floor,
       capacity,
-      roomType,
+      roomType: actualRoomType,
+      type: actualRoomType,
       description,
-      isActive: isActive !== undefined ? isActive : true,
-      typeSpecific: typeSpecific || {}
+      equipment,
+      amenities,
+      typeSpecific: typeSpecific || {},
+      isActive: isActive !== undefined ? isActive : true
     });
 
     return successResponse(res, 201, 'Room created successfully', { room });
@@ -145,27 +165,38 @@ exports.updateRoom = async (req, res) => {
       return errorResponse(res, 404, 'Room not found');
     }
 
+    // Extract fields - handle both flat and nested location structure
     const { 
-      roomNumber, 
-      roomName, 
-      building, 
-      floor, 
+      name,
+      roomName,
+      type,
+      roomType,
       capacity, 
-      roomType, 
       description,
+      equipment,
+      amenities,
+      typeSpecific,
       isActive,
-      // Type-specific EAV attributes
-      typeSpecific
+      location
     } = req.body;
 
+    // Handle nested location object or flat fields
+    const building = location?.building || req.body.building;
+    const floor = location?.floor || req.body.floor;
+    const roomNumber = location?.roomNumber || req.body.roomNumber;
+
     const updateData = {};
+    if (name || roomName) updateData.roomName = name || roomName;
+    if (name || roomName) updateData.name = name || roomName;
     if (roomNumber !== undefined) updateData.roomNumber = roomNumber;
-    if (roomName !== undefined) updateData.roomName = roomName;
     if (building !== undefined) updateData.building = building;
     if (floor !== undefined) updateData.floor = floor;
     if (capacity !== undefined) updateData.capacity = capacity;
-    if (roomType !== undefined) updateData.roomType = roomType;
+    if (type || roomType) updateData.roomType = type || roomType;
+    if (type || roomType) updateData.type = type || roomType;
     if (description !== undefined) updateData.description = description;
+    if (equipment !== undefined) updateData.equipment = equipment;
+    if (amenities !== undefined) updateData.amenities = amenities;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (typeSpecific !== undefined) updateData.typeSpecific = typeSpecific;
 
