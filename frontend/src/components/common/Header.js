@@ -22,7 +22,8 @@ import {
   Person,
   School,
   Assignment,
-  HowToReg
+  HowToReg,
+  MenuBook
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -127,6 +128,14 @@ const Header = () => {
                     <Assignment fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>Course Registration</ListItemText>
+                </MenuItem>
+              )}
+              {user?.role === 'student' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/curriculum/browse'); }}>
+                  <ListItemIcon>
+                    <MenuBook fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Browse Subjects</ListItemText>
                 </MenuItem>
               )}
               {user?.role === 'admin' && (

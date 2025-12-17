@@ -105,12 +105,12 @@ async function getEnrollmentsByCourse(courseId, options = {}) {
  */
 async function isStudentEnrolled(studentId, courseId) {
   const [rows] = await pool.query(
-    `SELECT enrollment_id FROM enrollments 
-     WHERE student_id = ? AND course_id = ? AND status = 'enrolled' AND is_active = 1`,
+    `SELECT enrollment_id, status FROM enrollments 
+     WHERE student_id = ? AND course_id = ? AND is_active = 1`,
     [studentId, courseId]
   );
   
-  return rows.length > 0;
+  return rows.length > 0 ? rows[0] : null;
 }
 
 /**

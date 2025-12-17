@@ -25,10 +25,18 @@ const registerForCourse = async (req, res) => {
       return errorResponse(res, 400, 'This course is not currently active');
     }
 
-    // Check if already enrolled
-    const alreadyEnrolled = await enrollmentRepo.isStudentEnrolled(studentId, courseId);
-    if (alreadyEnrolled) {
-      return errorResponse(res, 400, 'You are already enrolled in this course');
+    // Check if already enrolled or has pending request
+    const existingEnrollment = await enrollmentRepo.isStudentEnrolled(studentId, courseId);
+    if (existingEnrollment) {
+      if (existingEnrollment.status === 'pending') {
+        return errorResponse(res, 400, 'You already have a pending registration request for this course');
+      } else if (existingEnrollment.status === 'enrolled') {
+        return errorResponse(res, 400, 'You are already enrolled in this course');
+      } else if (existingEnrollment.status === 'rejected') {
+        return errorResponse(res, 400, 'Your previous registration request for this course was rejected. Please contact the administrator.');
+      } else {
+        return errorResponse(res, 400, 'You already have a registration record for this course');
+      }
     }
 
     // Check course capacity
@@ -293,26 +301,73 @@ const getCourseEnrollments = async (req, res) => {
 
 /**
  * Helper function to check prerequisites
- * In a real system, this would verify completed courses with passing grades
+ * Verifies if student has completed required prerequisite courses
  */
 async function checkPrerequisites(studentId, prerequisites) {
-  // For MVP, we'll assume prerequisites are met
-  // In production, parse prerequisites and check against completed enrollments
-  
-  // Prerequisites could be stored as:
-  // - Comma-separated list: "CS101, CS102"
-  // - JSON array: ["CS101", "CS102"]
-  // - JSON object with logic: { "any": ["CS101", "CS102"] }
-  
   try {
-    // Try to parse as JSON
-    const parsedPrereqs = JSON.parse(prerequisites);
-    // For MVP, return true - implement actual checking in production
+    // Parse prerequisites - could be comma-separated list or JSON array
+    let requiredCodes = [];
+    
+    try {
+      // Try to parse as JSON array
+      const parsed = JSON.parse(prerequisites);
+      if (Array.isArray(parsed)) {
+        requiredCodes = parsed;
+      } else {
+        // If it's an object, treat it as comma-separated string
+        requiredCodes = prerequisites.split(',').map(p => p.trim());
+      }
+    } catch (e) {
+      // Not JSON, treat as comma-separated list
+      requiredCodes = prerequisites.split(',').map(p => p.trim()).filter(p => p);
+    }
+
+    if (requiredCodes.length === 0) {
+      return { met: true, message: '' };
+    }
+
+    // Get student's completed enrollments
+    const studentEnrollments = await enrollmentRepo.getEnrollmentsByStudent(studentId, {
+      status: 'enrolled', // Consider both enrolled and completed as met
+      isActive: true
+    });
+
+    // Get all subjects to match codes
+    const completedSubjectIds = [];
+    for (const enrollment of studentEnrollments) {
+      const course = await courseRepo.getCourseById(enrollment.course_id);
+      if (course) {
+        completedSubjectIds.push(course.subjectId);
+      }
+    }
+
+    // Get subject codes for completed subjects
+    const completedCodes = [];
+    for (const subjectId of completedSubjectIds) {
+      const subject = await subjectRepo.getSubjectById(subjectId);
+      if (subject) {
+        completedCodes.push(subject.code);
+      }
+    }
+
+    // Check if all required prerequisites are met
+    const missingPrereqs = requiredCodes.filter(code => !completedCodes.includes(code));
+
+    if (missingPrereqs.length > 0) {
+      return {
+        met: false,
+        message: `Missing prerequisites: ${missingPrereqs.join(', ')}`
+      };
+    }
+
     return { met: true, message: '' };
-  } catch (e) {
-    // Not JSON, treat as comma-separated list
-    // For MVP, return true - implement actual checking in production
-    return { met: true, message: '' };
+  } catch (error) {
+    console.error('Error checking prerequisites:', error);
+    // If there's an error checking, fail safe and deny registration
+    return {
+      met: false,
+      message: 'Error validating prerequisites. Please contact administrator.'
+    };
   }
 }
 

@@ -12,6 +12,7 @@ const profileRoutes = require('./routes/profile');
 const enrollmentRoutes = require('./routes/enrollments');
 const facilitiesRoutes = require('./modules/facilities/routes');
 const curriculumRoutes = require('./modules/curriculum/routes');
+const materialRoutes = require('./routes/materials');
 // const staffRoutes = require('./modules/staff/routes');
 // const communityRoutes = require('./modules/community/routes');
 
@@ -97,6 +98,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/facilities', facilitiesRoutes);
 app.use('/api/curriculum', curriculumRoutes);
+app.use('/api/materials', materialRoutes);
 // app.use('/api/staff', staffRoutes);
 // app.use('/api/community', communityRoutes);
 
