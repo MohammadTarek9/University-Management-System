@@ -9,6 +9,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const profileRoutes = require('./routes/profile');
+const enrollmentRoutes = require('./routes/enrollments');
 const facilitiesRoutes = require('./modules/facilities/routes');
 const curriculumRoutes = require('./modules/curriculum/routes');
 // const staffRoutes = require('./modules/staff/routes');
@@ -93,6 +94,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universit
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/facilities', facilitiesRoutes);
 app.use('/api/curriculum', curriculumRoutes);
 // app.use('/api/staff', staffRoutes);
