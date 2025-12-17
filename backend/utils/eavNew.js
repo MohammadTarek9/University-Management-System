@@ -6,6 +6,87 @@ const pool = require('../db/mysql');
  */
 
 /**
+ * Generate a human-readable description for an attribute
+ */
+function generateAttributeDescription(attributeName) {
+  // Map of known attributes to their descriptions
+  const descriptions = {
+    // Room attributes
+    'room_name': 'Name of the room',
+    'building': 'Building where the room is located',
+    'floor': 'Floor level of the room',
+    'room_number': 'Room number identifier',
+    'capacity': 'Maximum capacity of the room',
+    'room_type': 'Type of room (classroom, laboratory, lecture hall, etc.)',
+    'description': 'Additional notes or description',
+    'equipment': 'List of equipment available',
+    'amenities': 'List of amenities available',
+    'type_specific': 'Type-specific attributes',
+    
+    // Course attributes
+    'course_code': 'Course code identifier',
+    'course_name': 'Course title/name',
+    'subject_id': 'Subject the course belongs to',
+    'credit_hours': 'Number of credit hours',
+    'course_description': 'Course description',
+    'instructor': 'Instructor teaching the course',
+    'semester': 'Semester when course is offered',
+    'year': 'Year when course is offered',
+    'schedule': 'Course schedule details',
+    'room': 'Room where course is held',
+    'max_enrollment': 'Maximum enrollment capacity',
+    'current_enrollment': 'Current enrollment count',
+    'status': 'Status (active, inactive, archived)',
+    
+    // Subject attributes
+    'subject_code': 'Subject code identifier',
+    'subject_name': 'Subject name',
+    'department_id': 'Department the subject belongs to',
+    'subject_description': 'Subject description',
+    'department_head': 'Head of department',
+    
+    // Maintenance attributes
+    'issue_type': 'Type of maintenance issue',
+    'category': 'Category of maintenance request',
+    'priority': 'Priority level of request',
+    'severity': 'Severity level of issue',
+    'location': 'Location of maintenance issue',
+    'reported_by': 'User who reported the issue',
+    'assigned_to': 'Staff assigned to handle request',
+    'submitted_date': 'Date when request was submitted',
+    'completed_date': 'Date when request was completed',
+    'estimated_completion': 'Estimated completion date',
+    'notes': 'Notes or additional details',
+    
+    // Generic attributes
+    'is_available': 'Availability status',
+    'date_created': 'Date of creation',
+    'last_updated': 'Last update timestamp'
+  };
+  
+  // Check for exact match
+  if (descriptions[attributeName]) {
+    return descriptions[attributeName];
+  }
+  
+  // Check for pattern matches
+  if (attributeName.match(/^equipment_\d+_name$/)) return 'Name of equipment item';
+  if (attributeName.match(/^equipment_\d+_quantity$/)) return 'Quantity of equipment item';
+  if (attributeName.match(/^equipment_\d+_condition$/)) return 'Condition of equipment item';
+  if (attributeName.match(/^equipment_\d+$/)) return 'Equipment identifier';
+  if (attributeName.match(/^amenity_\d+$/)) return 'Amenity available';
+  
+  // Type-specific attributes
+  if (attributeName.startsWith('typespec_')) {
+    const fieldName = attributeName.replace('typespec_', '');
+    return `Room-specific: ${fieldName.replace(/([A-Z])/g, ' $1').trim()}`;
+  }
+  
+  // Default: generate from attribute name
+  return `Attribute: ${attributeName.replace(/_/g, ' ')}`;
+}
+
+/**
  * Get or create an attribute by name
  */
 async function getOrCreateAttribute(attributeName, dataType, description = null) {
@@ -17,6 +98,11 @@ async function getOrCreateAttribute(attributeName, dataType, description = null)
 
   if (existing.length > 0) {
     return existing[0].attribute_id;
+  }
+
+  // Generate description if not provided
+  if (!description) {
+    description = generateAttributeDescription(attributeName);
   }
 
   // Create new attribute
@@ -158,7 +244,13 @@ async function getEntityById(entityId) {
     let value = null;
 
     if (dataType === 'string') value = row.value_string;
-    else if (dataType === 'number') value = row.value_number;
+    else if (dataType === 'number') {
+      value = row.value_number;
+      // Convert to integer if it's a whole number
+      if (value !== null && value !== undefined && Number.isFinite(value) && value === Math.floor(value)) {
+        value = Math.floor(value);
+      }
+    }
     else if (dataType === 'text') value = row.value_text;
     else if (dataType === 'boolean') value = row.value_boolean;
     else if (dataType === 'date') value = row.value_date;
@@ -233,7 +325,13 @@ async function getEntitiesByType(entityType, filters = {}) {
     let value = null;
 
     if (dataType === 'string') value = row.value_string;
-    else if (dataType === 'number') value = row.value_number;
+    else if (dataType === 'number') {
+      value = row.value_number;
+      // Convert to integer if it's a whole number
+      if (value !== null && value !== undefined && Number.isFinite(value) && value === Math.floor(value)) {
+        value = Math.floor(value);
+      }
+    }
     else if (dataType === 'text') value = row.value_text;
     else if (dataType === 'boolean') value = row.value_boolean;
     else if (dataType === 'date') value = row.value_date;

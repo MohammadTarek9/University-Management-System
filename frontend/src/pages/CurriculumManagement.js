@@ -224,11 +224,12 @@ const CourseCatalogManagement = () => {
       };
 
       const response = await departmentService.getAllDepartments(params);
-      setDepartments(response.data.departments);
-      setTotalDepartments(response.data.pagination.totalDepartments);
+      setDepartments(response.data.departments || []);
+      setTotalDepartments(response.data.pagination.totalDepartments || 0);
     } catch (error) {
       console.error('Error fetching departments:', error);
       setDepartmentsError(error.message || 'Failed to load departments');
+      setDepartments([]);
     } finally {
       setDepartmentsLoading(false);
     }
@@ -332,9 +333,10 @@ const CourseCatalogManagement = () => {
   const fetchAllDepartments = useCallback(async () => {
     try {
       const response = await departmentService.getAllDepartments({ limit: 100 });
-      setAllDepartments(response.data.departments);
+      setAllDepartments(response.data.departments || []);
     } catch (error) {
       console.error('Error fetching departments for dropdown:', error);
+      setAllDepartments([]);
     }
   }, []);
 
@@ -358,11 +360,12 @@ const CourseCatalogManagement = () => {
       };
 
       const response = await subjectService.getAllSubjects(params);
-      setSubjects(response.data.subjects);
-      setTotalSubjects(response.data.pagination.totalSubjects);
+      setSubjects(response.data.subjects || []);
+      setTotalSubjects(response.data.pagination.totalSubjects || 0);
     } catch (error) {
       console.error('Error fetching subjects:', error);
       setSubjectsError(error.message || 'Failed to load subjects');
+      setSubjects([]);
     } finally {
       setSubjectsLoading(false);
     }
@@ -499,7 +502,15 @@ const handleEditSubject = async () => {
   };
 
   const openEditSubjectDialog = (subject) => {
-    setEditSubject({ ...subject });
+    setEditSubject({ 
+      ...subject,
+      // Convert decimal numbers to integers
+      credits: subject.credits ? Math.floor(subject.credits) : subject.credits,
+      labHours: subject.labHours ? Math.floor(subject.labHours) : subject.labHours,
+      studioHours: subject.studioHours ? Math.floor(subject.studioHours) : subject.studioHours,
+      // Handle academicYear: if it's a number, convert to integer, otherwise keep as string
+      academicYear: typeof subject.academicYear === 'number' ? Math.floor(subject.academicYear).toString() : subject.academicYear
+    });
     setEditSubjectDialogOpen(true);
   };
 
@@ -512,9 +523,10 @@ const handleEditSubject = async () => {
   const fetchAllSubjects = useCallback(async () => {
     try {
       const response = await subjectService.getAllSubjects({ limit: 100 });
-      setAllSubjects(response.data.subjects);
+      setAllSubjects(response.data.subjects || []);
     } catch (error) {
       console.error('Error fetching subjects for dropdown:', error);
+      setAllSubjects([]);
     }
   }, []);
 
@@ -522,12 +534,13 @@ const handleEditSubject = async () => {
     try {
       const response = await userService.getAllUsers({ limit: 100 });
       // Filter to only professors, TAs, and admins
-      const instructors = response.data.users.filter(user => 
+      const instructors = (response.data.users || []).filter(user => 
         ['professor', 'ta', 'admin'].includes(user.role)
       );
       setAllInstructors(instructors);
     } catch (error) {
       console.error('Error fetching instructors for dropdown:', error);
+      setAllInstructors([]);
     }
   }, []);
 
@@ -553,7 +566,7 @@ const handleEditSubject = async () => {
       const response = await courseService.getAllCourses(params);
       
       // Flatten the nested structure from backend
-      const flattenedCourses = response.data.courses.map(course => ({
+      const flattenedCourses = (response.data.courses || []).map(course => ({
         ...course,
         subjectName: course.subject?.name || '',
         subjectCode: course.subject?.code || '',
@@ -564,9 +577,10 @@ const handleEditSubject = async () => {
       }));
       
       setCourses(flattenedCourses);
-      setTotalCourses(response.data.pagination.totalCourses);
+      setTotalCourses(response.data.pagination.totalCourses || 0);
     } catch (error) {
       console.error('Error fetching courses:', error);
+      setCourses([]);
       setCoursesError(error.message || 'Failed to load courses');
     } finally {
       setCoursesLoading(false);
@@ -598,11 +612,38 @@ const handleEditSubject = async () => {
   };
 
   const handleAddCourse = async () => {
+    // Validate required fields
+    if (!newCourse.subjectId || newCourse.subjectId === '') {
+      setCoursesError('Please select a subject');
+      return;
+    }
+    if (!newCourse.instructorId || newCourse.instructorId === '') {
+      setCoursesError('Please select an instructor');
+      return;
+    }
+    if (!newCourse.semester) {
+      setCoursesError('Please select a semester');
+      return;
+    }
+    if (!newCourse.year) {
+      setCoursesError('Please enter a year');
+      return;
+    }
+
     setAddCourseLoading(true);
     setCoursesError('');
 
     try {
-      await courseService.createCourse(newCourse);
+      // Ensure numeric fields are numbers
+      const courseData = {
+        ...newCourse,
+        subjectId: Number(newCourse.subjectId),
+        instructorId: Number(newCourse.instructorId),
+        year: Number(newCourse.year),
+        maxEnrollment: Number(newCourse.maxEnrollment)
+      };
+      
+      await courseService.createCourse(courseData);
       setAddCourseDialogOpen(false);
       setNewCourse({
         subjectId: '',
@@ -671,7 +712,14 @@ const handleEditSubject = async () => {
   };
 
   const openEditCourseDialog = (course) => {
-    setEditCourse({ ...course });
+    setEditCourse({ 
+      ...course,
+      // Convert decimal numbers to integers
+      year: course.year ? Math.floor(course.year) : course.year,
+      maxEnrollment: course.maxEnrollment ? Math.floor(course.maxEnrollment) : course.maxEnrollment,
+      currentEnrollment: course.currentEnrollment ? Math.floor(course.currentEnrollment) : course.currentEnrollment,
+      labHours: course.labHours ? Math.floor(course.labHours) : course.labHours
+    });
     setEditCourseDialogOpen(true);
   };
 
@@ -1100,7 +1148,7 @@ const handleEditSubject = async () => {
                               {subject.departmentCode || ''}
                             </Typography>
                           </TableCell>
-                          <TableCell>{subject.credits}</TableCell>
+                          <TableCell>{Math.floor(subject.credits)}</TableCell>
                           <TableCell>
                             <Chip
                               label={subject.classification === 'core' ? 'Core' : 'Elective'}
@@ -1110,7 +1158,7 @@ const handleEditSubject = async () => {
                           </TableCell>
                            <TableCell>
                             {subject.semester
-                              ? `${subject.semester}${subject.academicYear ? ` ${subject.academicYear}` : ''}`
+                              ? `${subject.semester}${subject.academicYear ? ` ${typeof subject.academicYear === 'number' ? Math.floor(subject.academicYear) : subject.academicYear}` : ''}`
                              : '-'}
                           </TableCell>
                           <TableCell>
@@ -1821,13 +1869,13 @@ const handleEditSubject = async () => {
                             }
                           />
                         </TableCell>
-                        <TableCell>{course.year}</TableCell>
+                        <TableCell>{Math.floor(course.year)}</TableCell>
                         <TableCell>
                           {course.instructorName || 'Not assigned'}
                         </TableCell>
                         <TableCell>
                           <Chip 
-                            label={`${course.currentEnrollment || 0} / ${course.maxEnrollment}`}
+                            label={`${Math.floor(course.currentEnrollment || 0)} / ${Math.floor(course.maxEnrollment)}`}
                             size="small"
                             color={
                               (course.currentEnrollment || 0) >= course.maxEnrollment ? 'error' :
@@ -1897,9 +1945,11 @@ const handleEditSubject = async () => {
                   select
                   fullWidth
                   label="Subject"
-                  value={newCourse.subjectId}
-                  onChange={(e) => setNewCourse({ ...newCourse, subjectId: e.target.value })}
+                  value={newCourse.subjectId || ''}
+                  onChange={(e) => setNewCourse({ ...newCourse, subjectId: e.target.value ? Number(e.target.value) : '' })}
                   required
+                  error={!newCourse.subjectId && addCourseLoading}
+                  helperText={!newCourse.subjectId && addCourseLoading ? 'Subject is required' : ''}
                 >
                   {allSubjects.map((subject) => (
                     <MenuItem key={subject.id} value={subject.id}>
@@ -1938,8 +1988,8 @@ const handleEditSubject = async () => {
                   select
                   fullWidth
                   label="Instructor"
-                  value={newCourse.instructorId}
-                  onChange={(e) => setNewCourse({ ...newCourse, instructorId: e.target.value })}
+                  value={newCourse.instructorId || ''}
+                  onChange={(e) => setNewCourse({ ...newCourse, instructorId: e.target.value ? Number(e.target.value) : '' })}
                   required
                 >
                   {allInstructors.map((instructor) => (
@@ -2157,8 +2207,8 @@ const handleEditSubject = async () => {
                     select
                     fullWidth
                     label="Subject"
-                    value={editCourse.subjectId}
-                    onChange={(e) => setEditCourse({ ...editCourse, subjectId: e.target.value })}
+                    value={editCourse.subjectId || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, subjectId: e.target.value ? Number(e.target.value) : '' })}
                     required
                   >
                     {allSubjects.map((subject) => (
@@ -2198,8 +2248,8 @@ const handleEditSubject = async () => {
                     select
                     fullWidth
                     label="Instructor"
-                    value={editCourse.instructorId}
-                    onChange={(e) => setEditCourse({ ...editCourse, instructorId: e.target.value })}
+                    value={editCourse.instructorId || ''}
+                    onChange={(e) => setEditCourse({ ...editCourse, instructorId: e.target.value ? Number(e.target.value) : '' })}
                     required
                   >
                     {allInstructors.map((instructor) => (
@@ -2441,7 +2491,7 @@ const handleEditSubject = async () => {
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
                   <strong>Subject:</strong> {courseToDelete.subjectName} ({courseToDelete.subjectCode})
                   <br />
-                  <strong>Semester:</strong> {courseToDelete.semester} {courseToDelete.year}
+                  <strong>Semester:</strong> {courseToDelete.semester} {Math.floor(courseToDelete.year)}
                   <br />
                   <strong>Instructor:</strong> {courseToDelete.instructorName}
                 </Typography>

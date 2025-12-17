@@ -192,21 +192,6 @@ const createSubject = async (req, res) => {
       return errorResponse(res, 400, 'Cannot assign subject to inactive department');
     }
 
-    // Prepare flexible attributes
-    const flexibleAttributes = {};
-    if (prerequisites) flexibleAttributes.prerequisites = prerequisites;
-    if (corequisites) flexibleAttributes.corequisites = corequisites;
-    if (learningOutcomes) flexibleAttributes.learningOutcomes = learningOutcomes;
-    if (textbooks) flexibleAttributes.textbooks = textbooks;
-    if (labRequired !== undefined) flexibleAttributes.labRequired = labRequired;
-    if (labHours) flexibleAttributes.labHours = labHours;
-    if (studioRequired !== undefined) flexibleAttributes.studioRequired = studioRequired;
-    if (studioHours) flexibleAttributes.studioHours = studioHours;
-    if (certifications) flexibleAttributes.certifications = certifications;
-    if (repeatability) flexibleAttributes.repeatability = repeatability;
-    if (syllabusTemplate) flexibleAttributes.syllabusTemplate = syllabusTemplate;
-    if (typicalOffering) flexibleAttributes.typicalOffering = typicalOffering;
-
     // Create subject (created_by is the authenticated user)
     const subject = await subjectRepo.createSubject({
       name: name.trim(),
@@ -218,7 +203,19 @@ const createSubject = async (req, res) => {
       isActive: isActive !== undefined ? !!isActive : true,
       semester: semester?.trim() || null,           
       academicYear: academicYear?.trim() || null,
-      flexibleAttributes
+      // EAV flexible attributes (passed at top level)
+      prerequisites,
+      corequisites,
+      learningOutcomes,
+      textbooks,
+      labRequired,
+      labHours,
+      studioRequired,
+      studioHours,
+      certifications,
+      repeatability,
+      syllabusTemplate,
+      typicalOffering
     });
 
     successResponse(res, 201, 'Subject created successfully', { subject });
@@ -316,22 +313,19 @@ const updateSubject = async (req, res) => {
     if (departmentId !== undefined) updateData.departmentId = parseInt(departmentId, 10);
     if (isActive !== undefined) updateData.isActive = !!isActive;
 
-    // Prepare flexible attributes
-    const flexibleAttributes = {};
-    if (prerequisites !== undefined) flexibleAttributes.prerequisites = prerequisites;
-    if (corequisites !== undefined) flexibleAttributes.corequisites = corequisites;
-    if (learningOutcomes !== undefined) flexibleAttributes.learningOutcomes = learningOutcomes;
-    if (textbooks !== undefined) flexibleAttributes.textbooks = textbooks;
-    if (labRequired !== undefined) flexibleAttributes.labRequired = labRequired;
-    if (labHours !== undefined) flexibleAttributes.labHours = labHours;
-    if (studioRequired !== undefined) flexibleAttributes.studioRequired = studioRequired;
-    if (studioHours !== undefined) flexibleAttributes.studioHours = studioHours;
-    if (certifications !== undefined) flexibleAttributes.certifications = certifications;
-    if (repeatability !== undefined) flexibleAttributes.repeatability = repeatability;
-    if (syllabusTemplate !== undefined) flexibleAttributes.syllabusTemplate = syllabusTemplate;
-    if (typicalOffering !== undefined) flexibleAttributes.typicalOffering = typicalOffering;
-
-    updateData.flexibleAttributes = flexibleAttributes;
+    // Add flexible attributes directly to updateData (not nested)
+    if (prerequisites !== undefined) updateData.prerequisites = prerequisites;
+    if (corequisites !== undefined) updateData.corequisites = corequisites;
+    if (learningOutcomes !== undefined) updateData.learningOutcomes = learningOutcomes;
+    if (textbooks !== undefined) updateData.textbooks = textbooks;
+    if (labRequired !== undefined) updateData.labRequired = labRequired;
+    if (labHours !== undefined) updateData.labHours = labHours;
+    if (studioRequired !== undefined) updateData.studioRequired = studioRequired;
+    if (studioHours !== undefined) updateData.studioHours = studioHours;
+    if (certifications !== undefined) updateData.certifications = certifications;
+    if (repeatability !== undefined) updateData.repeatability = repeatability;
+    if (syllabusTemplate !== undefined) updateData.syllabusTemplate = syllabusTemplate;
+    if (typicalOffering !== undefined) updateData.typicalOffering = typicalOffering;
 
     // Update subject (updated_by is the authenticated user)
     const subject = await subjectRepo.updateSubject(
@@ -438,14 +432,13 @@ const updateSubjectSemester = async (req, res) => {
       return errorResponse(res, 404, 'Subject not found');
     }
 
-    // Call repo with normalized values
-    const subject = await subjectRepo.updateSubjectSemester(
+    // Update only semester and academicYear using the standard updateSubject function
+    const subject = await subjectRepo.updateSubject(
       subjectId,
       {
         semester: finalSemester,
         academicYear: finalAcademicYear,
-      },
-      req.user.id
+      }
     );
 
     if (!subject) {

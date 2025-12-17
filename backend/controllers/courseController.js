@@ -48,10 +48,42 @@ const getAllCourses = async (req, res) => {
       isActive: isActiveFilter
     });
 
+    // Populate subject and instructor details for each course
+    const populatedCourses = await Promise.all(courses.map(async (course) => {
+      const courseWithDetails = { ...course };
+      
+      // Populate subject info
+      if (course.subjectId) {
+        const subject = await subjectRepo.getSubjectById(course.subjectId);
+        if (subject) {
+          courseWithDetails.subject = {
+            id: subject.id,
+            name: subject.name,
+            code: subject.code
+          };
+        }
+      }
+      
+      // Populate instructor info
+      if (course.instructorId) {
+        const instructor = await userRepo.getUserById(course.instructorId);
+        if (instructor) {
+          courseWithDetails.instructor = {
+            id: instructor.id,
+            firstName: instructor.firstName,
+            lastName: instructor.lastName,
+            email: instructor.email
+          };
+        }
+      }
+      
+      return courseWithDetails;
+    }));
+
     const totalPages = Math.ceil(totalCourses / limitNum) || 1;
 
     successResponse(res, 200, 'Courses retrieved successfully', {
-      courses,
+      courses: populatedCourses,
       pagination: {
         currentPage: pageNum,
         totalPages,
@@ -187,24 +219,7 @@ const createCourse = async (req, res) => {
       }
     }
 
-    // Prepare flexible attributes
-    const flexibleAttributes = {};
-    if (prerequisites) flexibleAttributes.prerequisites = prerequisites;
-    if (corequisites) flexibleAttributes.corequisites = corequisites;
-    if (labRequired !== undefined) flexibleAttributes.labRequired = labRequired;
-    if (labHours) flexibleAttributes.labHours = labHours;
-    if (gradingRubric) flexibleAttributes.gradingRubric = gradingRubric;
-    if (assessmentTypes) flexibleAttributes.assessmentTypes = assessmentTypes;
-    if (attendancePolicy) flexibleAttributes.attendancePolicy = attendancePolicy;
-    if (onlineMeetingLink) flexibleAttributes.onlineMeetingLink = onlineMeetingLink;
-    if (syllabusUrl) flexibleAttributes.syllabusUrl = syllabusUrl;
-    if (officeHours) flexibleAttributes.officeHours = officeHours;
-    if (textbookTitle) flexibleAttributes.textbookTitle = textbookTitle;
-    if (textbookAuthor) flexibleAttributes.textbookAuthor = textbookAuthor;
-    if (textbookIsbn) flexibleAttributes.textbookIsbn = textbookIsbn;
-    if (textbookRequired !== undefined) flexibleAttributes.textbookRequired = textbookRequired;
-
-    // Create the course with EAV attributes
+    // Create the course with EAV attributes (passed at top level, not nested)
     const course = await courseRepo.createCourse({
       subjectId,
       semester,
@@ -214,7 +229,21 @@ const createCourse = async (req, res) => {
       currentEnrollment: 0,
       schedule: schedule || null,
       isActive: true,
-      flexibleAttributes
+      // Flexible attributes at top level
+      prerequisites,
+      corequisites,
+      labRequired,
+      labHours,
+      gradingRubric,
+      assessmentTypes,
+      attendancePolicy,
+      onlineMeetingLink,
+      syllabusUrl,
+      officeHours,
+      textbookTitle,
+      textbookAuthor,
+      textbookIsbn,
+      textbookRequired
     });
 
     successResponse(res, 201, 'Course created successfully', { course });
@@ -330,24 +359,21 @@ const updateCourse = async (req, res) => {
     if (schedule !== undefined) updateData.schedule = schedule;
     if (isActive !== undefined) updateData.isActive = isActive;
 
-    // Prepare flexible attributes
-    const flexibleAttributes = {};
-    if (prerequisites !== undefined) flexibleAttributes.prerequisites = prerequisites;
-    if (corequisites !== undefined) flexibleAttributes.corequisites = corequisites;
-    if (labRequired !== undefined) flexibleAttributes.labRequired = labRequired;
-    if (labHours !== undefined) flexibleAttributes.labHours = labHours;
-    if (gradingRubric !== undefined) flexibleAttributes.gradingRubric = gradingRubric;
-    if (assessmentTypes !== undefined) flexibleAttributes.assessmentTypes = assessmentTypes;
-    if (attendancePolicy !== undefined) flexibleAttributes.attendancePolicy = attendancePolicy;
-    if (onlineMeetingLink !== undefined) flexibleAttributes.onlineMeetingLink = onlineMeetingLink;
-    if (syllabusUrl !== undefined) flexibleAttributes.syllabusUrl = syllabusUrl;
-    if (officeHours !== undefined) flexibleAttributes.officeHours = officeHours;
-    if (textbookTitle !== undefined) flexibleAttributes.textbookTitle = textbookTitle;
-    if (textbookAuthor !== undefined) flexibleAttributes.textbookAuthor = textbookAuthor;
-    if (textbookIsbn !== undefined) flexibleAttributes.textbookIsbn = textbookIsbn;
-    if (textbookRequired !== undefined) flexibleAttributes.textbookRequired = textbookRequired;
-
-    updateData.flexibleAttributes = flexibleAttributes;
+    // Add flexible attributes directly to updateData (not nested)
+    if (prerequisites !== undefined) updateData.prerequisites = prerequisites;
+    if (corequisites !== undefined) updateData.corequisites = corequisites;
+    if (labRequired !== undefined) updateData.labRequired = labRequired;
+    if (labHours !== undefined) updateData.labHours = labHours;
+    if (gradingRubric !== undefined) updateData.gradingRubric = gradingRubric;
+    if (assessmentTypes !== undefined) updateData.assessmentTypes = assessmentTypes;
+    if (attendancePolicy !== undefined) updateData.attendancePolicy = attendancePolicy;
+    if (onlineMeetingLink !== undefined) updateData.onlineMeetingLink = onlineMeetingLink;
+    if (syllabusUrl !== undefined) updateData.syllabusUrl = syllabusUrl;
+    if (officeHours !== undefined) updateData.officeHours = officeHours;
+    if (textbookTitle !== undefined) updateData.textbookTitle = textbookTitle;
+    if (textbookAuthor !== undefined) updateData.textbookAuthor = textbookAuthor;
+    if (textbookIsbn !== undefined) updateData.textbookIsbn = textbookIsbn;
+    if (textbookRequired !== undefined) updateData.textbookRequired = textbookRequired;
 
     const course = await courseRepo.updateCourse(courseId, updateData);
 

@@ -700,9 +700,9 @@ const AdmissionsManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={application.personalInfo.department || application.academicInfo.program || 'N/A'}
+                        label={application.personalInfo.department}
                         size="small"
-                        color={application.personalInfo.department ? "primary" : "default"}
+                        color="primary"
                         variant="outlined"
                       />
                     </TableCell>

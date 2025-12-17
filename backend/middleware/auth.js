@@ -63,10 +63,23 @@ const authorize = (...roles) => {
     const allowedRoles =
       roles.length === 1 && Array.isArray(roles[0]) ? roles[0] : roles;
 
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
+    if (!req.user) {
       return res.status(403).json({
         success: false,
-        message: `User role ${req.user?.role} is not authorized to access this route`
+        message: 'User not authenticated'
+      });
+    }
+
+    // Check if user has any of the allowed roles
+    const hasPermission = req.user.roles && req.user.roles.some(role => allowedRoles.includes(role));
+    
+    // Fallback to old role field for backward compatibility
+    const hasLegacyPermission = req.user.role && allowedRoles.includes(req.user.role);
+
+    if (!hasPermission && !hasLegacyPermission) {
+      return res.status(403).json({
+        success: false,
+        message: `User role(s) [${req.user.roles?.join(', ') || req.user.role}] not authorized to access this route. Required: [${allowedRoles.join(', ')}]`
       });
     }
 
