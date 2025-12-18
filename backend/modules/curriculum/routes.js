@@ -9,6 +9,10 @@ const subjectRoutes = require('../../routes/subject');
 // Import course routes
 const courseRoutes = require('../../routes/course');
 
+const assessmentsRoutes = require('../../routes/assessment');
+
+
+
 router.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -34,6 +38,9 @@ router.use('/departments', departmentRoutes);
 router.use('/subjects', subjectRoutes);
 // Mount course management routes
 router.use('/courses', courseRoutes);
+
+router.use('/assessments', assessmentsRoutes);
+
 
 // Future routes (commented for now)
 // router.get('/courses', protect, getCourses);
