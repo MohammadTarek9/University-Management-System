@@ -143,9 +143,16 @@ const MaintenanceDashboard = () => {
   const handleDeleteRequest = async () => {
     if (!selectedRequest) return;
     
+    const requestId = selectedRequest.id || selectedRequest._id;
+    if (!requestId) {
+      console.error('No valid ID found for maintenance request:', selectedRequest);
+      setError('Cannot delete: Invalid request ID');
+      return;
+    }
+    
     try {
       setDeleteLoading(true);
-      await maintenanceService.deleteMaintenanceRequest(selectedRequest.id || selectedRequest._id);
+      await maintenanceService.deleteMaintenanceRequest(requestId);
       setDeleteDialogOpen(false);
       setSelectedRequest(null);
       fetchData(); // Refresh data
@@ -341,8 +348,8 @@ const MaintenanceDashboard = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                requests.map((request) => (
-                  <TableRow key={request.id || request._id} hover>
+                requests.map((request, index) => (
+                  <TableRow key={request.id || request._id || index} hover>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
                         {request.title}
@@ -369,8 +376,14 @@ const MaintenanceDashboard = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {request.location.building}, {request.location.roomNumber}
-                        {request.location.floor && `, ${request.location.floor}`}
+                        {request.location ? (
+                          <>
+                            {request.location.building}, {request.location.roomNumber}
+                            {request.location.floor && `, ${request.location.floor}`}
+                          </>
+                        ) : (
+                          'No location specified'
+                        )}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -467,8 +480,14 @@ const MaintenanceDashboard = () => {
               <Grid item xs={12}>
                 <Typography variant="subtitle2">Location</Typography>
                 <Typography variant="body2">
-                  {selectedRequest.location.building}, Room {selectedRequest.location.roomNumber}
-                  {selectedRequest.location.floor && `, ${selectedRequest.location.floor}`}
+                  {selectedRequest.location ? (
+                    <>
+                      {selectedRequest.location.building}, Room {selectedRequest.location.roomNumber}
+                      {selectedRequest.location.floor && `, ${selectedRequest.location.floor}`}
+                    </>
+                  ) : (
+                    'No location specified'
+                  )}
                 </Typography>
               </Grid>
               <Grid item xs={6}>

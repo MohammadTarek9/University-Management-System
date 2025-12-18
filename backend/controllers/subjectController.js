@@ -1,5 +1,5 @@
 const { errorResponse, successResponse } = require('../utils/responseHelpers');
-const subjectRepo = require('../repositories/subjectRepo');
+const subjectRepo = require('../repositories/subjectEavRepoNew'); // Using 3-table EAV repository
 const departmentRepo = require('../repositories/departmentRepo');
 
 // ===================================================================
@@ -115,7 +115,30 @@ const getSubjectsByDepartment = async (req, res) => {
 // ===================================================================
 const createSubject = async (req, res) => {
   try {
-    const { name, code, description, credits, classification, departmentId, isActive, semester, academicYear } = req.body;
+    const { 
+      name, 
+      code, 
+      description, 
+      credits, 
+      classification, 
+      departmentId, 
+      isActive, 
+      semester, 
+      academicYear,
+      // EAV flexible attributes
+      prerequisites,
+      corequisites,
+      learningOutcomes,
+      textbooks,
+      labRequired,
+      labHours,
+      studioRequired,
+      studioHours,
+      certifications,
+      repeatability,
+      syllabusTemplate,
+      typicalOffering
+    } = req.body;
 
     // Validate required fields
     if (!name || !name.trim()) {
@@ -170,20 +193,30 @@ const createSubject = async (req, res) => {
     }
 
     // Create subject (created_by is the authenticated user)
-    const subject = await subjectRepo.createSubject(
-      {
-        name: name.trim(),
-        code: code.trim().toUpperCase(),
-        description: description?.trim() || null,
-        credits: parseFloat(credits),
-        classification,
-        departmentId: parseInt(departmentId, 10),
-        isActive: isActive !== undefined ? !!isActive : true,
-        semester: semester?.trim() || null,           
-        academicYear: academicYear?.trim() || null    
-      },
-      req.user.id  // createdBy user ID from auth middleware
-    );
+    const subject = await subjectRepo.createSubject({
+      name: name.trim(),
+      code: code.trim().toUpperCase(),
+      description: description?.trim() || null,
+      credits: parseFloat(credits),
+      classification,
+      departmentId: parseInt(departmentId, 10),
+      isActive: isActive !== undefined ? !!isActive : true,
+      semester: semester?.trim() || null,           
+      academicYear: academicYear?.trim() || null,
+      // EAV flexible attributes (passed at top level)
+      prerequisites,
+      corequisites,
+      learningOutcomes,
+      textbooks,
+      labRequired,
+      labHours,
+      studioRequired,
+      studioHours,
+      certifications,
+      repeatability,
+      syllabusTemplate,
+      typicalOffering
+    });
 
     successResponse(res, 201, 'Subject created successfully', { subject });
   } catch (error) {
@@ -204,7 +237,28 @@ const createSubject = async (req, res) => {
 const updateSubject = async (req, res) => {
   try {
     const subjectId = req.params.id;
-    const { name, code, description, credits, classification, departmentId, isActive } = req.body;
+    const { 
+      name, 
+      code, 
+      description, 
+      credits, 
+      classification, 
+      departmentId, 
+      isActive,
+      // EAV flexible attributes
+      prerequisites,
+      corequisites,
+      learningOutcomes,
+      textbooks,
+      labRequired,
+      labHours,
+      studioRequired,
+      studioHours,
+      certifications,
+      repeatability,
+      syllabusTemplate,
+      typicalOffering
+    } = req.body;
 
     // Check if subject exists
     const existingSubject = await subjectRepo.getSubjectById(subjectId);
@@ -258,6 +312,20 @@ const updateSubject = async (req, res) => {
     if (classification !== undefined) updateData.classification = classification;
     if (departmentId !== undefined) updateData.departmentId = parseInt(departmentId, 10);
     if (isActive !== undefined) updateData.isActive = !!isActive;
+
+    // Add flexible attributes directly to updateData (not nested)
+    if (prerequisites !== undefined) updateData.prerequisites = prerequisites;
+    if (corequisites !== undefined) updateData.corequisites = corequisites;
+    if (learningOutcomes !== undefined) updateData.learningOutcomes = learningOutcomes;
+    if (textbooks !== undefined) updateData.textbooks = textbooks;
+    if (labRequired !== undefined) updateData.labRequired = labRequired;
+    if (labHours !== undefined) updateData.labHours = labHours;
+    if (studioRequired !== undefined) updateData.studioRequired = studioRequired;
+    if (studioHours !== undefined) updateData.studioHours = studioHours;
+    if (certifications !== undefined) updateData.certifications = certifications;
+    if (repeatability !== undefined) updateData.repeatability = repeatability;
+    if (syllabusTemplate !== undefined) updateData.syllabusTemplate = syllabusTemplate;
+    if (typicalOffering !== undefined) updateData.typicalOffering = typicalOffering;
 
     // Update subject (updated_by is the authenticated user)
     const subject = await subjectRepo.updateSubject(
@@ -364,14 +432,13 @@ const updateSubjectSemester = async (req, res) => {
       return errorResponse(res, 404, 'Subject not found');
     }
 
-    // Call repo with normalized values
-    const subject = await subjectRepo.updateSubjectSemester(
+    // Update only semester and academicYear using the standard updateSubject function
+    const subject = await subjectRepo.updateSubject(
       subjectId,
       {
         semester: finalSemester,
         academicYear: finalAcademicYear,
-      },
-      req.user.id
+      }
     );
 
     if (!subject) {

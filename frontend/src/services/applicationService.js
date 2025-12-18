@@ -78,6 +78,16 @@ export const applicationService = {
     }
   },
 
+  // Create student account from approved application
+  createStudentAccount: async (applicationId) => {
+    try {
+      const response = await api.post(`/facilities/applications/${applicationId}/create-account`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to create student account' };
+    }
+  },
+
   // Get filter options for dropdowns
   getFilterOptions: async () => {
     try {
