@@ -114,7 +114,30 @@ const materialRepo = {
 
     const [rows] = await pool.query(query, [materialId]);
     return rows.length > 0 && rows[0].uploaded_by === userId;
-  }
+  },
+ 
+
+  async getAllMaterialsWithCourseName() {
+  const query = `
+    SELECT
+      cm.*,
+      s.code AS course_code,
+      s.name AS course_name
+    FROM course_materials cm
+    LEFT JOIN courses c
+      ON cm.course_id = c.id
+    LEFT JOIN subjects s
+      ON c.subject_id = s.id
+    WHERE cm.is_active = 1
+    ORDER BY cm.created_at DESC
+  `;
+  const [rows] = await pool.query(query);
+  return rows;
+}
+
+
+
+
 };
 
 module.exports = materialRepo;

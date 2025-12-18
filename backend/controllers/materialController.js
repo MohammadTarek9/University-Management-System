@@ -207,7 +207,67 @@ const materialController = {
       console.error('Delete material error:', error);
       return errorResponse(res, 500, 'Failed to delete material');
     }
+  },
+
+ // All materials in course_materials with EAV course names
+async getAllMaterials(req, res) {
+  try {
+    const materials = await materialRepo.getAllMaterialsWithCourseName();
+
+    const formatted = materials.map((m) => ({
+      materialId: m.material_id,
+      courseId: m.course_id,
+      courseCode: m.course_code,
+      courseName: m.course_name,
+      title: m.title,
+      description: m.description,
+      fileName: m.file_name,
+      fileType: m.file_type,
+      fileSize: m.file_size,
+      downloadCount: m.download_count,
+      uploadedBy: m.uploaded_by,
+      createdAt: m.created_at,
+      updatedAt: m.updated_at,
+    }));
+
+    return successResponse(res, 200, 'Materials retrieved successfully', formatted);
+  } catch (error) {
+    console.error('Get all materials error:', error);
+    return errorResponse(res, 500, 'Failed to retrieve materials');
   }
+},
+  // View a material (inline)
+async viewMaterial(req, res) {
+  try {
+    const { id } = req.params;
+    const material = await materialRepo.getMaterialById(id);
+
+    if (!material) {
+      return errorResponse(res, 404, 'Material not found');
+    }
+
+    if (!fs.existsSync(material.file_path)) {
+      return errorResponse(res, 404, 'File not found on server');
+    }
+
+    // Set content type and let browser decide display
+    res.setHeader('Content-Type', material.file_type);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${material.file_name}"`
+    );
+
+    const stream = fs.createReadStream(material.file_path);
+    stream.pipe(res);
+  } catch (error) {
+    console.error('View material error:', error);
+    return errorResponse(res, 500, 'Failed to view material');
+  }
+},
+
+
+  
+  
 };
 
 module.exports = materialController;

@@ -4,10 +4,6 @@ import {
   Paper,
   Typography,
   Box,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
   CircularProgress,
   Button,
   Dialog,
@@ -23,12 +19,9 @@ import {
   Card,
   CardContent,
   CardActions,
-  IconButton,
   Chip,
   LinearProgress,
   Grid,
-  Divider,
-  Tooltip
 } from '@mui/material';
 import { MenuBook, CloudUpload, PictureAsPdf, VideoLibrary, Image as ImageIcon, Description, Folder } from '@mui/icons-material';
 import { useParams } from 'react-router-dom';
@@ -53,58 +46,81 @@ const CourseMaterials = () => {
   const user = JSON.parse(localStorage.getItem('user'));
   const isProfessorOrTA = user?.role === 'professor' || user?.role === 'ta' || user?.role === 'admin';
 
-  // Fetch courses for the user
   useEffect(() => {
-    fetchCourses();
-  }, []);
+  const loadForProfessor = async () => {
+    await fetchCourses(); // this will call fetchMaterials via selectedCourse effect
+  };
 
-  // Fetch materials when course is selected
-  useEffect(() => {
-    if (selectedCourse) {
-      fetchMaterials();
-    }
-  }, [selectedCourse]);
-
-  const fetchCourses = async () => {
+  const loadForStudent = async () => {
+    setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
-      const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      const userRole = userData.role;
-      const userId = userData.id; // Use id instead of userId
-      
-      let coursesData = [];
-      
-      // For professors and TAs, fetch only their assigned courses
-      if (userRole === 'professor' || userRole === 'ta') {
-        const response = await axios.get('http://localhost:5000/api/curriculum/courses', {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { instructorId: userId }
-        });
-        
-        coursesData = response.data?.data?.courses || [];
-      } else {
-        // For students, admin, and staff, fetch all subjects
-        const response = await axios.get('http://localhost:5000/api/curriculum/subjects', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        coursesData = response.data?.data?.subjects || [];
-      }
-      
-      setCourses(Array.isArray(coursesData) ? coursesData : []);
-      
-      // Set first course as selected
-      if (coursesData.length > 0) {
-        setSelectedCourse(coursesData[0].id);
-      }
+      const response = await axios.get(
+        'http://localhost:5000/api/materials/all',
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMaterials(response.data.data || []);
     } catch (error) {
-      console.error('Error fetching courses:', error);
-      setError('Failed to load courses');
-      setCourses([]); // Set empty array on error
+      console.error('Error fetching materials:', error);
+      setError('Failed to load materials');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchMaterials = async () => {
+  if (isProfessorOrTA) {
+    loadForProfessor();
+  } else {
+    loadForStudent();
+  }
+}, []);
+
+ useEffect(() => {
+  if (!isProfessorOrTA) return;
+  if (!selectedCourse) return;
+  fetchMaterials();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [selectedCourse]);
+
+ 
+ const fetchCourses = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const userRole = userData.role;
+    const userId = userData.id;
+
+    let coursesData = [];
+
+    if (userRole === 'professor' || userRole === 'ta') {
+      const response = await axios.get('http://localhost:5000/api/curriculum/courses', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { instructorId: userId }
+      });
+      coursesData = response.data?.data?.courses || [];
+    } else {
+      const response = await axios.get('http://localhost:5000/api/curriculum/subjects', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      coursesData = response.data?.data?.subjects || [];
+    }
+
+    setCourses(Array.isArray(coursesData) ? coursesData : []);
+
+    if (coursesData.length > 0) {
+      setSelectedCourse(coursesData[0].id);
+    }
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    setError('Failed to load courses');
+    setCourses([]);
+  }
+};
+
+
+
+   const fetchMaterials = async () => {
     setLoading(true);
     setError('');
     try {
@@ -121,6 +137,7 @@ const CourseMaterials = () => {
       setLoading(false);
     }
   };
+
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -183,31 +200,67 @@ const CourseMaterials = () => {
     }
   };
 
-  const handleDownload = async (materialId, fileName) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `http://localhost:5000/api/materials/download/${materialId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: 'blob'
-        }
-      );
+ const handleDownload = async (materialId, fileName) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(
+      `http://localhost:5000/api/materials/download/${materialId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob',
+      }
+    );
 
-      // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download error:', error);
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(
+      'Download error:',
+      error.response?.status,
+      error.response?.data
+    );
+
+    if (error.response && error.response.status === 404) {
+      // matches materialController: 404 for missing record or file_path
+      setError('Material unavailable.');
+    } else {
       setError('Failed to download material');
     }
-  };
+  }
+};
+
+const handleOpen = async (materialId) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(
+      `http://localhost:5000/api/materials/view/${materialId}`, // <– changed
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob',
+      }
+    );
+
+    const blob = new Blob([response.data], {
+      type: response.data.type || 'application/pdf',
+    });
+    const fileURL = window.URL.createObjectURL(blob);
+    window.open(fileURL, '_blank');
+  } catch (error) {
+    console.error('Open error:', error);
+    if (error.response && error.response.status === 404) {
+      setError('Material unavailable.');
+    } else {
+      setError('Failed to open material');
+    }
+  }
+};
+
 
   const handleDelete = async (materialId) => {
     if (!window.confirm('Are you sure you want to delete this material?')) {
@@ -269,23 +322,142 @@ const CourseMaterials = () => {
             </Box>
           </Box>
         </Box>
+{error && (
+  <Box sx={{ mb: 2 }}>
+    <Alert severity="error">{error}</Alert>
+  </Box>
+)}
 
-        <Box
-          sx={{
-            mt: 4,
-            p: 3,
-            bgcolor: 'grey.100',
-            borderRadius: 2,
-            textAlign: 'center',
-          }}
-        >
-          <Typography variant="h6" gutterBottom>
-            Coming Soon
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Course materials and assessment features are under development.
-          </Typography>
-        </Box>
+{success && (
+  <Box sx={{ mb: 2 }}>
+    <Alert severity="success">{success}</Alert>
+  </Box>
+)}
+
+{/* Course selector */}
+<Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
+  {isProfessorOrTA && (
+    <FormControl sx={{ minWidth: 240 }} size="small">
+      <InputLabel id="course-select-label">Course</InputLabel>
+      <Select
+        labelId="course-select-label"
+        label="Course"
+        value={selectedCourse}
+        onChange={(e) => setSelectedCourse(e.target.value)}
+      >
+        {courses.map((c) => (
+          <MenuItem key={c.id} value={c.id}>
+            {c.code ? `${c.code} - ${c.name}` : c.name}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  )}
+
+  {isProfessorOrTA && (
+    <Button
+      variant="contained"
+      startIcon={<CloudUpload />}
+      onClick={() => {
+        setUploadDialogOpen(true);
+        setError('');
+        setSuccess('');
+      }}
+    >
+      Upload Material
+    </Button>
+  )}
+</Box>
+
+
+{/* Materials list */}
+{loading ? (
+  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+    <CircularProgress />
+  </Box>
+) : materials.length === 0 ? (
+  <Typography variant="body2" color="text.secondary">
+    No materials uploaded yet.
+  </Typography>
+) : (
+  <Grid container spacing={2}>
+    {materials.map((m) => (
+      <Grid item xs={12} sm={6} md={4} key={m.materialId}>
+        <Card variant="outlined">
+         <CardContent>
+  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+    <Box sx={{ mr: 1 }}>{getFileIcon(m.fileType || '')}</Box>
+    <Typography variant="subtitle1" noWrap>
+      {m.title || m.fileName}
+    </Typography>
+  </Box>
+
+  {/* Course code + name (NEW) */}
+  {(m.courseCode || m.courseName) && (
+    <Typography variant="caption" color="text.secondary" display="block">
+      {m.courseCode ? `${m.courseCode} – ${m.courseName}` : m.courseName}
+    </Typography>
+  )}
+
+  {/* Single file name line */}
+  <Typography variant="body2" color="text.secondary" noWrap>
+    {m.fileName}
+  </Typography>
+
+  {/* Single description line */}
+  {m.description && (
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={{ mt: 1 }}
+      noWrap
+    >
+      {m.description}
+    </Typography>
+  )}
+
+  <Box sx={{ mt: 1 }}>
+    <Chip
+      size="small"
+      label={formatFileSize(m.fileSize || 0)}
+      sx={{ mr: 0.5 }}
+    />
+    {typeof m.downloadCount === 'number' && (
+      <Chip
+        size="small"
+        label={`${m.downloadCount} downloads`}
+        color="default"
+        variant="outlined"
+      />
+    )}
+  </Box>
+</CardContent>
+
+          <CardActions sx={{ justifyContent: 'space-between' }}>
+            <Button size="small" onClick={() => handleOpen(m.materialId)}>
+               Open
+               </Button>
+
+               <Button size="small" onClick={() => handleDownload(m.materialId, m.fileName)} >
+               Download
+               </Button>
+          {isProfessorOrTA && (
+           <Button
+           size="small"
+           color="error"
+           onClick={() => handleDelete(m.materialId)}
+           >
+           Delete
+         </Button>
+           )}
+          </CardActions>
+
+        </Card>
+      </Grid>
+    ))}
+  </Grid>
+)}
+
       </Paper>
 
       {/* Upload Dialog */}
