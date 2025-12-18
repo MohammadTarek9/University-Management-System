@@ -55,7 +55,8 @@ const materialController = {
         fileName: req.file.originalname,
         filePath: req.file.path,
         fileType: req.file.mimetype,
-        fileSize: req.file.size
+        fileSize: req.file.size,
+       
       });
 
       return successResponse(res, 201, 'Material uploaded successfully', { materialId });
@@ -94,7 +95,8 @@ const materialController = {
         uploaderRole: material.uploader_role,
         uploadedBy: material.uploaded_by,
         createdAt: material.created_at,
-        updatedAt: material.updated_at
+        updatedAt: material.updated_at,
+       
       }));
 
       return successResponse(res, 200, 'Materials retrieved successfully', formattedMaterials);
@@ -213,8 +215,7 @@ const materialController = {
 async getAllMaterials(req, res) {
   try {
     const materials = await materialRepo.getAllMaterialsWithCourseName();
-
-    const formatted = materials.map((m) => ({
+     const formatted = materials.map((m) => ({
       materialId: m.material_id,
       courseId: m.course_id,
       courseCode: m.course_code,
@@ -228,6 +229,7 @@ async getAllMaterials(req, res) {
       uploadedBy: m.uploaded_by,
       createdAt: m.created_at,
       updatedAt: m.updated_at,
+   
     }));
 
     return successResponse(res, 200, 'Materials retrieved successfully', formatted);

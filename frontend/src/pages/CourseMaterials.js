@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
   Typography,
   Box,
-  CircularProgress,
   Button,
   Dialog,
   DialogTitle,
@@ -19,12 +18,25 @@ import {
   Card,
   CardContent,
   CardActions,
+  IconButton,
   Chip,
   LinearProgress,
   Grid,
+  Divider,
+  Tooltip
 } from '@mui/material';
-import { MenuBook, CloudUpload, PictureAsPdf, VideoLibrary, Image as ImageIcon, Description, Folder } from '@mui/icons-material';
-import { useParams } from 'react-router-dom';
+import {
+  MenuBook,
+  CloudUpload,
+  Download,
+  Delete,
+  Description,
+  VideoLibrary,
+  Image as ImageIcon,
+  PictureAsPdf,
+  Folder,
+  OpenInNew,  
+} from '@mui/icons-material';
 import axios from 'axios';
 
 const CourseMaterials = () => {
@@ -37,90 +49,97 @@ const CourseMaterials = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // Form state
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
   const user = JSON.parse(localStorage.getItem('user'));
-  const isProfessorOrTA = user?.role === 'professor' || user?.role === 'ta' || user?.role === 'admin';
+  const isProfessorOrTA =
+    user?.role === 'professor' || user?.role === 'ta' || user?.role === 'admin';
 
-  useEffect(() => {
-  const loadForProfessor = async () => {
-    await fetchCourses(); // this will call fetchMaterials via selectedCourse effect
-  };
-
-  const loadForStudent = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        'http://localhost:5000/api/materials/all',
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setMaterials(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching materials:', error);
-      setError('Failed to load materials');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Fetch courses for the user
+ useEffect(() => {
   if (isProfessorOrTA) {
-    loadForProfessor();
+    fetchCourses();           // prof/TA: courses then materials per course
   } else {
-    loadForStudent();
+    fetchCourses();           // optional, only for UI
+    loadStudentMaterials();   // students: /materials/all
   }
+// eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
- useEffect(() => {
+
+  // Fetch materials when course is selected
+useEffect(() => {
   if (!isProfessorOrTA) return;
   if (!selectedCourse) return;
   fetchMaterials();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+// eslint-disable-next-line react-hooks/exhaustive-deps
 }, [selectedCourse]);
 
- 
- const fetchCourses = async () => {
+
+
+  const fetchCourses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const userRole = userData.role;
+      const userId = userData.id;
+
+      let coursesData = [];
+
+      if (userRole === 'professor' || userRole === 'ta') {
+        const response = await axios.get(
+          'http://localhost:5000/api/curriculum/courses',
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { instructorId: userId }
+          }
+        );
+        coursesData = response.data?.data?.courses || [];
+      } else {
+        const response = await axios.get(
+          'http://localhost:5000/api/curriculum/subjects',
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+        coursesData = response.data?.data?.subjects || [];
+      }
+
+      setCourses(Array.isArray(coursesData) ? coursesData : []);
+
+      if (coursesData.length > 0) {
+        setSelectedCourse(coursesData[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      setError('Failed to load courses');
+      setCourses([]);
+    }
+  };
+
+  const loadStudentMaterials = async () => {
+  setLoading(true);
+  setError('');
   try {
     const token = localStorage.getItem('token');
-    const userData = JSON.parse(localStorage.getItem('user') || '{}');
-    const userRole = userData.role;
-    const userId = userData.id;
-
-    let coursesData = [];
-
-    if (userRole === 'professor' || userRole === 'ta') {
-      const response = await axios.get('http://localhost:5000/api/curriculum/courses', {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { instructorId: userId }
-      });
-      coursesData = response.data?.data?.courses || [];
-    } else {
-      const response = await axios.get('http://localhost:5000/api/curriculum/subjects', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      coursesData = response.data?.data?.subjects || [];
-    }
-
-    setCourses(Array.isArray(coursesData) ? coursesData : []);
-
-    if (coursesData.length > 0) {
-      setSelectedCourse(coursesData[0].id);
-    }
+    const response = await axios.get(
+      'http://localhost:5000/api/materials/all',
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setMaterials(response.data.data || []);
   } catch (error) {
-    console.error('Error fetching courses:', error);
-    setError('Failed to load courses');
-    setCourses([]);
+    console.error('Error fetching materials:', error);
+    setError('Failed to load materials');
+  } finally {
+    setLoading(false);
   }
 };
-
-
-
-   const fetchMaterials = async () => {
+ 
+  const fetchMaterials = async () => {
     setLoading(true);
     setError('');
     try {
@@ -138,11 +157,9 @@ const CourseMaterials = () => {
     }
   };
 
-
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      // Check file size (50MB limit)
       if (selectedFile.size > 50 * 1024 * 1024) {
         setError('File size must be less than 50MB');
         return;
@@ -151,6 +168,7 @@ const CourseMaterials = () => {
       setError('');
     }
   };
+
 
   const handleUpload = async () => {
     if (!file || !title || !selectedCourse) {
@@ -167,25 +185,20 @@ const CourseMaterials = () => {
     formData.append('courseId', selectedCourse);
     formData.append('title', title);
     formData.append('description', description);
-
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        'http://localhost:5000/api/materials/upload',
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          },
-          onUploadProgress: (progressEvent) => {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            setUploadProgress(percentCompleted);
-          }
+      await axios.post('http://localhost:5000/api/materials/upload', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percentCompleted);
         }
-      );
+      });
 
       setSuccess('Material uploaded successfully!');
       setUploadDialogOpen(false);
@@ -200,46 +213,35 @@ const CourseMaterials = () => {
     }
   };
 
- const handleDownload = async (materialId, fileName) => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await axios.get(
-      `http://localhost:5000/api/materials/download/${materialId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob',
-      }
-    );
+  const handleDownload = async (materialId, fileName) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/materials/download/${materialId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob'
+        }
+      );
 
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', fileName);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error(
-      'Download error:',
-      error.response?.status,
-      error.response?.data
-    );
-
-    if (error.response && error.response.status === 404) {
-      // matches materialController: 404 for missing record or file_path
-      setError('Material unavailable.');
-    } else {
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
       setError('Failed to download material');
     }
-  }
-};
-
-const handleOpen = async (materialId) => {
+  };
+  const handleOpen = async (materialId) => {
   try {
     const token = localStorage.getItem('token');
     const response = await axios.get(
-      `http://localhost:5000/api/materials/view/${materialId}`, // <– changed
+      `http://localhost:5000/api/materials/view/${materialId}`,
       {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
@@ -253,11 +255,7 @@ const handleOpen = async (materialId) => {
     window.open(fileURL, '_blank');
   } catch (error) {
     console.error('Open error:', error);
-    if (error.response && error.response.status === 404) {
-      setError('Material unavailable.');
-    } else {
-      setError('Failed to open material');
-    }
+    setError('Failed to open material');
   }
 };
 
@@ -269,10 +267,9 @@ const handleOpen = async (materialId) => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(
-        `http://localhost:5000/api/materials/${materialId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await axios.delete(`http://localhost:5000/api/materials/${materialId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
       setSuccess('Material deleted successfully');
       fetchMaterials();
@@ -289,25 +286,36 @@ const handleOpen = async (materialId) => {
   };
 
   const getFileIcon = (fileType) => {
-    if (fileType.includes('pdf')) return <PictureAsPdf />;
-    if (fileType.includes('video')) return <VideoLibrary />;
-    if (fileType.includes('image')) return <ImageIcon />;
-    if (fileType.includes('word') || fileType.includes('document')) return <Description />;
+    if (!fileType) return <Folder />;
+    const lower = fileType.toLowerCase();
+    if (lower.includes('pdf')) return <PictureAsPdf />;
+    if (lower.includes('video')) return <VideoLibrary />;
+    if (lower.includes('image')) return <ImageIcon />;
+    if (lower.includes('word') || lower.includes('document')) return <Description />;
     return <Folder />;
   };
 
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    return (
+      Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+    );
   };
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 3
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <MenuBook sx={{ fontSize: 40, mr: 2, color: 'success.main' }} />
             <Box>
@@ -315,161 +323,241 @@ const handleOpen = async (materialId) => {
                 Course Materials
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {isProfessorOrTA 
-                  ? 'Upload and manage course materials' 
+                {isProfessorOrTA
+                  ? 'Upload and manage course materials'
                   : 'Access course materials and resources'}
               </Typography>
             </Box>
           </Box>
         </Box>
-{error && (
-  <Box sx={{ mb: 2 }}>
-    <Alert severity="error">{error}</Alert>
-  </Box>
-)}
 
-{success && (
-  <Box sx={{ mb: 2 }}>
-    <Alert severity="success">{success}</Alert>
-  </Box>
-)}
+        {error && (
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            onClose={() => setError('')}
+          >
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert
+            severity="success"
+            sx={{ mb: 2 }}
+            onClose={() => setSuccess('')}
+          >
+            {success}
+          </Alert>
+        )}
 
-{/* Course selector */}
-<Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
-  {isProfessorOrTA && (
-    <FormControl sx={{ minWidth: 240 }} size="small">
-      <InputLabel id="course-select-label">Course</InputLabel>
+       {/* Course Selection – professors/TAs only */}
+{isProfessorOrTA && (
+  <Box sx={{ mb: 3 }}>
+    <FormControl fullWidth>
+      <InputLabel>Select Course</InputLabel>
       <Select
-        labelId="course-select-label"
-        label="Course"
         value={selectedCourse}
         onChange={(e) => setSelectedCourse(e.target.value)}
+        label="Select Course"
       >
-        {courses.map((c) => (
-          <MenuItem key={c.id} value={c.id}>
-            {c.code ? `${c.code} - ${c.name}` : c.name}
-          </MenuItem>
-        ))}
+        <MenuItem value="">
+          <em>Select a course</em>
+        </MenuItem>
+        {courses.map((course) => {
+          const code =
+            course.subjectCode ||
+            course.code ||
+            course.subject?.code ||
+            'N/A';
+          const name =
+            course.subjectName ||
+            course.name ||
+            course.subject?.name ||
+            'N/A';
+          return (
+            <MenuItem key={course.id} value={course.id}>
+              {code} - {name}
+              {course.semester &&
+                course.year &&
+                ` (${course.semester} ${course.year})`}
+            </MenuItem>
+          );
+        })}
       </Select>
     </FormControl>
-  )}
-
-  {isProfessorOrTA && (
-    <Button
-      variant="contained"
-      startIcon={<CloudUpload />}
-      onClick={() => {
-        setUploadDialogOpen(true);
-        setError('');
-        setSuccess('');
-      }}
-    >
-      Upload Material
-    </Button>
-  )}
-</Box>
-
-
-{/* Materials list */}
-{loading ? (
-  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-    <CircularProgress />
   </Box>
-) : materials.length === 0 ? (
-  <Typography variant="body2" color="text.secondary">
-    No materials uploaded yet.
-  </Typography>
-) : (
-  <Grid container spacing={2}>
-    {materials.map((m) => (
-      <Grid item xs={12} sm={6} md={4} key={m.materialId}>
-        <Card variant="outlined">
-         <CardContent>
-  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-    <Box sx={{ mr: 1 }}>{getFileIcon(m.fileType || '')}</Box>
-    <Typography variant="subtitle1" noWrap>
-      {m.title || m.fileName}
-    </Typography>
-  </Box>
+)}
 
-  {/* Course code + name (NEW) */}
-  {(m.courseCode || m.courseName) && (
-    <Typography variant="caption" color="text.secondary" display="block">
-      {m.courseCode ? `${m.courseCode} – ${m.courseName}` : m.courseName}
-    </Typography>
-  )}
 
-  {/* Single file name line */}
-  <Typography variant="body2" color="text.secondary" noWrap>
-    {m.fileName}
-  </Typography>
-
-  {/* Single description line */}
-  {m.description && (
-    <Typography
-      variant="body2"
-      color="text.secondary"
-      sx={{ mt: 1 }}
-      noWrap
-    >
-      {m.description}
-    </Typography>
-  )}
-
-  <Box sx={{ mt: 1 }}>
-    <Chip
-      size="small"
-      label={formatFileSize(m.fileSize || 0)}
-      sx={{ mr: 0.5 }}
-    />
-    {typeof m.downloadCount === 'number' && (
-      <Chip
-        size="small"
-        label={`${m.downloadCount} downloads`}
-        color="default"
-        variant="outlined"
-      />
+ {(isProfessorOrTA ? selectedCourse : true) && (
+  <>
+    {/* Upload Button for Professors/TAs */}
+    {isProfessorOrTA && (
+      <Box sx={{ mb: 3 }}>
+        <Button
+          variant="contained"
+          startIcon={<CloudUpload />}
+          onClick={() => setUploadDialogOpen(true)}
+          sx={{
+            bgcolor: '#1976d2',
+            '&:hover': { bgcolor: '#115293' }
+          }}
+        >
+          UPLOAD MATERIAL
+        </Button>
+      </Box>
     )}
-  </Box>
-</CardContent>
 
-          <CardActions sx={{ justifyContent: 'space-between' }}>
-            <Button size="small" onClick={() => handleOpen(m.materialId)}>
-               Open
-               </Button>
+    <Divider sx={{ my: 3 }} />
 
-               <Button size="small" onClick={() => handleDownload(m.materialId, m.fileName)} >
-               Download
-               </Button>
-          {isProfessorOrTA && (
-           <Button
-           size="small"
-           color="error"
-           onClick={() => handleDelete(m.materialId)}
-           >
-           Delete
-         </Button>
-           )}
-          </CardActions>
+    {/* Materials List */}
+    {loading ? (
+      <Box sx={{ textAlign: 'center', py: 4 }}>
+        <LinearProgress />
+        <Typography sx={{ mt: 2 }}>
+          Loading materials...
+        </Typography>
+      </Box>
+    ) : materials.length === 0 ? (
+      <Box
+        sx={{
+          textAlign: 'center',
+          py: 4,
+          bgcolor: 'grey.100',
+          borderRadius: 2
+        }}
+      >
+        <Typography variant="h6" color="text.secondary">
+          No materials available for this course
+        </Typography>
+      </Box>
+    ) : (
+      <Grid container spacing={2}>
+        {materials.map((material) => (
+          <Grid
+            item
+            xs={12}
+            sm={6}
+            md={4}
+            key={material.materialId}
+          >
+            <Card>
+              <CardContent>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    mb: 2
+                  }}
+                >
+                  {getFileIcon(material.fileType)}
+                  <Typography
+                    variant="h6"
+                    sx={{ ml: 1, flexGrow: 1 }}
+                    noWrap
+                  >
+                    {material.title}
+                  </Typography>
+                </Box>
 
-        </Card>
+            
+
+                {material.description && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    {material.description}
+                  </Typography>
+                )}
+
+                <Box sx={{ mb: 1 }}>
+                  <Chip
+                    label={material.fileName}
+                    size="small"
+                    sx={{ maxWidth: '100%' }}
+                  />
+                </Box>
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                >
+                  Size: {formatFileSize(material.fileSize)}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                >
+                  Downloads: {material.downloadCount}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                >
+                  Uploaded by: {material.uploaderName} ({material.uploaderRole})
+                </Typography>
+              </CardContent>
+
+              <CardActions>
+                <Tooltip title="Open in browser">
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => handleOpen(material.materialId)}
+                  >
+                    <OpenInNew />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Download">
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() =>
+                      handleDownload(material.materialId, material.fileName)
+                    }
+                  >
+                    <Download />
+                  </IconButton>
+                </Tooltip>
+
+                {isProfessorOrTA && material.uploadedBy === user?.id && (
+                  <Tooltip title="Delete">
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDelete(material.materialId)}
+                    >
+                      <Delete />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
-    ))}
-  </Grid>
+    )}
+  </>
 )}
 
       </Paper>
 
       {/* Upload Dialog */}
-      <Dialog 
-        open={uploadDialogOpen} 
+      <Dialog
+        open={uploadDialogOpen}
         onClose={() => !uploading && setUploadDialogOpen(false)}
         maxWidth="sm"
         fullWidth
       >
         <DialogTitle>Upload Course Material</DialogTitle>
         <DialogContent>
-          <Box sx={{ pt: 2 }}>
+          <Box sx={{ pt: 1 }}>
             <TextField
               fullWidth
               label="Title"
@@ -492,13 +580,19 @@ const handleOpen = async (materialId) => {
             />
 
             <Button
-              variant="outlined"
+              variant="contained"
               component="label"
               fullWidth
               startIcon={<CloudUpload />}
               disabled={uploading}
+              sx={{
+                mt: 1,
+                py: 1.2,
+                bgcolor: '#1976d2',
+                '&:hover': { bgcolor: '#115293' }
+              }}
             >
-              {file ? file.name : 'Choose File'}
+              {file ? file.name : 'UPLOAD MATERIAL'}
               <input
                 type="file"
                 hidden
@@ -508,20 +602,34 @@ const handleOpen = async (materialId) => {
             </Button>
 
             {file && (
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={{ mt: 1 }}
+              >
                 File size: {formatFileSize(file.size)}
               </Typography>
             )}
 
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
-              Allowed file types: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT, JPG, PNG, GIF, MP4, ZIP, RAR
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{ mt: 2 }}
+            >
+              Allowed file types: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT,
+              JPG, PNG, GIF, MP4, ZIP, RAR
               <br />
               Maximum file size: 50MB
             </Typography>
 
             {uploading && (
               <Box sx={{ mt: 2 }}>
-                <LinearProgress variant="determinate" value={uploadProgress} />
+                <LinearProgress
+                  variant="determinate"
+                  value={uploadProgress}
+                />
                 <Typography variant="caption" sx={{ mt: 1 }}>
                   Uploading... {uploadProgress}%
                 </Typography>
@@ -530,12 +638,15 @@ const handleOpen = async (materialId) => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setUploadDialogOpen(false)} disabled={uploading}>
+          <Button
+            onClick={() => setUploadDialogOpen(false)}
+            disabled={uploading}
+          >
             Cancel
           </Button>
-          <Button 
-            onClick={handleUpload} 
-            variant="contained" 
+          <Button
+            onClick={handleUpload}
+            variant="contained"
             disabled={!file || !title || uploading}
           >
             Upload
