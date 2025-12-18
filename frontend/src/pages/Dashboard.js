@@ -43,7 +43,7 @@ const Dashboard = () => {
       color: '#dc004e',
       features: ['Course Catalog', 'Technology Integration', 'Assessment Tools'],
       path: '/curriculum',
-      available: ['admin', 'staff', 'professor'].includes(user?.role)
+      available: ['admin', 'staff', 'professor', 'student'].includes(user?.role)
     },
     {
       title: 'Staff Module',
