@@ -54,8 +54,7 @@ const Curriculum = () => {
       path: '/curriculum/materials',
       color: 'success',
       permissions: ['admin', 'staff', 'professor', 'student', 'ta'],
-      features: ['Material Upload', 'Online Assessments', 'Work Submission', 'Resource Library'],
-      comingSoon: false
+      features: ['Material Upload', 'Online Assessments', 'Work Submission', 'Resource Library']
     },
     {
       id: 'grading',

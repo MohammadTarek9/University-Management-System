@@ -14,7 +14,9 @@ import {
   Alert,
   CircularProgress,
   Card,
-  CardContent
+  CardContent,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import { Add, Warning } from '@mui/icons-material';
 import maintenanceService from '../services/maintenanceService';
@@ -29,7 +31,8 @@ const MaintenanceRequest = () => {
       building: '',
       roomNumber: '',
       floor: ''
-    }
+    },
+    categorySpecific: {}
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -63,12 +66,304 @@ const MaintenanceRequest = () => {
           [child]: value
         }
       }));
+    } else if (field === 'category') {
+      // Reset categorySpecific when category changes
+      setFormData(prev => ({
+        ...prev,
+        category: value,
+        categorySpecific: {}
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
         [field]: value
       }));
     }
+  };
+
+  const handleCategorySpecificChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      categorySpecific: {
+        ...prev.categorySpecific,
+        [field]: value
+      }
+    }));
+  };
+
+  const renderCategorySpecificFields = () => {
+    const { category } = formData;
+
+    if (category === 'Electrical') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              Electrical Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Voltage"
+              value={formData.categorySpecific.voltage || ''}
+              onChange={(e) => handleCategorySpecificChange('voltage', e.target.value)}
+              placeholder="e.g., 120V, 240V"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Circuit Breaker Location"
+              value={formData.categorySpecific.circuitBreakerLocation || ''}
+              onChange={(e) => handleCategorySpecificChange('circuitBreakerLocation', e.target.value)}
+              placeholder="e.g., Panel A, Circuit 15"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Wire Type"
+              value={formData.categorySpecific.wireType || ''}
+              onChange={(e) => handleCategorySpecificChange('wireType', e.target.value)}
+              placeholder="e.g., 12 AWG Copper"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Electrical Panel ID"
+              value={formData.categorySpecific.electricalPanelId || ''}
+              onChange={(e) => handleCategorySpecificChange('electricalPanelId', e.target.value)}
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    if (category === 'Plumbing') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              Plumbing Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Pipe Size"
+              value={formData.categorySpecific.pipeSize || ''}
+              onChange={(e) => handleCategorySpecificChange('pipeSize', e.target.value)}
+              placeholder="e.g., 1/2 inch, 3/4 inch"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Water Type</InputLabel>
+              <Select
+                value={formData.categorySpecific.waterType || ''}
+                label="Water Type"
+                onChange={(e) => handleCategorySpecificChange('waterType', e.target.value)}
+              >
+                <MenuItem value="Fresh">Fresh Water</MenuItem>
+                <MenuItem value="Waste">Waste Water</MenuItem>
+                <MenuItem value="Hot">Hot Water</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Leak Severity</InputLabel>
+              <Select
+                value={formData.categorySpecific.leakSeverity || ''}
+                label="Leak Severity"
+                onChange={(e) => handleCategorySpecificChange('leakSeverity', e.target.value)}
+              >
+                <MenuItem value="Minor">Minor</MenuItem>
+                <MenuItem value="Moderate">Moderate</MenuItem>
+                <MenuItem value="Severe">Severe</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Shutoff Valve Location"
+              value={formData.categorySpecific.shutoffValveLocation || ''}
+              onChange={(e) => handleCategorySpecificChange('shutoffValveLocation', e.target.value)}
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    if (category === 'HVAC') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              HVAC Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              type="number"
+              label="Temperature Reading (°F)"
+              value={formData.categorySpecific.temperatureReading || ''}
+              onChange={(e) => handleCategorySpecificChange('temperatureReading', e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>System Type</InputLabel>
+              <Select
+                value={formData.categorySpecific.systemType || ''}
+                label="System Type"
+                onChange={(e) => handleCategorySpecificChange('systemType', e.target.value)}
+              >
+                <MenuItem value="Central AC">Central AC</MenuItem>
+                <MenuItem value="Heat Pump">Heat Pump</MenuItem>
+                <MenuItem value="Boiler">Boiler</MenuItem>
+                <MenuItem value="Furnace">Furnace</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Filter Size"
+              value={formData.categorySpecific.filterSize || ''}
+              onChange={(e) => handleCategorySpecificChange('filterSize', e.target.value)}
+              placeholder="e.g., 20x25x1"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Unit Number"
+              value={formData.categorySpecific.unitNumber || ''}
+              onChange={(e) => handleCategorySpecificChange('unitNumber', e.target.value)}
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    if (category === 'Equipment') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              Equipment Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Model Number"
+              value={formData.categorySpecific.modelNumber || ''}
+              onChange={(e) => handleCategorySpecificChange('modelNumber', e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Serial Number"
+              value={formData.categorySpecific.serialNumber || ''}
+              onChange={(e) => handleCategorySpecificChange('serialNumber', e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Warranty Info"
+              value={formData.categorySpecific.warrantyInfo || ''}
+              onChange={(e) => handleCategorySpecificChange('warrantyInfo', e.target.value)}
+              multiline
+              rows={2}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Vendor Name"
+              value={formData.categorySpecific.vendorName || ''}
+              onChange={(e) => handleCategorySpecificChange('vendorName', e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Purchase Date"
+              value={formData.categorySpecific.purchaseDate || ''}
+              onChange={(e) => handleCategorySpecificChange('purchaseDate', e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    if (category === 'Structural') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              Structural Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Material Type"
+              value={formData.categorySpecific.materialType || ''}
+              onChange={(e) => handleCategorySpecificChange('materialType', e.target.value)}
+              placeholder="e.g., Concrete, Wood, Steel"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Affected Area Size"
+              value={formData.categorySpecific.affectedAreaSize || ''}
+              onChange={(e) => handleCategorySpecificChange('affectedAreaSize', e.target.value)}
+              placeholder="e.g., 10 sq ft"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Safety Risk Level</InputLabel>
+              <Select
+                value={formData.categorySpecific.safetyRiskLevel || ''}
+                label="Safety Risk Level"
+                onChange={(e) => handleCategorySpecificChange('safetyRiskLevel', e.target.value)}
+              >
+                <MenuItem value="Low">Low</MenuItem>
+                <MenuItem value="Medium">Medium</MenuItem>
+                <MenuItem value="High">High</MenuItem>
+                <MenuItem value="Critical">Critical</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={formData.categorySpecific.structuralEngineerRequired || false}
+                  onChange={(e) => handleCategorySpecificChange('structuralEngineerRequired', e.target.checked)}
+                />
+              }
+              label="Structural Engineer Required"
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    return null;
   };
 
   const handleSubmit = async (e) => {
@@ -89,7 +384,8 @@ const MaintenanceRequest = () => {
           building: '',
           roomNumber: '',
           floor: ''
-        }
+        },
+        categorySpecific: {}
       });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit maintenance request');
@@ -225,6 +521,9 @@ const MaintenanceRequest = () => {
                 placeholder="e.g., 2nd Floor"
               />
             </Grid>
+
+            {/* Category-Specific Fields */}
+            {renderCategorySpecificFields()}
 
             <Grid item xs={12}>
               <Button
