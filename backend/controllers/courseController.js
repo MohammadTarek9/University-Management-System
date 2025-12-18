@@ -320,11 +320,70 @@ const deleteCourse = async (req, res) => {
   }
 };
 
+// @desc Get courses for the logged-in instructor
+// @route GET /api/curriculum/my-courses
+// @access Private (professor/ta)
+const getMyCourses = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      subjectId = '',
+      departmentId = '',
+      semester = '',
+      year = '',
+      isActive = ''
+    } = req.query;
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 50;
+
+    let isActiveFilter = null;
+    if (isActive === 'true') isActiveFilter = true;
+    if (isActive === 'false') isActiveFilter = false;
+
+    const subjId = subjectId ? parseInt(subjectId, 10) : null;
+    const deptId = departmentId ? parseInt(departmentId, 10) : null;
+    const yearNum = year ? parseInt(year, 10) : null;
+
+    const { courses, totalCourses } = await courseRepo.getAllCourses({
+      page: pageNum,
+      limit: limitNum,
+      search,
+      subjectId: subjId,
+      departmentId: deptId,
+      semester: semester || null,
+      year: yearNum,
+      instructorId: req.user.id,   // key line
+      isActive: isActiveFilter,
+    });
+
+    const totalPages = Math.ceil(totalCourses / limitNum) || 1;
+
+    successResponse(res, 200, 'My courses retrieved successfully', {
+      courses,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalCourses,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    errorResponse(res, 500, 'Server error while retrieving courses');
+  }
+};
+
+
 module.exports = {
   getAllCourses,
   getCourseById,
   getCoursesBySubject,
   createCourse,
   updateCourse,
-  deleteCourse
+  deleteCourse,
+  getMyCourses
 };

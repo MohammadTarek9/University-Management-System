@@ -86,5 +86,17 @@ export const courseService = {
         throw new Error('Failed to delete course');
       }
     }
-  }
+  },
+
+// Get courses for the logged‑in instructor
+  getMyCourses: async (params = {}) => {
+    try {
+      const queryString = new URLSearchParams(params).toString();
+     const response = await api.get(`/curriculum/courses/my-courses?${queryString}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch my courses' };
+    }
+  },
+
 };

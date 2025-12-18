@@ -8,9 +8,11 @@ const {
   createSubject,
   updateSubject,
   deleteSubject,
-  updateSubjectSemester,   
-  getSubjectsBySemester    
+  updateSubjectSemester,
+  getSubjectsBySemester,
+  getAvailableSubjects, 
 } = require('../controllers/subjectController');
+
 const { protect, authorize } = require('../middleware/auth');
 const { handleValidationErrors } = require('../utils/responseHelpers');
 
@@ -155,6 +157,8 @@ router.use(protect);
 
 // Routes accessible to all authenticated users (GET)
 // Routes that modify data require admin or staff role (POST, PUT, DELETE)
+
+
 router.route('/semester/:semester')
   .get(getSubjectsBySemester);
 
@@ -188,5 +192,8 @@ router.route('/:id')
     updateSubject
   )
   .delete(authorize('admin'), deleteSubject);
+
+
+
 
 module.exports = router;

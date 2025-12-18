@@ -55,7 +55,7 @@ const Curriculum = () => {
       color: 'success',
       permissions: ['admin', 'staff', 'professor', 'student', 'ta'],
       features: ['Material Upload', 'Online Assessments', 'Work Submission', 'Resource Library'],
-      comingSoon: true
+      comingSoon: false
     },
     {
       id: 'grading',

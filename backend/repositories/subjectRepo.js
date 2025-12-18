@@ -349,6 +349,9 @@ const getSubjectsBySemester = async (semester, academicYear = null) => {
 };
 
 
+
+
+
 module.exports = {
   getAllSubjects,
   getSubjectById,
@@ -358,6 +361,7 @@ module.exports = {
   updateSubject,
   deleteSubject,
   updateSubjectSemester,
-  getSubjectsBySemester
+  getSubjectsBySemester,
+
 };
 
