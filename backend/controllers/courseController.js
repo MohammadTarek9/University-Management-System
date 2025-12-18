@@ -2,7 +2,7 @@ const { errorResponse, successResponse } = require('../utils/responseHelpers');
 const courseRepo = require('../repositories/courseEavRepoNew'); // Using 3-table EAV repository
 const subjectRepo = require('../repositories/subjectEavRepoNew'); // Using 3-table EAV repository
 const userRepo = require('../repositories/userRepo');
-
+const departmentRepo = require('../repositories/departmentRepo');
 // ===================================================================
 // @desc    Get all courses with filters
 // @route   GET /api/curriculum/courses
@@ -434,6 +434,7 @@ const deleteCourse = async (req, res) => {
 // @desc Get courses for the logged-in instructor
 // @route GET /api/curriculum/my-courses
 // @access Private (professor/ta)
+
 const getMyCourses = async (req, res) => {
   try {
     const {
@@ -458,35 +459,75 @@ const getMyCourses = async (req, res) => {
     const deptId = departmentId ? parseInt(departmentId, 10) : null;
     const yearNum = year ? parseInt(year, 10) : null;
 
+    // 1) get courses from EAV repo, filtered by instructor
     const { courses, totalCourses } = await courseRepo.getAllCourses({
       page: pageNum,
       limit: limitNum,
       search,
       subjectId: subjId,
-      departmentId: deptId,
       semester: semester || null,
       year: yearNum,
-      instructorId: req.user.id,   // key line
-      isActive: isActiveFilter,
-    });
+      instructorId: req.user.id,
+      isActive: isActiveFilter
+    }); // courseRepo is courseEavRepoNew [file:4][file:5]
+
+    // 2) enrich each course with subject and department (via subjectEavRepoNew)
+    const populatedCourses = await Promise.all(
+      courses.map(async (course) => {
+        const courseWithDetails = { ...course };
+
+        if (course.subjectId) {
+          const subject = await subjectRepo.getSubjectById(course.subjectId); // subjectEavRepoNew [file:4]
+          if (subject) {
+            courseWithDetails.subject = {
+              id: subject.id,
+              name: subject.name,
+              code: subject.code
+            };
+
+            // depending on how subjectEavRepoNew returns department info:
+            if (subject.department) {
+              courseWithDetails.department = {
+                id: subject.department.id,
+                name: subject.department.name,
+                code: subject.department.code
+              };
+            } else if (subject.departmentId) {
+              // if you only get departmentId here, call your department repo
+              const department = await departmentRepo.getDepartmentById(subject.departmentId);
+              if (department) {
+                courseWithDetails.department = {
+                  id: department.id,
+                  name: department.name,
+                  code: department.code
+                };
+              }
+            }
+          }
+        }
+
+        return courseWithDetails;
+      })
+    );
 
     const totalPages = Math.ceil(totalCourses / limitNum) || 1;
 
-    successResponse(res, 200, 'My courses retrieved successfully', {
-      courses,
+    return successResponse(res, 200, 'My courses retrieved successfully', {
+      courses: populatedCourses,
       pagination: {
         currentPage: pageNum,
         totalPages,
         totalCourses,
         hasNextPage: pageNum < totalPages,
-        hasPrevPage: pageNum > 1,
-      },
+        hasPrevPage: pageNum > 1
+      }
     });
   } catch (error) {
     console.error(error);
-    errorResponse(res, 500, 'Server error while retrieving courses');
+    return errorResponse(res, 500, 'Server error while retrieving courses');
   }
 };
+
 
 
 module.exports = {

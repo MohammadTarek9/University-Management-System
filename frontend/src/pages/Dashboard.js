@@ -46,10 +46,13 @@ const Dashboard = () => {
     try {
       setMyCoursesLoading(true);
       setMyCoursesError('');
-      const response = await courseService.getMyCourses({ isActive: true });
-      // backend returns { success, data: { courses, pagination } } or similar
-      const data = response.data || response;
-      setMyCourses(data.courses || data); 
+     const response = await courseService.getMyCourses({ isActive: true });
+
+const payload = response.data || response;
+const courses = payload.data?.courses || payload.courses || [];
+
+setMyCourses(Array.isArray(courses) ? courses : []);
+
     } catch (error) {
       setMyCoursesError(error.message || 'Failed to load your courses');
     } finally {
@@ -262,6 +265,7 @@ const Dashboard = () => {
           </Grid>
         </Paper>
       )}
+
 
       {/* My Courses for Faculty */}
 {(user?.role === 'professor' || user?.role === 'ta') && (
