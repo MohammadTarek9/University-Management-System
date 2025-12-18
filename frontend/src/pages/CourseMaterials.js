@@ -1,10 +1,23 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Container,
   Paper,
   Typography,
-  Box
+  Box,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
+import { MenuBook } from '@mui/icons-material';
+import { useParams } from 'react-router-dom';
+
+
+
+import React from 'react';
+import { Container, Paper, Typography, Box } from '@mui/material';
 import { MenuBook } from '@mui/icons-material';
 
 const CourseMaterials = () => {
@@ -23,7 +36,15 @@ const CourseMaterials = () => {
           </Box>
         </Box>
 
-        <Box sx={{ mt: 4, p: 3, bgcolor: 'grey.100', borderRadius: 2, textAlign: 'center' }}>
+        <Box
+          sx={{
+            mt: 4,
+            p: 3,
+            bgcolor: 'grey.100',
+            borderRadius: 2,
+            textAlign: 'center',
+          }}
+        >
           <Typography variant="h6" gutterBottom>
             Coming Soon
           </Typography>

@@ -11,6 +11,8 @@ const {
 } = require('../controllers/courseController');
 const { protect, authorize } = require('../middleware/auth');
 const { handleValidationErrors } = require('../utils/responseHelpers');
+const { getMyCourses } = require('../controllers/courseController');
+router.get('/api/curriculum/my-courses', protect, getMyCourses);
 
 // Validation rules for creating a course
 const createCourseValidation = [
@@ -101,6 +103,11 @@ router.use(protect);
 
 // Get courses by subject
 router.get('/subject/:subjectId', getCoursesBySubject);
+
+// Show Courses for Instructors
+router.get('/my-courses', protect, getMyCourses);
+
+
 
 router.route('/')
   .get(getAllCourses)

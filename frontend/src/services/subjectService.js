@@ -108,4 +108,24 @@ export const subjectService = {
       }
     }
   },
+
+  // Get available subjects for faculty (active + semester set)
+  getAvailableSubjects: async (params = {}) => {
+    try {
+      const queryString = new URLSearchParams(params).toString();
+      const url = queryString
+        ? `/curriculum/subjects/available?${queryString}`
+        : '/curriculum/subjects/available';
+
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch available subjects' };
+    }
+  },
+
+
 };
+
+
+

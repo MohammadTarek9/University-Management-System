@@ -31,6 +31,7 @@ import CourseRegistration from './pages/CourseRegistration';
 import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
 
+
 // Theme
 const theme = createTheme({
   palette: {
@@ -184,6 +185,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  
                   <Route
                     path="/curriculum/materials"
                     element={
@@ -201,6 +203,8 @@ function App() {
                     }
                   />
                   
+                  
+
                   <Route
                     path="/staff/*"
                     element={
