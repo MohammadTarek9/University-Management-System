@@ -82,44 +82,73 @@ useEffect(() => {
 
 
   const fetchCourses = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      const userRole = userData.role;
-      const userId = userData.id;
+  try {
+    const token = localStorage.getItem('token');
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const userRole = userData.role;
+    const userId = userData.id;
+    
+    let coursesData = [];
+    
+    // For professors and TAs, fetch only their assigned courses
+    if (userRole === 'professor' || userRole === 'ta') {
+      const response = await axios.get(
+        'http://localhost:5000/api/curriculum/courses',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { instructorId: userId }
+        }
+      );
+      
+      coursesData = response.data?.data?.courses || [];
+    } 
+    else if (userRole === 'student') {
+      const response = await axios.get(
+        'http://localhost:5000/api/enrollments/my-enrollments',
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
 
-      let coursesData = [];
+      const enrollments = response.data?.data?.enrollments || [];
 
-      if (userRole === 'professor' || userRole === 'ta') {
-        const response = await axios.get(
-          'http://localhost:5000/api/curriculum/courses',
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            params: { instructorId: userId }
-          }
-        );
-        coursesData = response.data?.data?.courses || [];
-      } else {
-        const response = await axios.get(
-          'http://localhost:5000/api/curriculum/subjects',
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-        coursesData = response.data?.data?.subjects || [];
-      }
+      coursesData = enrollments
+        .filter(e => e.status === 'enrolled')
+        .map(e =>{
+          if (!e.course) return null;
+          return {
+            ...e.course,
+            subject: e.subject,
+            code: e.subject?.code,
+            name: e.subject?.name
+          };
+        })
+        .filter(Boolean);
+    } 
+    // Admin / staff unchanged
+    else {
+      const response = await axios.get(
+        'http://localhost:5000/api/curriculum/subjects',
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
 
-      setCourses(Array.isArray(coursesData) ? coursesData : []);
-
-      if (coursesData.length > 0) {
-        setSelectedCourse(coursesData[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-      setError('Failed to load courses');
-      setCourses([]);
+      coursesData = response.data?.data?.subjects || [];
     }
-  };
+    
+    setCourses(Array.isArray(coursesData) ? coursesData : []);
+    
+    if (coursesData.length > 0) {
+      setSelectedCourse(coursesData[0].id);
+    }
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    setError('Failed to load courses');
+    setCourses([]);
+  }
+};
+
 
   const loadStudentMaterials = async () => {
   setLoading(true);
@@ -331,14 +360,128 @@ useEffect(() => {
           </Box>
         </Box>
 
-        {error && (
-          <Alert
-            severity="error"
-            sx={{ mb: 2 }}
-            onClose={() => setError('')}
-          >
-            {error}
-          </Alert>
+        {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+        {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
+
+        {/* Course Selection */}
+        <Box sx={{ mb: 3 }}>
+          <FormControl fullWidth>
+            <InputLabel>Select Course</InputLabel>
+            <Select
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+              label="Select Course"
+            >
+              <MenuItem value="">
+                <em>Select a course</em>
+              </MenuItem>
+              {courses.map((course) => (
+                <MenuItem key={course.id} value={course.id}>
+                  {/* Subjects have code/name, Courses have subject.code/subject.name */}
+                  {course.code || course.subjectCode || course.subject?.code || 'N/A'} - {course.name || course.subjectName || course.subject?.name || 'N/A'}
+                  {course.semester && course.year && ` (${course.semester} ${course.year})`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+
+        {selectedCourse && (
+          <>
+            {/* Upload Button for Professors/TAs */}
+            {isProfessorOrTA && (
+              <Box sx={{ mb: 3 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<CloudUpload />}
+                  onClick={() => setUploadDialogOpen(true)}
+                >
+                  Upload Material
+                </Button>
+              </Box>
+            )}
+
+            <Divider sx={{ my: 3 }} />
+
+            {/* Materials List */}
+            {loading ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <LinearProgress />
+                <Typography sx={{ mt: 2 }}>Loading materials...</Typography>
+              </Box>
+            ) : materials.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 4, bgcolor: 'grey.100', borderRadius: 2 }}>
+                <Typography variant="h6" color="text.secondary">
+                  No materials available for this course
+                </Typography>
+              </Box>
+            ) : (
+              <Grid container spacing={2}>
+                {materials.map((material) => (
+                  <Grid item xs={12} sm={6} md={4} key={material.materialId}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          {getFileIcon(material.fileType)}
+                          <Typography variant="h6" sx={{ ml: 1, flexGrow: 1 }} noWrap>
+                            {material.title}
+                          </Typography>
+                        </Box>
+                        
+                        {material.description && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            {material.description}
+                          </Typography>
+                        )}
+
+                        <Box sx={{ mb: 1 }}>
+                          <Chip 
+                            label={material.fileName} 
+                            size="small" 
+                            sx={{ maxWidth: '100%' }}
+                          />
+                        </Box>
+
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Size: {formatFileSize(material.fileSize)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Downloads: {material.downloadCount}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Uploaded by: {material.uploaderName} ({material.uploaderRole})
+                        </Typography>
+                      </CardContent>
+
+                      <CardActions>
+                        <Tooltip title="Download">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleDownload(material.materialId, material.fileName)}
+                          >
+                            <Download />
+                          </IconButton>
+                        </Tooltip>
+
+                        {isProfessorOrTA && material.uploadedBy === user.id && (
+                          <Tooltip title="Delete">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleDelete(material.materialId)}
+                            >
+                              <Delete />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </CardActions>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+          </>
         )}
         {success && (
           <Alert
