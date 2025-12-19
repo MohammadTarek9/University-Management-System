@@ -36,6 +36,7 @@ import CourseGrading from './pages/CourseGrading';
 import AssessmentManagement from './pages/AssessmentManagement';
 
 
+
 // Theme
 const theme = createTheme({
   palette: {
@@ -189,6 +190,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  
                   <Route
                     path="/curriculum/browse"
                     element={
@@ -230,6 +232,8 @@ function App() {
                     }
                   />
                   
+                  
+
                   <Route
                     path="/staff/*"
                     element={
