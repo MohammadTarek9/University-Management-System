@@ -49,6 +49,63 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_users_is_active   (is_active)
 ) ENGINE=InnoDB;
 
+-- ===================================================================
+-- ROLES TABLE
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS roles (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    
+    name VARCHAR(50) NOT NULL UNIQUE,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT NULL,
+    
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    
+    created_at DATETIME NULL,
+    updated_at TIMESTAMP NOT NULL
+               DEFAULT CURRENT_TIMESTAMP
+               ON UPDATE CURRENT_TIMESTAMP,
+    
+    PRIMARY KEY (id),
+    
+    INDEX idx_roles_code (code),
+    INDEX idx_roles_is_active (is_active)
+) ENGINE=InnoDB;
+
+-- ===================================================================
+-- USER_ROLES TABLE (Junction table for many-to-many relationship)
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS user_roles (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    
+    user_id INT(11) NOT NULL,
+    role_id INT(11) NOT NULL,
+    
+    assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    assigned_by INT(11) NULL,
+    
+    PRIMARY KEY (id),
+    
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    
+    FOREIGN KEY (role_id)
+        REFERENCES roles(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    
+    FOREIGN KEY (assigned_by)
+        REFERENCES users(id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    
+    UNIQUE INDEX idx_user_roles_unique (user_id, role_id),
+    INDEX idx_user_roles_user (user_id),
+    INDEX idx_user_roles_role (role_id)
+) ENGINE=InnoDB;
+
 
 -- ===================================================================
 -- APPLICATIONS TABLE
@@ -717,8 +774,42 @@ SELECT
     NOW()
 FROM DUAL
 WHERE @admin_id IS NOT NULL AND @cs_dept_id IS NOT NULL
-AND NOT EXISTS (SELECT 1 FROM subjects WHERE code = 'CS101')
+AND NOT EXISTS (SELECT 1 FROM subjects WHERE code = 'CS101');
 
+-- ===================================================================
+-- SEED DATA FOR ROLES
+-- ===================================================================
+
+INSERT INTO roles (name, code, description, is_active, created_at) VALUES
+('Student', 'student', 'Regular student with access to courses and materials', 1, NOW()),
+('Professor', 'professor', 'Faculty member who can teach courses and grade students', 1, NOW()),
+('Administrator', 'admin', 'Full system administrator with all permissions', 1, NOW()),
+('Staff', 'staff', 'Administrative staff with limited management permissions', 1, NOW()),
+('Parent', 'parent', 'Parent/guardian with access to student information', 1, NOW()),
+('Teaching Assistant', 'ta', 'Teaching assistant who can assist with courses', 1, NOW())
+ON DUPLICATE KEY UPDATE code = code;
+
+-- Assign default role to existing admin user
+SET @admin_role_id = (SELECT id FROM roles WHERE code = 'admin' LIMIT 1);
+
+INSERT INTO user_roles (user_id, role_id, assigned_at, assigned_by)
+SELECT @admin_id, @admin_role_id, NOW(), NULL
+FROM DUAL
+WHERE @admin_id IS NOT NULL AND @admin_role_id IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = @admin_id AND role_id = @admin_role_id
+);
+
+-- Assign default role to existing student user  
+SET @student_role_id = (SELECT id FROM roles WHERE code = 'student' LIMIT 1);
+
+INSERT INTO user_roles (user_id, role_id, assigned_at, assigned_by)
+SELECT @student_id, @student_role_id, NOW(), @admin_id
+FROM DUAL
+WHERE @student_id IS NOT NULL AND @student_role_id IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = @student_id AND role_id = @student_role_id
+);
 UNION ALL
 
 SELECT 

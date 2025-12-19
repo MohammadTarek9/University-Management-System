@@ -1,5 +1,5 @@
 const bookingRepo = require('../repositories/bookingRepo');
-const roomRepo = require('../repositories/roomRepo');
+const roomRepo = require('../repositories/roomEavRepoNew'); // Using EAV repository
 const userRepo = require('../repositories/userRepo');
 const { successResponse, errorResponse } = require('../utils/responseHelpers');
 const { validationResult } = require('express-validator');
@@ -13,7 +13,8 @@ exports.getAllBookings = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const { status, room, startDate, endDate } = req.query;
     const filters = {};
-    if (req.user.role !== 'admin') {
+    const isAdmin = req.user.hasRole ? req.user.hasRole('admin') : req.user.role === 'admin';
+    if (!isAdmin) {
       filters.userId = req.user.id;
     }
     if (status && status !== 'all' && status !== 'undefined') {
@@ -136,7 +137,8 @@ exports.getBookingById = async (req, res) => {
       return errorResponse(res, 404, 'Booking not found');
     }
     // Staff and professors can only view their own bookings
-    if (req.user.role !== 'admin' && booking.userId.toString() !== req.user.id.toString()) {
+    const isAdmin = req.user.hasRole ? req.user.hasRole('admin') : req.user.role === 'admin';
+    if (!isAdmin && booking.userId.toString() !== req.user.id.toString()) {
       return errorResponse(res, 403, 'Access denied');
     }
     const roomDetails = booking.roomId ? await roomRepo.getRoomById(booking.roomId) : null;
@@ -169,7 +171,8 @@ exports.updateBooking = async (req, res) => {
       return errorResponse(res, 404, 'Booking not found');
     }
     // Only admin or booking owner can update
-    if (req.user.role !== 'admin' && booking.userId.toString() !== req.user.id.toString()) {
+    const isAdmin = req.user.hasRole ? req.user.hasRole('admin') : req.user.role === 'admin';
+    if (!isAdmin && booking.userId.toString() !== req.user.id.toString()) {
       return errorResponse(res, 403, 'Access denied');
     }
     // Cannot update cancelled booking
@@ -229,7 +232,8 @@ exports.cancelBooking = async (req, res) => {
       return errorResponse(res, 404, 'Booking not found');
     }
     // Only admin or booking owner can cancel
-    if (req.user.role !== 'admin' && booking.userId.toString() !== req.user.id.toString()) {
+    const isAdmin = req.user.hasRole ? req.user.hasRole('admin') : req.user.role === 'admin';
+    if (!isAdmin && booking.userId.toString() !== req.user.id.toString()) {
       return errorResponse(res, 403, 'Access denied');
     }
     // Cannot cancel past bookings

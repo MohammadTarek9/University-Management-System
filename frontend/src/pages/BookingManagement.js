@@ -201,7 +201,7 @@ const BookingManagement = () => {
     setSelectedRoom(room);
     setFormData({
       roomId: room.id || room._id,
-      title: `Meeting in ${room.name}`,
+      title: `Meeting in ${room.name || 'Room'}`,
       description: '',
       startTime: filters.startTime || new Date().toISOString().slice(0, 16),
       endTime: filters.endTime || new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16),
@@ -446,14 +446,14 @@ const BookingManagement = () => {
                 <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Typography variant="h6" gutterBottom>
-                      {room.name}
+                      {room.name || 'Unnamed Room'}
                     </Typography>
                     
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <Box display="flex" alignItems="center">
                         <LocationOn sx={{ mr: 1, fontSize: 18 }} color="action" />
                         <Typography variant="body2">
-                          {room.location.building} • {room.location.floor}
+                          {room.location?.building || 'N/A'} • {room.location?.floor || 'N/A'}
                         </Typography>
                       </Box>
                       
@@ -668,10 +668,10 @@ const BookingManagement = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {booking.room.name}
+                          {booking.room?.name || 'Unknown Room'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {booking.room.location.building}
+                          {booking.room?.location?.building || 'N/A'}
                         </Typography>
                       </TableCell>
                       <TableCell>

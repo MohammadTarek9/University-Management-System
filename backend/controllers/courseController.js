@@ -1,6 +1,6 @@
 const { errorResponse, successResponse } = require('../utils/responseHelpers');
-const courseRepo = require('../repositories/courseRepo');
-const subjectRepo = require('../repositories/subjectRepo');
+const courseRepo = require('../repositories/courseEavRepoNew'); // Using 3-table EAV repository
+const subjectRepo = require('../repositories/subjectEavRepoNew'); // Using 3-table EAV repository
 const userRepo = require('../repositories/userRepo');
 
 // ===================================================================
@@ -48,10 +48,42 @@ const getAllCourses = async (req, res) => {
       isActive: isActiveFilter
     });
 
+    // Populate subject and instructor details for each course
+    const populatedCourses = await Promise.all(courses.map(async (course) => {
+      const courseWithDetails = { ...course };
+      
+      // Populate subject info
+      if (course.subjectId) {
+        const subject = await subjectRepo.getSubjectById(course.subjectId);
+        if (subject) {
+          courseWithDetails.subject = {
+            id: subject.id,
+            name: subject.name,
+            code: subject.code
+          };
+        }
+      }
+      
+      // Populate instructor info
+      if (course.instructorId) {
+        const instructor = await userRepo.getUserById(course.instructorId);
+        if (instructor) {
+          courseWithDetails.instructor = {
+            id: instructor.id,
+            firstName: instructor.firstName,
+            lastName: instructor.lastName,
+            email: instructor.email
+          };
+        }
+      }
+      
+      return courseWithDetails;
+    }));
+
     const totalPages = Math.ceil(totalCourses / limitNum) || 1;
 
     successResponse(res, 200, 'Courses retrieved successfully', {
-      courses,
+      courses: populatedCourses,
       pagination: {
         currentPage: pageNum,
         totalPages,
@@ -126,7 +158,29 @@ const getCoursesBySubject = async (req, res) => {
 // ===================================================================
 const createCourse = async (req, res) => {
   try {
-    const { subjectId, semester, year, instructorId, maxEnrollment, schedule } = req.body;
+    const { 
+      subjectId, 
+      semester, 
+      year, 
+      instructorId, 
+      maxEnrollment, 
+      schedule,
+      // EAV flexible attributes
+      prerequisites,
+      corequisites,
+      labRequired,
+      labHours,
+      gradingRubric,
+      assessmentTypes,
+      attendancePolicy,
+      onlineMeetingLink,
+      syllabusUrl,
+      officeHours,
+      textbookTitle,
+      textbookAuthor,
+      textbookIsbn,
+      textbookRequired
+    } = req.body;
 
     // Validate required fields
     if (!subjectId || isNaN(subjectId)) {
@@ -165,14 +219,31 @@ const createCourse = async (req, res) => {
       }
     }
 
-    // Create the course
+    // Create the course with EAV attributes (passed at top level, not nested)
     const course = await courseRepo.createCourse({
       subjectId,
       semester,
       year,
       instructorId: instructorId || null,
       maxEnrollment: maxEnrollment || 30,
-      schedule: schedule || null
+      currentEnrollment: 0,
+      schedule: schedule || null,
+      isActive: true,
+      // Flexible attributes at top level
+      prerequisites,
+      corequisites,
+      labRequired,
+      labHours,
+      gradingRubric,
+      assessmentTypes,
+      attendancePolicy,
+      onlineMeetingLink,
+      syllabusUrl,
+      officeHours,
+      textbookTitle,
+      textbookAuthor,
+      textbookIsbn,
+      textbookRequired
     });
 
     successResponse(res, 201, 'Course created successfully', { course });
@@ -193,7 +264,31 @@ const createCourse = async (req, res) => {
 const updateCourse = async (req, res) => {
   try {
     const courseId = req.params.id;
-    const { subjectId, semester, year, instructorId, maxEnrollment, currentEnrollment, schedule, isActive } = req.body;
+    const { 
+      subjectId, 
+      semester, 
+      year, 
+      instructorId, 
+      maxEnrollment, 
+      currentEnrollment, 
+      schedule, 
+      isActive,
+      // EAV flexible attributes
+      prerequisites,
+      corequisites,
+      labRequired,
+      labHours,
+      gradingRubric,
+      assessmentTypes,
+      attendancePolicy,
+      onlineMeetingLink,
+      syllabusUrl,
+      officeHours,
+      textbookTitle,
+      textbookAuthor,
+      textbookIsbn,
+      textbookRequired
+    } = req.body;
 
     // Check if course exists
     const existingCourse = await courseRepo.getCourseById(courseId);
@@ -253,7 +348,7 @@ const updateCourse = async (req, res) => {
       return errorResponse(res, 400, 'Current enrollment cannot exceed max enrollment');
     }
 
-    // Update the course
+    // Update the course with core attributes
     const updateData = {};
     if (subjectId !== undefined) updateData.subjectId = subjectId;
     if (semester !== undefined) updateData.semester = semester;
@@ -263,6 +358,22 @@ const updateCourse = async (req, res) => {
     if (currentEnrollment !== undefined) updateData.currentEnrollment = currentEnrollment;
     if (schedule !== undefined) updateData.schedule = schedule;
     if (isActive !== undefined) updateData.isActive = isActive;
+
+    // Add flexible attributes directly to updateData (not nested)
+    if (prerequisites !== undefined) updateData.prerequisites = prerequisites;
+    if (corequisites !== undefined) updateData.corequisites = corequisites;
+    if (labRequired !== undefined) updateData.labRequired = labRequired;
+    if (labHours !== undefined) updateData.labHours = labHours;
+    if (gradingRubric !== undefined) updateData.gradingRubric = gradingRubric;
+    if (assessmentTypes !== undefined) updateData.assessmentTypes = assessmentTypes;
+    if (attendancePolicy !== undefined) updateData.attendancePolicy = attendancePolicy;
+    if (onlineMeetingLink !== undefined) updateData.onlineMeetingLink = onlineMeetingLink;
+    if (syllabusUrl !== undefined) updateData.syllabusUrl = syllabusUrl;
+    if (officeHours !== undefined) updateData.officeHours = officeHours;
+    if (textbookTitle !== undefined) updateData.textbookTitle = textbookTitle;
+    if (textbookAuthor !== undefined) updateData.textbookAuthor = textbookAuthor;
+    if (textbookIsbn !== undefined) updateData.textbookIsbn = textbookIsbn;
+    if (textbookRequired !== undefined) updateData.textbookRequired = textbookRequired;
 
     const course = await courseRepo.updateCourse(courseId, updateData);
 

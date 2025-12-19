@@ -16,6 +16,7 @@ import FirstLoginPasswordChange from './components/auth/FirstLoginPasswordChange
 import MainLayout from './components/layout/MainLayout';
 import MaintenanceDashboard from './components/Maintenance/MaintenanceDashboard';
 
+
 // Pages
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
@@ -28,8 +29,12 @@ import AdmissionsManagement from './pages/AdmissionsManagement';
 import Curriculum from './pages/Curriculum';
 import CourseCatalogManagement from './pages/CurriculumManagement';
 import CourseRegistration from './pages/CourseRegistration';
+import AdminEnrollmentRequests from './pages/AdminEnrollmentRequests';
+import BrowseSubjects from './pages/BrowseSubjects';
 import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
+import AssessmentManagement from './pages/AssessmentManagement';
+
 
 // Theme
 const theme = createTheme({
@@ -185,10 +190,34 @@ function App() {
                     }
                   />
                   <Route
+                    path="/curriculum/browse"
+                    element={
+                      <ProtectedRoute allowedRoles={['student']}>
+                        <BrowseSubjects />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/curriculum/enrollment-requests"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin']}>
+                        <AdminEnrollmentRequests />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/curriculum/materials"
                     element={
                       <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}>
                         <CourseMaterials />
+                      </ProtectedRoute>
+                    }
+                  />                  
+                  <Route
+                    path="/curriculum/assessments"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}>
+                        <AssessmentManagement />
                       </ProtectedRoute>
                     }
                   />
