@@ -48,13 +48,24 @@ const Curriculum = () => {
     },
     {
       id: 'materials',
-      title: 'Course Materials & Assessments',
-      description: 'Faculty upload teaching materials and create assessments. Students access materials and submit work online.',
+      title: 'Course Materials',
+      description: 'Faculty upload teaching materials. Students access materials and submit work online.',
       icon: <MenuBook sx={{ fontSize: 40 }} />,
       path: '/curriculum/materials',
       color: 'success',
       permissions: ['admin', 'staff', 'professor', 'student', 'ta'],
-      features: ['Material Upload', 'Online Assessments', 'Work Submission', 'Resource Library']
+      features: ['Material Upload', 'Resource Library']
+    },
+
+    {
+      id: 'assessments',
+      title: 'Assessment Management',
+      description: 'Create, manage, and grade assessments. Faculty can design various question types and track student performance.',
+      icon: <Assignment sx={{ fontSize: 40 }} />,
+      path: '/curriculum/assessments',
+      color: 'info',
+      permissions: ['admin', 'staff', 'professor', 'student', 'ta'],
+      features: ['Assessment Creation', 'Question Types', 'Performance Tracking', 'Grade Management']
     },
     {
       id: 'grading',

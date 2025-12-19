@@ -16,6 +16,7 @@ import FirstLoginPasswordChange from './components/auth/FirstLoginPasswordChange
 import MainLayout from './components/layout/MainLayout';
 import MaintenanceDashboard from './components/Maintenance/MaintenanceDashboard';
 
+
 // Pages
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
@@ -32,6 +33,8 @@ import AdminEnrollmentRequests from './pages/AdminEnrollmentRequests';
 import BrowseSubjects from './pages/BrowseSubjects';
 import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
+import AssessmentManagement from './pages/AssessmentManagement';
+
 
 
 // Theme
@@ -209,6 +212,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}>
                         <CourseMaterials />
+                      </ProtectedRoute>
+                    }
+                  />                  
+                  <Route
+                    path="/curriculum/assessments"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}>
+                        <AssessmentManagement />
                       </ProtectedRoute>
                     }
                   />
