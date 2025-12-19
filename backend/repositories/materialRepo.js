@@ -21,7 +21,7 @@ async createMaterial(data) {
     (course_id, uploaded_by, title, description,
      file_name, file_path, file_type, file_size,
      created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
   `;
 
   const [result] = await pool.query(query, [

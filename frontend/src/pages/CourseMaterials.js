@@ -363,30 +363,33 @@ useEffect(() => {
         {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
         {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
 
-        {/* Course Selection */}
-        <Box sx={{ mb: 3 }}>
-          <FormControl fullWidth>
-            <InputLabel>Select Course</InputLabel>
-            <Select
-              value={selectedCourse}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-              label="Select Course"
-            >
-              <MenuItem value="">
-                <em>Select a course</em>
-              </MenuItem>
-              {courses.map((course) => (
-                <MenuItem key={course.id} value={course.id}>
-                  {/* Subjects have code/name, Courses have subject.code/subject.name */}
-                  {course.code || course.subjectCode || course.subject?.code || 'N/A'} - {course.name || course.subjectName || course.subject?.name || 'N/A'}
-                  {course.semester && course.year && ` (${course.semester} ${course.year})`}
+        {/* Course Selection - only for professors/TAs */}
+        {isProfessorOrTA && (
+          <Box sx={{ mb: 3 }}>
+            <FormControl fullWidth>
+              <InputLabel>Select Course</InputLabel>
+              <Select
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                label="Select Course"
+              >
+                <MenuItem value="">
+                  <em>Select a course</em>
                 </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
+                {courses.map((course) => (
+                  <MenuItem key={course.id} value={course.id}>
+                    {/* Subjects have code/name, Courses have subject.code/subject.name */}
+                    {course.code || course.subjectCode || course.subject?.code || 'N/A'} - {course.name || course.subjectName || course.subject?.name || 'N/A'}
+                    {course.semester && course.year && ` (${course.semester} ${course.year})`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        )}
 
-        {selectedCourse && (
+        {/* Materials Display */}
+        {(isProfessorOrTA ? selectedCourse : true) && (
           <>
             {/* Upload Button for Professors/TAs */}
             {isProfessorOrTA && (
@@ -483,211 +486,6 @@ useEffect(() => {
             )}
           </>
         )}
-        {success && (
-          <Alert
-            severity="success"
-            sx={{ mb: 2 }}
-            onClose={() => setSuccess('')}
-          >
-            {success}
-          </Alert>
-        )}
-
-       {/* Course Selection – professors/TAs only */}
-{isProfessorOrTA && (
-  <Box sx={{ mb: 3 }}>
-    <FormControl fullWidth>
-      <InputLabel>Select Course</InputLabel>
-      <Select
-        value={selectedCourse}
-        onChange={(e) => setSelectedCourse(e.target.value)}
-        label="Select Course"
-      >
-        <MenuItem value="">
-          <em>Select a course</em>
-        </MenuItem>
-        {courses.map((course) => {
-          const code =
-            course.subjectCode ||
-            course.code ||
-            course.subject?.code ||
-            'N/A';
-          const name =
-            course.subjectName ||
-            course.name ||
-            course.subject?.name ||
-            'N/A';
-          return (
-            <MenuItem key={course.id} value={course.id}>
-              {code} - {name}
-              {course.semester &&
-                course.year &&
-                ` (${course.semester} ${course.year})`}
-            </MenuItem>
-          );
-        })}
-      </Select>
-    </FormControl>
-  </Box>
-)}
-
-
- {(isProfessorOrTA ? selectedCourse : true) && (
-  <>
-    {/* Upload Button for Professors/TAs */}
-    {isProfessorOrTA && (
-      <Box sx={{ mb: 3 }}>
-        <Button
-          variant="contained"
-          startIcon={<CloudUpload />}
-          onClick={() => setUploadDialogOpen(true)}
-          sx={{
-            bgcolor: '#1976d2',
-            '&:hover': { bgcolor: '#115293' }
-          }}
-        >
-          UPLOAD MATERIAL
-        </Button>
-      </Box>
-    )}
-
-    <Divider sx={{ my: 3 }} />
-
-    {/* Materials List */}
-    {loading ? (
-      <Box sx={{ textAlign: 'center', py: 4 }}>
-        <LinearProgress />
-        <Typography sx={{ mt: 2 }}>
-          Loading materials...
-        </Typography>
-      </Box>
-    ) : materials.length === 0 ? (
-      <Box
-        sx={{
-          textAlign: 'center',
-          py: 4,
-          bgcolor: 'grey.100',
-          borderRadius: 2
-        }}
-      >
-        <Typography variant="h6" color="text.secondary">
-          No materials available for this course
-        </Typography>
-      </Box>
-    ) : (
-      <Grid container spacing={2}>
-        {materials.map((material) => (
-          <Grid
-            item
-            xs={12}
-            sm={6}
-            md={4}
-            key={material.materialId}
-          >
-            <Card>
-              <CardContent>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    mb: 2
-                  }}
-                >
-                  {getFileIcon(material.fileType)}
-                  <Typography
-                    variant="h6"
-                    sx={{ ml: 1, flexGrow: 1 }}
-                    noWrap
-                  >
-                    {material.title}
-                  </Typography>
-                </Box>
-
-            
-
-                {material.description && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    {material.description}
-                  </Typography>
-                )}
-
-                <Box sx={{ mb: 1 }}>
-                  <Chip
-                    label={material.fileName}
-                    size="small"
-                    sx={{ maxWidth: '100%' }}
-                  />
-                </Box>
-
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                >
-                  Size: {formatFileSize(material.fileSize)}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                >
-                  Downloads: {material.downloadCount}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                >
-                  Uploaded by: {material.uploaderName} ({material.uploaderRole})
-                </Typography>
-              </CardContent>
-
-              <CardActions>
-                <Tooltip title="Open in browser">
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() => handleOpen(material.materialId)}
-                  >
-                    <OpenInNew />
-                  </IconButton>
-                </Tooltip>
-
-                <Tooltip title="Download">
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() =>
-                      handleDownload(material.materialId, material.fileName)
-                    }
-                  >
-                    <Download />
-                  </IconButton>
-                </Tooltip>
-
-                {isProfessorOrTA && material.uploadedBy === user?.id && (
-                  <Tooltip title="Delete">
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDelete(material.materialId)}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    )}
-  </>
-)}
 
       </Paper>
 
