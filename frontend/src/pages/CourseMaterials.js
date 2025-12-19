@@ -71,43 +71,73 @@ const CourseMaterials = () => {
   }, [selectedCourse]);
 
   const fetchCourses = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      const userRole = userData.role;
-      const userId = userData.id; // Use id instead of userId
-      
-      let coursesData = [];
-      
-      // For professors and TAs, fetch only their assigned courses
-      if (userRole === 'professor' || userRole === 'ta') {
-        const response = await axios.get('http://localhost:5000/api/curriculum/courses', {
+  try {
+    const token = localStorage.getItem('token');
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const userRole = userData.role;
+    const userId = userData.id;
+    
+    let coursesData = [];
+    
+    // For professors and TAs, fetch only their assigned courses
+    if (userRole === 'professor' || userRole === 'ta') {
+      const response = await axios.get(
+        'http://localhost:5000/api/curriculum/courses',
+        {
           headers: { Authorization: `Bearer ${token}` },
           params: { instructorId: userId }
-        });
-        
-        coursesData = response.data?.data?.courses || [];
-      } else {
-        // For students, admin, and staff, fetch all subjects
-        const response = await axios.get('http://localhost:5000/api/curriculum/subjects', {
+        }
+      );
+      
+      coursesData = response.data?.data?.courses || [];
+    } 
+    else if (userRole === 'student') {
+      const response = await axios.get(
+        'http://localhost:5000/api/enrollments/my-enrollments',
+        {
           headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        coursesData = response.data?.data?.subjects || [];
-      }
-      
-      setCourses(Array.isArray(coursesData) ? coursesData : []);
-      
-      // Set first course as selected
-      if (coursesData.length > 0) {
-        setSelectedCourse(coursesData[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-      setError('Failed to load courses');
-      setCourses([]); // Set empty array on error
+        }
+      );
+
+      const enrollments = response.data?.data?.enrollments || [];
+
+      coursesData = enrollments
+        .filter(e => e.status === 'enrolled')
+        .map(e =>{
+          if (!e.course) return null;
+          return {
+            ...e.course,
+            subject: e.subject,
+            code: e.subject?.code,
+            name: e.subject?.name
+          };
+        })
+        .filter(Boolean);
+    } 
+    // Admin / staff unchanged
+    else {
+      const response = await axios.get(
+        'http://localhost:5000/api/curriculum/subjects',
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      coursesData = response.data?.data?.subjects || [];
     }
-  };
+    
+    setCourses(Array.isArray(coursesData) ? coursesData : []);
+    
+    if (coursesData.length > 0) {
+      setSelectedCourse(coursesData[0].id);
+    }
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    setError('Failed to load courses');
+    setCourses([]);
+  }
+};
+
 
   const fetchMaterials = async () => {
     setLoading(true);
@@ -292,7 +322,8 @@ const CourseMaterials = () => {
               </MenuItem>
               {courses.map((course) => (
                 <MenuItem key={course.id} value={course.id}>
-                  {course.subjectCode || course.subject?.code || 'N/A'} - {course.subjectName || course.subject?.name || 'N/A'}
+                  {/* Subjects have code/name, Courses have subject.code/subject.name */}
+                  {course.code || course.subjectCode || course.subject?.code || 'N/A'} - {course.name || course.subjectName || course.subject?.name || 'N/A'}
                   {course.semester && course.year && ` (${course.semester} ${course.year})`}
                 </MenuItem>
               ))}
