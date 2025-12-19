@@ -2,37 +2,43 @@ const pool = require('../db/mysql');
 
 const materialRepo = {
   // Create a new material record
-  async createMaterial(data) {
-    const {
-      courseId,
-      uploadedBy,
-      title,
-      description,
-      fileName,
-      filePath,
-      fileType,
-      fileSize
-    } = data;
 
-    const query = `
-      INSERT INTO course_materials 
-      (course_id, uploaded_by, title, description, file_name, file_path, file_type, file_size, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `;
+async createMaterial(data) {
+  const {
+    courseId,
+    uploadedBy,
+    title,
+    description,
+    fileName,
+    filePath,
+    fileType,
+    fileSize,
+   
+  } = data;
 
-    const [result] = await pool.query(query, [
-      courseId,
-      uploadedBy,
-      title,
-      description,
-      fileName,
-      filePath,
-      fileType,
-      fileSize
-    ]);
+  const query = `
+    INSERT INTO course_materials
+    (course_id, uploaded_by, title, description,
+     file_name, file_path, file_type, file_size,
+     created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+  `;
 
-    return result.insertId;
-  },
+  const [result] = await pool.query(query, [
+    courseId,
+    uploadedBy,
+    title,
+    description,
+    fileName,
+    filePath,
+    fileType,
+    fileSize,
+  
+  ]);
+
+  return result.insertId;
+},
+
 
   // Get all materials for a course
   async getMaterialsByCourse(courseId) {
@@ -114,7 +120,28 @@ const materialRepo = {
 
     const [rows] = await pool.query(query, [materialId]);
     return rows.length > 0 && rows[0].uploaded_by === userId;
-  }
+  },
+ 
+
+async getAllMaterialsWithCourseName() {
+  const query = `
+    SELECT
+      cm.*
+    FROM course_materials cm
+    WHERE cm.is_active = 1
+    ORDER BY cm.created_at DESC
+  `;
+  const [rows] = await pool.query(query);
+  return rows;
+}
+
+
+
+
+
+
+
+
 };
 
 module.exports = materialRepo;

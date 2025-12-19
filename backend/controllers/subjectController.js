@@ -490,6 +490,7 @@ const getSubjectsBySemester = async (req, res) => {
 };
 
 
+
 module.exports = {
   getAllSubjects,
   getSubjectById,
@@ -497,6 +498,7 @@ module.exports = {
   createSubject,
   updateSubject,
   deleteSubject,
-   updateSubjectSemester,   
-  getSubjectsBySemester    
+  updateSubjectSemester,   
+  getSubjectsBySemester,
+ 
 };

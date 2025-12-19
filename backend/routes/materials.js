@@ -50,4 +50,12 @@ router.delete(
   materialController.deleteMaterial
 );
 
+// All materials from course_materials (EAV‑mapped course names)
+router.get('/all', protect, materialController.getAllMaterials);
+
+// View material in browser
+router.get('/view/:id', protect, materialController.viewMaterial);
+
+
+
 module.exports = router;
