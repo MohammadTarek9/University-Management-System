@@ -105,6 +105,10 @@ const AssessmentsManagement = () => {
   const [timeSpent, setTimeSpent] = useState(0);
   const [startTime, setStartTime] = useState(null);
 
+  // Edit assessment state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingAssessment, setEditingAssessment] = useState(null);
+
   useEffect(() => {
     fetchCourses();
   }, []);
@@ -135,32 +139,44 @@ const AssessmentsManagement = () => {
     
     let coursesData = [];
   
-    const params = {};
-    if (userRole === 'professor' || userRole === 'ta') params.instructorId = userId;
-    else if (userRole === 'student') params.studentId = userId;
+    if (userRole === 'professor' || userRole === 'ta') {
+      // Faculty: Get courses they're teaching
+      const response = await axios.get('http://localhost:5000/api/curriculum/courses', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { instructorId: userId }
+      });
+      coursesData = response.data?.data?.courses || [];
+    } else if (userRole === 'student') {
+      // Students: Get their enrolled courses
+      const response = await axios.get('http://localhost:5000/api/enrollments/my-enrollments', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Extract courses from enrollments and merge with subject info
+      const enrollments = response.data?.data?.enrollments || [];
+      coursesData = enrollments
+        .filter(e => e.status === 'enrolled') // Only show enrolled courses
+        .map(e => {
+          // Merge course and subject data for consistent structure
+          if (!e.course) return null;
+          return {
+            ...e.course,
+            subject: e.subject, // Add subject details
+            // Also add top-level properties for compatibility
+            code: e.subject?.code,
+            name: e.subject?.name
+          };
+        })
+        .filter(c => c); // Remove nulls
+    } else {
+      // Admin/Staff: Get all courses
+      const response = await axios.get('http://localhost:5000/api/curriculum/courses', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      coursesData = response.data?.data?.courses || [];
+    }
 
-    const response = await axios.get('http://localhost:5000/api/curriculum/courses', {
-      headers: { Authorization: `Bearer ${token}` },
-      params
-    });
-    
-    coursesData = response.data?.data?.courses || [];
-    
-//     const normalizedCourses = coursesData.map(c => ({
-//   id: c.id,
-//   subjectId: c.subject_id,
-//   semester: c.semester,
-//   year: c.year,
-//   instructorId: c.instructor_id,
-//   code: c.subject_code || 'N/A', // adjust based on backend response
-//   name: c.subject_name || 'N/A'
-// }));
-
-// setCourses(normalizedCourses);
-// if (normalizedCourses.length > 0) {
-//   setSelectedCourse(normalizedCourses[0].id);  // Now guaranteed to exist
-// }
-setCourses(Array.isArray(coursesData) ? coursesData : []);
+    setCourses(Array.isArray(coursesData) ? coursesData : []);
     
     // Set first course as selected
     if (coursesData.length > 0) {
@@ -201,8 +217,14 @@ setCourses(Array.isArray(coursesData) ? coursesData : []);
       const assessmentData = {
         ...newAssessment,
         courseId: selectedCourse,
-        questions: assessmentQuestions
+        questions: assessmentQuestions,
+        // Convert datetime-local to ISO8601
+        dueDate: newAssessment.dueDate ? new Date(newAssessment.dueDate).toISOString() : '',
+        availableFrom: newAssessment.availableFrom ? new Date(newAssessment.availableFrom).toISOString() : null,
+        availableUntil: newAssessment.availableUntil ? new Date(newAssessment.availableUntil).toISOString() : null
       };
+
+      console.log('Sending assessment data:', assessmentData);
 
       await axios.post(
         'http://localhost:5000/api/curriculum/assessments',
@@ -216,7 +238,89 @@ setCourses(Array.isArray(coursesData) ? coursesData : []);
       fetchAssessments();
     } catch (error) {
       console.error('Create error:', error);
-      setError(error.response?.data?.message || 'Failed to create assessment');
+      console.error('Error details:', error.response?.data);
+      console.error('Validation errors:', error.response?.data?.errors);
+      setError(error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Failed to create assessment');
+    }
+  };
+
+  const handleEditAssessment = async (assessment) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/curriculum/assessments/${assessment.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const assessmentData = response.data.data.assessment;
+      const questions = response.data.data.questions || [];
+
+      // Populate form with existing data
+      setNewAssessment({
+        courseId: assessmentData.courseId,
+        title: assessmentData.title,
+        description: assessmentData.description || '',
+        assessmentType: assessmentData.assessmentType,
+        totalPoints: assessmentData.totalPoints || 100,
+        dueDate: assessmentData.dueDate ? new Date(assessmentData.dueDate).toISOString().slice(0, 16) : '',
+        availableFrom: assessmentData.availableFrom ? new Date(assessmentData.availableFrom).toISOString().slice(0, 16) : '',
+        availableUntil: assessmentData.availableUntil ? new Date(assessmentData.availableUntil).toISOString().slice(0, 16) : '',
+        durationMinutes: assessmentData.durationMinutes || 60,
+        allowLateSubmission: assessmentData.allowLateSubmission || false,
+        latePenaltyPercent: assessmentData.latePenaltyPercent || 10,
+        maxAttempts: assessmentData.maxAttempts || 1,
+        showCorrectAnswers: assessmentData.showCorrectAnswers || false,
+        shuffleQuestions: assessmentData.shuffleQuestions || false,
+        isPublished: assessmentData.isPublished || false,
+        instructions: assessmentData.instructions || ''
+      });
+
+      setAssessmentQuestions(questions);
+      setSelectedCourse(assessmentData.courseId);
+      setIsEditing(true);
+      setEditingAssessment(assessmentData);
+      setCreateDialogOpen(true);
+    } catch (error) {
+      console.error('Edit error:', error);
+      setError('Failed to load assessment for editing');
+    }
+  };
+
+  const handleUpdateAssessment = async () => {
+    if (!newAssessment.title || !newAssessment.dueDate) {
+      setError('Title and due date are required');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const assessmentData = {
+        ...newAssessment,
+        courseId: selectedCourse,
+        questions: assessmentQuestions,
+        // Convert datetime-local to ISO8601
+        dueDate: newAssessment.dueDate ? new Date(newAssessment.dueDate).toISOString() : '',
+        availableFrom: newAssessment.availableFrom ? new Date(newAssessment.availableFrom).toISOString() : null,
+        availableUntil: newAssessment.availableUntil ? new Date(newAssessment.availableUntil).toISOString() : null
+      };
+
+      console.log('Updating assessment data:', assessmentData);
+
+      await axios.put(
+        `http://localhost:5000/api/curriculum/assessments/${editingAssessment.id}`,
+        assessmentData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSuccess('Assessment updated successfully!');
+      setCreateDialogOpen(false);
+      resetAssessmentForm();
+      fetchAssessments();
+    } catch (error) {
+      console.error('Update error:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Validation errors:', error.response?.data?.errors);
+      setError(error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Failed to update assessment');
     }
   };
 
@@ -340,6 +444,8 @@ setCourses(Array.isArray(coursesData) ? coursesData : []);
       instructions: ''
     });
     setAssessmentQuestions([]);
+    setIsEditing(false);
+    setEditingAssessment(null);
   };
 
   const formatDate = (dateString) => {
@@ -397,7 +503,8 @@ setCourses(Array.isArray(coursesData) ? coursesData : []);
                       </MenuItem>
                       {courses.map((course) => (
                         <MenuItem key={course.id} value={course.id}>
-                          {course.subjectCode || course.subject?.code || 'N/A'} - {course.subjectName || course.subject?.name || 'N/A'}
+                          {/* Handle different data structures: code/name (subjects), subject.code/subject.name (courses), subjectCode/subjectName */}
+                          {course.code || course.subjectCode || course.subject?.code || 'N/A'} - {course.name || course.subjectName || course.subject?.name || 'N/A'}
                           {course.semester && course.year && ` (${course.semester} ${course.year})`}
                         </MenuItem>
                       ))}
@@ -502,6 +609,7 @@ setCourses(Array.isArray(coursesData) ? coursesData : []);
                               size="small"
                               startIcon={<Edit />}
                               color="primary"
+                              onClick={() => handleEditAssessment(assessment)}
                             >
                               Edit
                             </Button>
@@ -531,7 +639,7 @@ setCourses(Array.isArray(coursesData) ? coursesData : []);
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Create New Assessment</DialogTitle>
+        <DialogTitle>{isEditing ? 'Edit Assessment' : 'Create New Assessment'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
@@ -817,8 +925,8 @@ setCourses(Array.isArray(coursesData) ? coursesData : []);
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleCreateAssessment} variant="contained">
-            Create Assessment
+          <Button onClick={isEditing ? handleUpdateAssessment : handleCreateAssessment} variant="contained">
+            {isEditing ? 'Update Assessment' : 'Create Assessment'}
           </Button>
         </DialogActions>
       </Dialog>
