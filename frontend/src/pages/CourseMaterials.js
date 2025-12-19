@@ -61,19 +61,13 @@ const CourseMaterials = () => {
 
   // Fetch courses for the user
  useEffect(() => {
-  if (isProfessorOrTA) {
-    fetchCourses();           // prof/TA: courses then materials per course
-  } else {
-    fetchCourses();           // optional, only for UI
-    loadStudentMaterials();   // students: /materials/all
-  }
+    fetchCourses();
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
 
   // Fetch materials when course is selected
 useEffect(() => {
-  if (!isProfessorOrTA) return;
   if (!selectedCourse) return;
   fetchMaterials();
 // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,7 +119,18 @@ useEffect(() => {
         })
         .filter(Boolean);
     } 
-    // Admin / staff unchanged
+    // Admin: fetch all courses
+    else if (userRole === 'admin') {
+      const response = await axios.get(
+        'http://localhost:5000/api/curriculum/courses',
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      coursesData = response.data?.data?.courses || [];
+    }
+    // Other roles (if any)
     else {
       const response = await axios.get(
         'http://localhost:5000/api/curriculum/subjects',
@@ -363,20 +368,19 @@ useEffect(() => {
         {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
         {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
 
-        {/* Course Selection - only for professors/TAs */}
-        {isProfessorOrTA && (
-          <Box sx={{ mb: 3 }}>
-            <FormControl fullWidth>
-              <InputLabel>Select Course</InputLabel>
-              <Select
-                value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
-                label="Select Course"
-              >
-                <MenuItem value="">
-                  <em>Select a course</em>
-                </MenuItem>
-                {courses.map((course) => (
+        {/* Course Selection */}
+        <Box sx={{ mb: 3 }}>
+          <FormControl fullWidth>
+            <InputLabel>Select Course</InputLabel>
+            <Select
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+              label="Select Course"
+            >
+              <MenuItem value="">
+                <em>Select a course</em>
+              </MenuItem>
+              {courses.map((course) => (
                   <MenuItem key={course.id} value={course.id}>
                     {/* Subjects have code/name, Courses have subject.code/subject.name */}
                     {course.code || course.subjectCode || course.subject?.code || 'N/A'} - {course.name || course.subjectName || course.subject?.name || 'N/A'}
@@ -386,10 +390,9 @@ useEffect(() => {
               </Select>
             </FormControl>
           </Box>
-        )}
 
         {/* Materials Display */}
-        {(isProfessorOrTA ? selectedCourse : true) && (
+        {selectedCourse && (
           <>
             {/* Upload Button for Professors/TAs */}
             {isProfessorOrTA && (
