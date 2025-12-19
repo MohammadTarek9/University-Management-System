@@ -52,12 +52,13 @@ exports.getAllApplications = async (req, res) => {
       options.department = department;
     }
 
+    if (degreeLevel && degreeLevel !== 'all') {
+      options.degreeLevel = degreeLevel;
+    }
+
     if (search && search.trim()) {
       options.search = search.trim();
     }
-
-    // Note: Date range and degree level filtering can be added to repo if needed
-    // For now, basic filtering is implemented
 
     const result = await applicationRepo.getApplications(options);
 
@@ -470,7 +471,15 @@ exports.createStudentAccount = async (req, res) => {
       mustChangePassword: true,
       securityQuestion: null,
       securityAnswer: null,
-      createdAt: new Date()
+      createdAt: new Date(),
+      // Include role-specific details
+      roleDetails: {
+        student_id: application.studentCredentials.studentId,
+        enrollment_date: new Date(),
+        major: application.academicInfo.major,
+        year: 1, // Freshmen by default
+        gpa: null
+      }
     });
 
     console.log(`User created successfully:`, {

@@ -20,7 +20,10 @@ import {
   Settings,
   MeetingRoom,
   Person,
-  School
+  School,
+  Assignment,
+  HowToReg,
+  MenuBook
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -119,6 +122,30 @@ const Header = () => {
                 </ListItemIcon>
                 <ListItemText>Dashboard</ListItemText>
               </MenuItem>
+              {user?.role === 'student' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/curriculum/registration'); }}>
+                  <ListItemIcon>
+                    <Assignment fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Course Registration</ListItemText>
+                </MenuItem>
+              )}
+              {user?.role === 'student' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/curriculum/browse'); }}>
+                  <ListItemIcon>
+                    <MenuBook fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Browse Subjects</ListItemText>
+                </MenuItem>
+              )}
+              {user?.role === 'admin' && (
+                <MenuItem onClick={() => { handleClose(); navigate('/curriculum/enrollment-requests'); }}>
+                  <ListItemIcon>
+                    <HowToReg fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Enrollment Requests</ListItemText>
+                </MenuItem>
+              )}
               {['admin', 'staff', 'professor'].includes(user?.role) && (
                 <MenuItem onClick={() => { handleClose(); navigate('/facilities'); }}>
                   <ListItemIcon>

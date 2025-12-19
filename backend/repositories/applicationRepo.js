@@ -116,7 +116,11 @@ function buildInsertParams(data, reviewerUserId) {
     null, // student_credentials_generated_by
 
     // application_id (we generate)
-    generateApplicationId()
+    generateApplicationId(),
+    
+    // timestamps
+    new Date(),  // submitted_at
+    new Date()   // last_modified
   ];
 }
 
@@ -135,9 +139,11 @@ async function createApplication(data, reviewerUserId) {
       student_credentials_temporary_password,
       student_credentials_generated_at,
       student_credentials_generated_by,
-      application_id
+      application_id,
+      submitted_at,
+      last_modified
     )
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `;
 
   const params = buildInsertParams(data, reviewerUserId);
@@ -160,6 +166,7 @@ async function getApplications(options = {}) {
     limit = 10,
     status,
     department,
+    degreeLevel,
     search,
     sortBy = 'submitted_at',
     sortOrder = 'DESC'
@@ -176,6 +183,11 @@ async function getApplications(options = {}) {
   if (department && department !== 'all') {
     whereClauses.push('department = ?');
     params.push(department);
+  }
+
+  if (degreeLevel && degreeLevel !== 'all') {
+    whereClauses.push('degree_level = ?');
+    params.push(degreeLevel);
   }
 
   if (search && search.trim()) {
@@ -255,7 +267,8 @@ async function updateApplication(id, data, reviewerUserId) {
       reviewed_by = ?,
       reviewed_at = ?,
       rejection_reason = ?,
-      notes = ?
+      notes = ?,
+      last_modified = NOW()
     WHERE id = ?
   `;
 

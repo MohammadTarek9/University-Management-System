@@ -1,4 +1,4 @@
-const maintenanceRepo = require('../repositories/maintenanceRepo');
+const maintenanceRepo = require('../repositories/maintenanceEavRepoNew'); // Using 3-table EAV repository
 const userRepo = require('../repositories/userRepo');
 const { validationResult } = require('express-validator');
 
@@ -23,16 +23,26 @@ exports.createMaintenanceRequest = async (req, res) => {
       return sendResponse(res, 400, false, 'Validation failed', null, errors.array());
     }
 
-    const { title, description, category, priority, location } = req.body;
+    const { 
+      title, 
+      description, 
+      category, 
+      priority, 
+      location,
+      // Category-specific flexible attributes
+      categorySpecific
+    } = req.body;
 
-    // Create new maintenance request
+    // Create new maintenance request with EAV attributes
     const maintenanceRequest = await maintenanceRepo.createMaintenanceRequest({
       title,
       description,
       category,
       priority: priority || 'Medium',
       location,
-      submittedBy: req.user.id
+      submittedBy: req.user.id,
+      status: 'Submitted',
+      categorySpecific: categorySpecific || {}
     });
 
     // Populate submitter info
@@ -64,42 +74,39 @@ exports.getAllMaintenanceRequests = async (req, res) => {
       search
     } = req.query;
 
-    // Build filter object
-    let filter = {};
+    // Build filter object for EAV query
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit)
+    };
 
     // Students can only see their own requests
-    if (req.user.role === 'student') {
-      filter.submittedBy = req.user.id;
+    if (req.user.hasRole && req.user.hasRole('student')) {
+      options.submittedBy = req.user.id;
+    } else if (req.user.role === 'student') {
+      // Backward compatibility
+      options.submittedBy = req.user.id;
     }
 
     // Admin filters
     if (status && status !== 'all') {
-      filter.status = status;
+      options.status = status;
     }
     
     if (category && category !== 'all') {
-      filter.category = category;
+      options.category = category;
     }
     
     if (priority && priority !== 'all') {
-      filter.priority = priority;
+      options.priority = priority;
     }
 
-    // Search functionality
-    if (search && search.trim()) {
-      filter.search = search.trim();
-    }
-
-    // Execute query
-    const { requests, total, pages } = await maintenanceRepo.getAllMaintenanceRequests(
-      filter,
-      parseInt(page),
-      parseInt(limit)
-    );
+    // Execute EAV query
+    const { maintenanceRequests, total, totalPages } = await maintenanceRepo.getAllMaintenanceRequests(options);
 
     // Populate user details for each request
     const enrichedRequests = await Promise.all(
-      requests.map(async (request) => {
+      maintenanceRequests.map(async (request) => {
         const [submitter, assigned] = await Promise.all([
           request.submittedBy ? userRepo.getUserById(request.submittedBy) : null,
           request.assignedTo ? userRepo.getUserById(request.assignedTo) : null
@@ -117,9 +124,9 @@ exports.getAllMaintenanceRequests = async (req, res) => {
       requests: enrichedRequests,
       pagination: {
         currentPage: parseInt(page),
-        totalPages: pages,
+        totalPages,
         totalRequests: total,
-        hasNextPage: parseInt(page) < pages,
+        hasNextPage: parseInt(page) < totalPages,
         hasPrevPage: parseInt(page) > 1,
         limit: parseInt(limit)
       }
@@ -148,7 +155,8 @@ exports.getMaintenanceRequestById = async (req, res) => {
     }
 
     // Students can only view their own requests
-    if (req.user.role === 'student' && request.submittedBy !== req.user.id) {
+    const isStudent = req.user.hasRole ? req.user.hasRole('student') : req.user.role === 'student';
+    if (isStudent && request.submittedBy !== req.user.id) {
       return sendResponse(res, 403, false, 'Access denied');
     }
 
@@ -305,38 +313,47 @@ exports.deleteMaintenanceRequest = async (req, res) => {
 // @access  Private (Admin)
 exports.getMaintenanceStats = async (req, res) => {
   try {
-    const [statusRows] = await require('../db/mysql').query(
-      'SELECT status, COUNT(*) as count FROM maintenance_requests GROUP BY status'
-    );
-    const [categoryRows] = await require('../db/mysql').query(
-      'SELECT category, COUNT(*) as count FROM maintenance_requests GROUP BY category ORDER BY count DESC'
-    );
-    const [priorityRows] = await require('../db/mysql').query(
-      'SELECT priority, COUNT(*) as count FROM maintenance_requests GROUP BY priority'
-    );
-    const [totalRows] = await require('../db/mysql').query(
-      'SELECT COUNT(*) as count FROM maintenance_requests'
-    );
-    const [completedWeekRows] = await require('../db/mysql').query(
-      'SELECT COUNT(*) as count FROM maintenance_requests WHERE status = ? AND actual_completion >= DATE_SUB(NOW(), INTERVAL 7 DAY)',
-      ['Completed']
-    );
+    // Get all maintenance requests from EAV
+    const { maintenanceRequests } = await maintenanceRepo.getAllMaintenanceRequests({ 
+      limit: 10000 // Get all for stats
+    });
+
+    // Calculate stats from EAV data
+    const total = maintenanceRequests.length;
+    
+    const byStatus = maintenanceRequests.reduce((acc, req) => {
+      const status = req.status || 'Unknown';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const byCategory = maintenanceRequests.reduce((acc, req) => {
+      const category = req.category || 'Unknown';
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {});
+
+    const byPriority = maintenanceRequests.reduce((acc, req) => {
+      const priority = req.priority || req.severity || 'Unknown';
+      acc[priority] = (acc[priority] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Count completed this week
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const completedThisWeek = maintenanceRequests.filter(req => 
+      req.status === 'Completed' && 
+      req.completedDate && 
+      new Date(req.completedDate) >= oneWeekAgo
+    ).length;
 
     const responseData = {
-      total: totalRows[0].count,
-      byStatus: statusRows.reduce((acc, row) => {
-        acc[row.status] = row.count;
-        return acc;
-      }, {}),
-      byCategory: categoryRows.reduce((acc, row) => {
-        acc[row.category] = row.count;
-        return acc;
-      }, {}),
-      byPriority: priorityRows.reduce((acc, row) => {
-        acc[row.priority] = row.count;
-        return acc;
-      }, {}),
-      completedThisWeek: completedWeekRows[0].count
+      total,
+      byStatus,
+      byCategory,
+      byPriority,
+      completedThisWeek
     };
 
     sendResponse(res, 200, true, 'Maintenance statistics retrieved successfully', responseData);
