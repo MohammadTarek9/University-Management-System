@@ -48,7 +48,9 @@ import {
   Cancel,
   Timer,
   QuestionAnswer,
-  Send
+  Send,
+  Grade,
+  Person
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -108,6 +110,12 @@ const AssessmentsManagement = () => {
   // Edit assessment state
   const [isEditing, setIsEditing] = useState(false);
   const [editingAssessment, setEditingAssessment] = useState(null);
+
+  // Grading state
+  const [gradingDialogOpen, setGradingDialogOpen] = useState(false);
+  const [submissions, setSubmissions] = useState([]);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [gradeData, setGradeData] = useState({ score: '', feedback: '' });
 
   useEffect(() => {
     fetchCourses();
@@ -404,6 +412,62 @@ const AssessmentsManagement = () => {
     }
   };
 
+  const handleViewSubmissions = async (assessment) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/curriculum/assessments/${assessment.id}/submissions`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSubmissions(response.data.data?.submissions || []);
+      setSelectedAssessment(assessment);
+      setGradingDialogOpen(true);
+    } catch (error) {
+      console.error('Error fetching submissions:', error);
+      setError('Failed to load submissions');
+    }
+  };
+
+  const handleGradeSubmission = async () => {
+    if (!selectedSubmission) return;
+
+    const score = parseFloat(gradeData.score);
+    
+    // Validation
+    if (gradeData.score !== '' && (isNaN(score) || score < 0)) {
+      setError('Score must be a positive number');
+      return;
+    }
+    
+    if (gradeData.score !== '' && score > selectedAssessment.totalPoints) {
+      setError(`Score cannot exceed ${selectedAssessment.totalPoints} points`);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(
+        `http://localhost:5000/api/curriculum/assessments/${selectedAssessment.id}/submissions/${selectedSubmission.id}/grade`,
+        {
+          score: gradeData.score !== '' ? score : undefined,
+          feedback: gradeData.feedback || undefined
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSuccess('Grade saved successfully!');
+      setSelectedSubmission(null);
+      setGradeData({ score: '', feedback: '' });
+      
+      // Refresh submissions
+      handleViewSubmissions(selectedAssessment);
+    } catch (error) {
+      console.error('Grading error:', error);
+      setError(error.response?.data?.message || 'Failed to save grade');
+    }
+  };
+
   const addQuestion = () => {
     if (!currentQuestion.questionText) {
       setError('Question text is required');
@@ -612,6 +676,14 @@ const AssessmentsManagement = () => {
                               onClick={() => handleEditAssessment(assessment)}
                             >
                               Edit
+                            </Button>
+                            <Button
+                              size="small"
+                              startIcon={<Assessment />}
+                              color="secondary"
+                              onClick={() => handleViewSubmissions(assessment)}
+                            >
+                              Submissions
                             </Button>
                             <IconButton
                               size="small"
@@ -1024,10 +1096,32 @@ const AssessmentsManagement = () => {
               )}
 
               {isStudent && submission && (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  You have already submitted this assessment.
-                  {submission.score !== null && ` Score: ${submission.score}/${selectedAssessment.totalPoints}`}
-                </Alert>
+                <Box sx={{ mt: 2 }}>
+                  <Alert severity="info">
+                    You have already submitted this assessment.
+                    {submission.score !== null && submission.score !== undefined && (
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        <strong>Score:</strong> {submission.score} / {selectedAssessment.totalPoints}
+                      </Typography>
+                    )}
+                  </Alert>
+                  
+                  {submission.feedback && (
+                    <Paper sx={{ p: 2, mt: 2, bgcolor: 'grey.50' }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        <strong>Instructor Feedback:</strong>
+                      </Typography>
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {submission.feedback}
+                      </Typography>
+                      {submission.gradedAt && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                          Graded on: {formatDate(submission.gradedAt)}
+                        </Typography>
+                      )}
+                    </Paper>
+                  )}
+                </Box>
               )}
             </Box>
           )}
@@ -1145,6 +1239,162 @@ const AssessmentsManagement = () => {
             disabled={Object.keys(answers).length === 0}
           >
             Submit Assessment
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Grading Dialog */}
+      <Dialog
+        open={gradingDialogOpen}
+        onClose={() => {
+          setGradingDialogOpen(false);
+          setSelectedSubmission(null);
+          setGradeData({ score: '', feedback: '' });
+        }}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          Student Submissions - {selectedAssessment?.title}
+          <Typography variant="caption" display="block" color="text.secondary">
+            Total Points: {selectedAssessment?.totalPoints}
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          {submissions.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="h6" color="text.secondary">
+                No submissions yet
+              </Typography>
+            </Box>
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Student</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Submitted</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Score</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {submissions.map((sub) => (
+                    <TableRow key={sub.id}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Person sx={{ mr: 1, color: 'text.secondary' }} />
+                          {sub.studentName}
+                        </Box>
+                      </TableCell>
+                      <TableCell>{sub.studentEmail}</TableCell>
+                      <TableCell>
+                        {formatDate(sub.submissionDate)}
+                        {sub.isLate && (
+                          <Chip label="Late" size="small" color="warning" sx={{ ml: 1 }} />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={sub.status}
+                          size="small"
+                          color={sub.status === 'graded' ? 'success' : 'default'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {sub.score !== null && sub.score !== undefined
+                          ? `${sub.score} / ${selectedAssessment?.totalPoints}`
+                          : 'Not graded'}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          startIcon={<Grade />}
+                          onClick={() => {
+                            setSelectedSubmission(sub);
+                            setGradeData({
+                              score: sub.score !== null && sub.score !== undefined ? sub.score.toString() : '',
+                              feedback: sub.feedback || ''
+                            });
+                          }}
+                        >
+                          Grade
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
+          {/* Grade Form */}
+          {selectedSubmission && (
+            <Paper sx={{ mt: 3, p: 3, bgcolor: 'grey.50' }}>
+              <Typography variant="h6" gutterBottom>
+                Grade Submission - {selectedSubmission.studentName}
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Score"
+                    type="number"
+                    value={gradeData.score}
+                    onChange={(e) => setGradeData({ ...gradeData, score: e.target.value })}
+                    inputProps={{ 
+                      min: 0, 
+                      max: selectedAssessment?.totalPoints,
+                      step: 0.5 
+                    }}
+                    helperText={`Out of ${selectedAssessment?.totalPoints} points`}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    label="Feedback"
+                    value={gradeData.feedback}
+                    onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })}
+                    placeholder="Provide feedback to the student..."
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      onClick={handleGradeSubmission}
+                      disabled={gradeData.score === '' && gradeData.feedback === ''}
+                    >
+                      Save Grade
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setSelectedSubmission(null);
+                        setGradeData({ score: '', feedback: '' });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setGradingDialogOpen(false);
+            setSelectedSubmission(null);
+            setGradeData({ score: '', feedback: '' });
+          }}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>

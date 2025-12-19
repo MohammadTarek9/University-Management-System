@@ -445,6 +445,62 @@ const getMySubmission = async (req, res) => {
   }
 };
 
+// ===================================================================
+// @desc    Grade a submission
+// @route   PUT /api/curriculum/assessments/:id/submissions/:submissionId/grade
+// @access  Private (Faculty only)
+// ===================================================================
+const gradeSubmission = async (req, res) => {
+  try {
+    const { id, submissionId } = req.params;
+    const { score, feedback } = req.body;
+    
+    // Get assessment to verify total points
+    const assessment = await assessmentRepo.getAssessmentById(id);
+    if (!assessment) {
+      return errorResponse(res, 404, 'Assessment not found');
+    }
+    
+    // Verify authorization
+    const course = await courseRepo.getCourseById(assessment.courseId);
+    if (req.user.role !== 'admin' && course.instructorId !== req.user.id) {
+      return errorResponse(res, 403, 'You are not authorized to grade this assessment');
+    }
+    
+    // Validate score
+    if (score !== undefined && score !== null) {
+      const scoreNum = parseFloat(score);
+      if (isNaN(scoreNum)) {
+        return errorResponse(res, 400, 'Score must be a valid number');
+      }
+      if (scoreNum < 0) {
+        return errorResponse(res, 400, 'Score cannot be negative');
+      }
+      if (scoreNum > assessment.totalPoints) {
+        return errorResponse(res, 400, `Score cannot exceed ${assessment.totalPoints} points`);
+      }
+    }
+    
+    // Update submission with grade and feedback
+    const updatedSubmission = await assessmentRepo.updateSubmission(submissionId, {
+      score: score !== undefined ? parseFloat(score) : undefined,
+      feedback: feedback !== undefined ? feedback : undefined,
+      gradedBy: req.user.id,
+      gradedAt: new Date(),
+      status: score !== undefined ? 'graded' : undefined
+    });
+    
+    if (!updatedSubmission) {
+      return errorResponse(res, 404, 'Submission not found');
+    }
+    
+    successResponse(res, 200, 'Submission graded successfully', { submission: updatedSubmission });
+  } catch (error) {
+    console.error('Error grading submission:', error);
+    errorResponse(res, 500, 'Server error while grading submission');
+  }
+};
+
 module.exports = {
   getAssessmentsByCourse,
   getAssessmentById,
@@ -453,5 +509,6 @@ module.exports = {
   deleteAssessment,
   submitAssessment,
   getAssessmentSubmissions,
-  getMySubmission
+  getMySubmission,
+  gradeSubmission
 };
