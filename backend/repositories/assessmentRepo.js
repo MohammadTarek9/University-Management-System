@@ -83,14 +83,10 @@ async function getAssessmentsByCourse(courseId, options = {}) {
     `
     SELECT 
       a.*,
-      s.name AS subject_name,
-      s.code AS subject_code,
       CONCAT(u.first_name, ' ', u.last_name) AS creator_name,
       (SELECT COUNT(*) FROM assessment_questions WHERE assessment_id = a.id) AS question_count,
       (SELECT COUNT(DISTINCT student_id) FROM assessment_submissions WHERE assessment_id = a.id) AS submission_count
     FROM assessments a
-    LEFT JOIN courses c ON a.course_id = c.id
-    LEFT JOIN subjects s ON c.subject_id = s.id
     LEFT JOIN users u ON a.created_by = u.id
     WHERE ${whereSql}
     ORDER BY a.due_date ASC, a.created_at DESC
@@ -98,7 +94,21 @@ async function getAssessmentsByCourse(courseId, options = {}) {
     params
   );
   
-  return rows.map(mapAssessmentRow);
+  // Get course details from EAV for each assessment
+  const courseRepo = require('./courseEavRepoNew');
+  const assessmentsWithCourse = await Promise.all(
+    rows.map(async (row) => {
+      const assessment = mapAssessmentRow(row);
+      const course = await courseRepo.getCourseById(courseId);
+      if (course && course.subject) {
+        assessment.subjectName = course.subject.name;
+        assessment.subjectCode = course.subject.code;
+      }
+      return assessment;
+    })
+  );
+  
+  return assessmentsWithCourse;
 }
 
 // Get single assessment by ID
@@ -107,21 +117,29 @@ async function getAssessmentById(id) {
     `
     SELECT 
       a.*,
-      s.name AS subject_name,
-      s.code AS subject_code,
       CONCAT(u.first_name, ' ', u.last_name) AS creator_name,
       (SELECT COUNT(*) FROM assessment_questions WHERE assessment_id = a.id) AS question_count,
       (SELECT COUNT(DISTINCT student_id) FROM assessment_submissions WHERE assessment_id = a.id) AS submission_count
     FROM assessments a
-    LEFT JOIN courses c ON a.course_id = c.id
-    LEFT JOIN subjects s ON c.subject_id = s.id
     LEFT JOIN users u ON a.created_by = u.id
     WHERE a.id = ?
     `,
     [id]
   );
   
-  return mapAssessmentRow(rows[0]);
+  if (rows.length === 0) return null;
+  
+  const assessment = mapAssessmentRow(rows[0]);
+  
+  // Get course details from EAV
+  const courseRepo = require('./courseEavRepoNew');
+  const course = await courseRepo.getCourseById(assessment.courseId);
+  if (course && course.subject) {
+    assessment.subjectName = course.subject.name;
+    assessment.subjectCode = course.subject.code;
+  }
+  
+  return assessment;
 }
 
 // Create new assessment
