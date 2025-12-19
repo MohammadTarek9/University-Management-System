@@ -9,7 +9,8 @@ const {
   deleteAssessment,
   submitAssessment,
   getAssessmentSubmissions,
-  getMySubmission
+  getMySubmission,
+  gradeSubmission
 } = require('../controllers/assessmentController');
 const { protect, authorize } = require('../middleware/auth');
 const { handleValidationErrors } = require('../utils/responseHelpers');
@@ -167,6 +168,22 @@ router.get(
   '/:id/submissions',
   authorize('professor', 'ta', 'admin'),
   getAssessmentSubmissions
+);
+
+// Grade submission - faculty only
+router.put(
+  '/:id/submissions/:submissionId/grade',
+  authorize('professor', 'ta', 'admin'),
+  body('score')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Score must be a positive number'),
+  body('feedback')
+    .optional()
+    .isString()
+    .withMessage('Feedback must be a string'),
+  handleValidationErrors,
+  gradeSubmission
 );
 
 module.exports = router;
