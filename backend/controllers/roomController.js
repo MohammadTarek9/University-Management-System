@@ -1,4 +1,4 @@
-const roomRepo = require('../repositories/roomEavRepoNew'); // Using 3-table EAV repository
+const roomRepo = require('../repositories/roomEavRepo'); // Using 3-table EAV repository
 const userRepo = require('../repositories/userRepo');
 const { successResponse, errorResponse } = require('../utils/responseHelpers');
 const { validationResult } = require('express-validator');
@@ -125,9 +125,11 @@ exports.createRoom = async (req, res) => {
     const room = await roomRepo.createRoom({
       roomName: actualRoomName,
       name: actualRoomName,
-      roomNumber,
-      building,
-      floor,
+      location: {
+        building,
+        floor,
+        roomNumber
+      },
       capacity,
       roomType: actualRoomType,
       type: actualRoomType,
@@ -135,7 +137,8 @@ exports.createRoom = async (req, res) => {
       equipment,
       amenities,
       typeSpecific: typeSpecific || {},
-      isActive: isActive !== undefined ? isActive : true
+      isActive: isActive !== undefined ? isActive : true,
+      createdBy: req.user?.id || null
     });
 
     return successResponse(res, 201, 'Room created successfully', { room });
@@ -200,6 +203,7 @@ exports.updateRoom = async (req, res) => {
     if (isActive !== undefined) updateData.isActive = isActive;
     if (typeSpecific !== undefined) updateData.typeSpecific = typeSpecific;
 
+    updateData.updatedBy = req.user?.id || null;
     const updatedRoom = await roomRepo.updateRoom(roomId, updateData);
 
     return successResponse(res, 200, 'Room updated successfully', { room: updatedRoom });
