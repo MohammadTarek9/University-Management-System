@@ -1,281 +1,395 @@
-const eav = require('../utils/eav');
 
-/**
- * Maintenance Request Repository using EAV Model
- * Handles CRUD operations for maintenance requests with category-specific attributes
- */
+const pool = require('../db/mysql');
 
-const ENTITY_TYPE_CODE = 'maintenance_request';
-
-/**
- * Map EAV entity to Maintenance Request object format
- */
-function mapMaintenanceRequestEntity(entity) {
-  if (!entity) return null;
-
-  const baseData = {
-    id: entity.id,
-    title: entity.title,
-    description: entity.description,
-    category: entity.category,
-    priority: entity.priority,
-    status: entity.status,
-    submittedBy: entity['submitted_by'] || entity.submittedBy,
-    assignedTo: entity['assigned_to'] || entity.assignedTo,
-    estimatedCompletion: entity['estimated_completion'] || entity.estimatedCompletion,
-    actualCompletion: entity['actual_completion'] || entity.actualCompletion,
-    adminNotes: entity['admin_notes'] || entity.adminNotes,
-    
-    // Location
-    location: {
-      building: entity['location.building'] || entity['location_building'],
-      roomNumber: entity['location.roomNumber'] || entity['location_room_number'],
-      floor: entity['location.floor'] || entity['location_floor']
-    },
-    
-    // User Feedback
-    userFeedback: {
-      rating: entity['userFeedback.rating'] || entity['feedback_rating'],
-      comment: entity['userFeedback.comment'] || entity['feedback_comment'],
-      submittedAt: entity['userFeedback.submittedAt'] || entity['feedback_submitted_at']
-    },
-    
-    createdAt: entity.createdAt,
-    updatedAt: entity.updatedAt
-  };
-
-  // Category-specific attributes
-  const categoryAttributes = {};
-  
-  // Electrical category fields
-  if (entity.voltage) categoryAttributes.voltage = entity.voltage;
-  if (entity['circuit_breaker_location']) categoryAttributes.circuitBreakerLocation = entity['circuit_breaker_location'];
-  if (entity['wire_type']) categoryAttributes.wireType = entity['wire_type'];
-  if (entity['electrical_panel_id']) categoryAttributes.electricalPanelId = entity['electrical_panel_id'];
-  
-  // Plumbing category fields
-  if (entity['pipe_size']) categoryAttributes.pipeSize = entity['pipe_size'];
-  if (entity['water_type']) categoryAttributes.waterType = entity['water_type'];
-  if (entity['leak_severity']) categoryAttributes.leakSeverity = entity['leak_severity'];
-  if (entity['shutoff_valve_location']) categoryAttributes.shutoffValveLocation = entity['shutoff_valve_location'];
-  
-  // HVAC category fields
-  if (entity['temperature_reading']) categoryAttributes.temperatureReading = entity['temperature_reading'];
-  if (entity['system_type']) categoryAttributes.systemType = entity['system_type'];
-  if (entity['filter_size']) categoryAttributes.filterSize = entity['filter_size'];
-  if (entity['unit_number']) categoryAttributes.unitNumber = entity['unit_number'];
-  
-  // Equipment category fields
-  if (entity['model_number']) categoryAttributes.modelNumber = entity['model_number'];
-  if (entity['serial_number']) categoryAttributes.serialNumber = entity['serial_number'];
-  if (entity['warranty_info']) categoryAttributes.warrantyInfo = entity['warranty_info'];
-  if (entity['vendor_name']) categoryAttributes.vendorName = entity['vendor_name'];
-  if (entity['purchase_date']) categoryAttributes.purchaseDate = entity['purchase_date'];
-  
-  // Structural category fields
-  if (entity['material_type']) categoryAttributes.materialType = entity['material_type'];
-  if (entity['affected_area_size']) categoryAttributes.affectedAreaSize = entity['affected_area_size'];
-  if (entity['safety_risk_level']) categoryAttributes.safetyRiskLevel = entity['safety_risk_level'];
-  if (entity['structural_engineer_required']) categoryAttributes.structuralEngineerRequired = entity['structural_engineer_required'];
-  
-  // Common additional fields
-  if (entity['estimated_cost']) categoryAttributes.estimatedCost = entity['estimated_cost'];
-  if (entity['actual_cost']) categoryAttributes.actualCost = entity['actual_cost'];
-  if (entity['parts_needed']) categoryAttributes.partsNeeded = entity['parts_needed'];
-  if (entity['contractor_required']) categoryAttributes.contractorRequired = entity['contractor_required'];
-  if (entity['work_order_number']) categoryAttributes.workOrderNumber = entity['work_order_number'];
-
-  return {
-    ...baseData,
-    categorySpecific: categoryAttributes
-  };
+// Helper: Get attribute_id by name (or create if not exists)
+async function getAttributeId(attributeName, dataType = 'string') {
+	const [rows] = await pool.query(
+		'SELECT attribute_id FROM maintenance_eav_attributes WHERE attribute_name = ?',
+		[attributeName]
+	);
+	if (rows.length > 0) return rows[0].attribute_id;
+	const [result] = await pool.query(
+		'INSERT INTO maintenance_eav_attributes (attribute_name, data_type) VALUES (?, ?)',
+		[attributeName, dataType]
+	);
+	return result.insertId;
 }
 
-/**
- * Prepare maintenance request data for EAV storage
- */
-function prepareMaintenanceRequestAttributes(data) {
-  const attributes = {
-    // Core fields
-    'title': data.title,
-    'description': data.description,
-    'category': data.category,
-    'priority': data.priority || 'Medium',
-    'status': data.status || 'Submitted',
-    'submitted_by': data.submittedBy,
-    'assigned_to': data.assignedTo || null,
-    'estimated_completion': data.estimatedCompletion || null,
-    'actual_completion': data.actualCompletion || null,
-    'admin_notes': data.adminNotes || null,
-    
-    // Location
-    'location_building': data.location?.building,
-    'location_room_number': data.location?.roomNumber,
-    'location_floor': data.location?.floor || null,
-    
-    // User Feedback
-    'feedback_rating': data.userFeedback?.rating || null,
-    'feedback_comment': data.userFeedback?.comment || null,
-    'feedback_submitted_at': data.userFeedback?.submittedAt || null
-  };
-
-  // Add category-specific attributes if provided
-  if (data.categorySpecific) {
-    const cs = data.categorySpecific;
-    
-    // Electrical
-    if (cs.voltage) attributes['voltage'] = cs.voltage;
-    if (cs.circuitBreakerLocation) attributes['circuit_breaker_location'] = cs.circuitBreakerLocation;
-    if (cs.wireType) attributes['wire_type'] = cs.wireType;
-    if (cs.electricalPanelId) attributes['electrical_panel_id'] = cs.electricalPanelId;
-    
-    // Plumbing
-    if (cs.pipeSize) attributes['pipe_size'] = cs.pipeSize;
-    if (cs.waterType) attributes['water_type'] = cs.waterType;
-    if (cs.leakSeverity) attributes['leak_severity'] = cs.leakSeverity;
-    if (cs.shutoffValveLocation) attributes['shutoff_valve_location'] = cs.shutoffValveLocation;
-    
-    // HVAC
-    if (cs.temperatureReading) attributes['temperature_reading'] = cs.temperatureReading;
-    if (cs.systemType) attributes['system_type'] = cs.systemType;
-    if (cs.filterSize) attributes['filter_size'] = cs.filterSize;
-    if (cs.unitNumber) attributes['unit_number'] = cs.unitNumber;
-    
-    // Equipment
-    if (cs.modelNumber) attributes['model_number'] = cs.modelNumber;
-    if (cs.serialNumber) attributes['serial_number'] = cs.serialNumber;
-    if (cs.warrantyInfo) attributes['warranty_info'] = cs.warrantyInfo;
-    if (cs.vendorName) attributes['vendor_name'] = cs.vendorName;
-    if (cs.purchaseDate) attributes['purchase_date'] = cs.purchaseDate;
-    
-    // Structural
-    if (cs.materialType) attributes['material_type'] = cs.materialType;
-    if (cs.affectedAreaSize) attributes['affected_area_size'] = cs.affectedAreaSize;
-    if (cs.safetyRiskLevel) attributes['safety_risk_level'] = cs.safetyRiskLevel;
-    if (cs.structuralEngineerRequired !== undefined) attributes['structural_engineer_required'] = cs.structuralEngineerRequired;
-    
-    // Common
-    if (cs.estimatedCost) attributes['estimated_cost'] = cs.estimatedCost;
-    if (cs.actualCost) attributes['actual_cost'] = cs.actualCost;
-    if (cs.partsNeeded) attributes['parts_needed'] = cs.partsNeeded;
-    if (cs.contractorRequired !== undefined) attributes['contractor_required'] = cs.contractorRequired;
-    if (cs.workOrderNumber) attributes['work_order_number'] = cs.workOrderNumber;
-  }
-
-  // Remove undefined values
-  Object.keys(attributes).forEach(key => {
-    if (attributes[key] === undefined) {
-      delete attributes[key];
-    }
-  });
-
-  return attributes;
+// Helper: Map EAV values to a maintenance request object
+function mapMaintenance(entity, values) {
+	const location = {
+		building: '',
+		floor: '',
+		roomNumber: ''
+	};
+	const req = {
+			id: entity.entity_id,
+			name: entity.name,
+			createdAt: entity.created_at,
+			updatedAt: entity.updated_at,
+			location,
+			// attributes below
+			issueType: '',
+			title: '',
+			category: '',
+			description: '',
+			severity: '',
+			priority: '',
+			status: '',
+			reportedBy: null,
+			submittedBy: null,
+			reportedDate: null,
+			assignedTo: null,
+			scheduledDate: null,
+			completedDate: null,
+			estimatedCost: null,
+			actualCost: null,
+			notes: '',
+			attachments: '',
+			preventiveMaintenance: false,
+			recurrencePattern: ''
+		};
+	for (const row of values) {
+		let val = row.value_string ?? row.value_number ?? row.value_text ?? row.value_boolean ?? row.value_date;
+		if (row.attribute_name === 'location_building') location.building = val || '';
+		else if (row.attribute_name === 'location_floor') location.floor = val || '';
+		else if (row.attribute_name === 'location_room_number') location.roomNumber = val || '';
+		else if (row.attribute_name === 'preventive_maintenance') req.preventiveMaintenance = !!val;
+		else req[row.attribute_name] = val;
+	}
+	return req;
 }
 
-/**
- * Create a new maintenance request
- */
-async function createMaintenanceRequest(requestData) {
-  try {
-    const attributes = prepareMaintenanceRequestAttributes(requestData);
-    const naturalKey = `${requestData.category}-${Date.now()}`;
-    
-    const entityId = await eav.createEntityWithAttributes(
-      ENTITY_TYPE_CODE,
-      attributes,
-      naturalKey
-    );
-
-    return await getMaintenanceRequestById(entityId);
-  } catch (error) {
-    console.error('Error creating maintenance request:', error);
-    throw error;
-  }
+// Create a new maintenance request
+async function createMaintenanceRequest(data) {
+	const [entityResult] = await pool.query(
+		'INSERT INTO maintenance_eav_entities (name, created_at, updated_at) VALUES (?, NOW(), NOW())',
+		[data.title || data.issueType || 'Maintenance Request']
+	);
+	const entityId = entityResult.insertId;
+	const attributes = {
+		issue_type: { value: data.issueType, dataType: 'string' },
+		title: { value: data.title, dataType: 'string' },
+		category: { value: data.category, dataType: 'string' },
+		description: { value: data.description, dataType: 'text' },
+		severity: { value: data.severity, dataType: 'string' },
+		priority: { value: data.priority, dataType: 'string' },
+		location_building: { value: data.location?.building, dataType: 'string' },
+		location_floor: { value: data.location?.floor, dataType: 'string' },
+		location_room_number: { value: data.location?.roomNumber, dataType: 'string' },
+		status: { value: data.status || 'pending', dataType: 'string' },
+		reported_by: { value: data.reportedBy, dataType: 'number' },
+		submitted_by: { value: data.submittedBy, dataType: 'number' },
+		reported_date: { value: data.reportedDate, dataType: 'date' },
+		assigned_to: { value: data.assignedTo, dataType: 'number' },
+		scheduled_date: { value: data.scheduledDate, dataType: 'date' },
+		completed_date: { value: data.completedDate, dataType: 'date' },
+		estimated_cost: { value: data.estimatedCost, dataType: 'number' },
+		actual_cost: { value: data.actualCost, dataType: 'number' },
+		notes: { value: data.notes, dataType: 'text' },
+		attachments: { value: data.attachments, dataType: 'text' },
+		preventive_maintenance: { value: data.preventiveMaintenance ? 1 : 0, dataType: 'boolean' },
+		recurrence_pattern: { value: data.recurrencePattern, dataType: 'text' }
+	};
+	for (const [attr, { value, dataType }] of Object.entries(attributes)) {
+		if (value !== undefined && value !== null) {
+			const attrId = await getAttributeId(attr, dataType);
+			await pool.query(
+				`INSERT INTO maintenance_eav_values (entity_id, attribute_id, value_string, value_number, value_text, value_boolean, value_date)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)
+				 ON DUPLICATE KEY UPDATE value_string=VALUES(value_string), value_number=VALUES(value_number), value_text=VALUES(value_text), value_boolean=VALUES(value_boolean), value_date=VALUES(value_date)`,
+				[
+					entityId,
+					attrId,
+					dataType === 'string' ? value : null,
+					dataType === 'number' ? value : null,
+					dataType === 'text' ? value : null,
+					dataType === 'boolean' ? value : null,
+					dataType === 'date' ? value : null
+				]
+			);
+		}
+	}
+	return getMaintenanceRequestById(entityId);
 }
 
-/**
- * Get maintenance request by ID
- */
-async function getMaintenanceRequestById(id) {
-  try {
-    const entity = await eav.getEntity(id, ENTITY_TYPE_CODE);
-    return mapMaintenanceRequestEntity(entity);
-  } catch (error) {
-    console.error('Error getting maintenance request:', error);
-    throw error;
-  }
+// Get a maintenance request by ID
+async function getMaintenanceRequestById(entityId) {
+	const [entities] = await pool.query(
+		'SELECT * FROM maintenance_eav_entities WHERE entity_id = ?',
+		[entityId]
+	);
+	if (entities.length === 0) return null;
+	const [values] = await pool.query(
+		`SELECT a.attribute_name, v.value_string, v.value_number, v.value_text, v.value_boolean, v.value_date
+		 FROM maintenance_eav_values v
+		 JOIN maintenance_eav_attributes a ON v.attribute_id = a.attribute_id
+		 WHERE v.entity_id = ?`,
+		[entityId]
+	);
+	return mapMaintenance(entities[0], values);
 }
 
-/**
- * Update maintenance request
- */
-async function updateMaintenanceRequest(id, requestData) {
-  try {
-    const attributes = prepareMaintenanceRequestAttributes(requestData);
-    await eav.updateEntityAttributes(id, attributes, ENTITY_TYPE_CODE);
-    
-    return await getMaintenanceRequestById(id);
-  } catch (error) {
-    console.error('Error updating maintenance request:', error);
-    throw error;
-  }
+// Update a maintenance request
+async function updateMaintenanceRequest(entityId, data) {
+	if (data.title) {
+		await pool.query(
+			'UPDATE maintenance_eav_entities SET name = COALESCE(?, name), updated_at = NOW() WHERE entity_id = ?',
+			[data.title, entityId]
+		);
+	}
+	const attributes = {
+		issue_type: { value: data.issueType, dataType: 'string' },
+		title: { value: data.title, dataType: 'string' },
+		category: { value: data.category, dataType: 'string' },
+		description: { value: data.description, dataType: 'text' },
+		severity: { value: data.severity, dataType: 'string' },
+		priority: { value: data.priority, dataType: 'string' },
+		location_building: { value: data.location?.building, dataType: 'string' },
+		location_floor: { value: data.location?.floor, dataType: 'string' },
+		location_room_number: { value: data.location?.roomNumber, dataType: 'string' },
+		status: { value: data.status, dataType: 'string' },
+		reported_by: { value: data.reportedBy, dataType: 'number' },
+		submitted_by: { value: data.submittedBy, dataType: 'number' },
+		reported_date: { value: data.reportedDate, dataType: 'date' },
+		assigned_to: { value: data.assignedTo, dataType: 'number' },
+		scheduled_date: { value: data.scheduledDate, dataType: 'date' },
+		completed_date: { value: data.completedDate, dataType: 'date' },
+		estimated_cost: { value: data.estimatedCost, dataType: 'number' },
+		actual_cost: { value: data.actualCost, dataType: 'number' },
+		notes: { value: data.notes, dataType: 'text' },
+		attachments: { value: data.attachments, dataType: 'text' },
+		preventive_maintenance: { value: data.preventiveMaintenance ? 1 : 0, dataType: 'boolean' },
+		recurrence_pattern: { value: data.recurrencePattern, dataType: 'text' }
+	};
+	for (const [attr, { value, dataType }] of Object.entries(attributes)) {
+		if (value !== undefined && value !== null) {
+			const attrId = await getAttributeId(attr, dataType);
+			await pool.query(
+				`INSERT INTO maintenance_eav_values (entity_id, attribute_id, value_string, value_number, value_text, value_boolean, value_date)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)
+				 ON DUPLICATE KEY UPDATE value_string=VALUES(value_string), value_number=VALUES(value_number), value_text=VALUES(value_text), value_boolean=VALUES(value_boolean), value_date=VALUES(value_date)`,
+				[
+					entityId,
+					attrId,
+					dataType === 'string' ? value : null,
+					dataType === 'number' ? value : null,
+					dataType === 'text' ? value : null,
+					dataType === 'boolean' ? value : null,
+					dataType === 'date' ? value : null
+				]
+			);
+		}
+	}
+	return getMaintenanceRequestById(entityId);
 }
 
-/**
- * Delete maintenance request
- */
-async function deleteMaintenanceRequest(id) {
-  try {
-    await eav.deleteEntity(id);
-    return { success: true };
-  } catch (error) {
-    console.error('Error deleting maintenance request:', error);
-    throw error;
-  }
+// Delete a maintenance request
+async function deleteMaintenanceRequest(entityId) {
+	const [result] = await pool.query(
+		'DELETE FROM maintenance_eav_entities WHERE entity_id = ?',
+		[entityId]
+	);
+	return result.affectedRows > 0;
 }
 
-/**
- * Get all maintenance requests with filters and pagination
- */
-async function getAllMaintenanceRequests(options = {}) {
-  try {
-    const {
-      page = 1,
-      limit = 50,
-      category,
-      priority,
-      status,
-      submittedBy,
-      assignedTo
-    } = options;
+// Get all maintenance requests
+async function getAllMaintenanceRequests(filters = {}, page = 1, limit = 10) {
+	let where = 'WHERE 1=1';
+	let params = [];
+	if (filters.isActive !== undefined) {
+		where += ' AND is_active = ?';
+		params.push(filters.isActive ? 1 : 0);
+	}
+	const [[{ count: total }]] = await pool.query(
+		`SELECT COUNT(*) as count FROM maintenance_eav_entities ${where}`,
+		params
+	);
+	const totalPages = Math.ceil(total / limit) || 1;
+	const offset = (page - 1) * limit;
+	const [entities] = await pool.query(
+		`SELECT * FROM maintenance_eav_entities ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		[...params, limit, offset]
+	);
+	const ids = entities.map(e => e.entity_id);
+	let requests = [];
+	if (ids.length > 0) {
+		const [values] = await pool.query(
+			`SELECT v.entity_id, a.attribute_name, v.value_string, v.value_number, v.value_text, v.value_boolean, v.value_date
+			 FROM maintenance_eav_values v
+			 JOIN maintenance_eav_attributes a ON v.attribute_id = a.attribute_id
+			 WHERE v.entity_id IN (${ids.map(() => '?').join(',')})`,
+			ids
+		);
+		const valueMap = {};
+		for (const v of values) {
+			if (!valueMap[v.entity_id]) valueMap[v.entity_id] = [];
+			valueMap[v.entity_id].push(v);
+		}
+		requests = entities.map(e => mapMaintenance(e, valueMap[e.entity_id] || []));
+	}
+	return { maintenanceRequests: requests, total, totalPages };
+}
 
-    const filters = {};
-    
-    if (category) filters['category'] = category;
-    if (priority) filters['priority'] = priority;
-    if (status) filters['status'] = status;
-    if (submittedBy) filters['submitted_by'] = submittedBy;
-    if (assignedTo) filters['assigned_to'] = assignedTo;
+// Get maintenance requests by room
+async function getMaintenanceRequestsByRoom(roomId) {
+	const attrId = await getAttributeId('room_id', 'number');
+	const [values] = await pool.query(
+		`SELECT entity_id FROM maintenance_eav_values WHERE attribute_id = ? AND value_number = ?`,
+		[attrId, roomId]
+	);
+	if (values.length === 0) return [];
+	const ids = values.map(v => v.entity_id);
+	const [entities] = await pool.query(
+		`SELECT * FROM maintenance_eav_entities WHERE entity_id IN (${ids.map(() => '?').join(',')})`,
+		ids
+	);
+	if (entities.length === 0) return [];
+	const [allValues] = await pool.query(
+		`SELECT v.entity_id, a.attribute_name, v.value_string, v.value_number, v.value_text, v.value_boolean, v.value_date
+		 FROM maintenance_eav_values v
+		 JOIN maintenance_eav_attributes a ON v.attribute_id = a.attribute_id
+		 WHERE v.entity_id IN (${ids.map(() => '?').join(',')})`,
+		ids
+	);
+	const valueMap = {};
+	for (const v of allValues) {
+		if (!valueMap[v.entity_id]) valueMap[v.entity_id] = [];
+		valueMap[v.entity_id].push(v);
+	}
+	return entities.map(e => mapMaintenance(e, valueMap[e.entity_id] || []));
+}
 
-    const result = await eav.queryEntities(ENTITY_TYPE_CODE, filters, { page, limit });
+// Get maintenance requests by status
+async function getMaintenanceRequestsByStatus(status) {
+	const attrId = await getAttributeId('status', 'string');
+	const [values] = await pool.query(
+		`SELECT entity_id FROM maintenance_eav_values WHERE attribute_id = ? AND value_string = ?`,
+		[attrId, status]
+	);
+	if (values.length === 0) return [];
+	const ids = values.map(v => v.entity_id);
+	const [entities] = await pool.query(
+		`SELECT * FROM maintenance_eav_entities WHERE entity_id IN (${ids.map(() => '?').join(',')})`,
+		ids
+	);
+	if (entities.length === 0) return [];
+	const [allValues] = await pool.query(
+		`SELECT v.entity_id, a.attribute_name, v.value_string, v.value_number, v.value_text, v.value_boolean, v.value_date
+		 FROM maintenance_eav_values v
+		 JOIN maintenance_eav_attributes a ON v.attribute_id = a.attribute_id
+		 WHERE v.entity_id IN (${ids.map(() => '?').join(',')})`,
+		ids
+	);
+	const valueMap = {};
+	for (const v of allValues) {
+		if (!valueMap[v.entity_id]) valueMap[v.entity_id] = [];
+		valueMap[v.entity_id].push(v);
+	}
+	return entities.map(e => mapMaintenance(e, valueMap[e.entity_id] || []));
+}
 
-    return {
-      maintenanceRequests: result.entities.map(mapMaintenanceRequestEntity),
-      total: result.total,
-      page: result.page,
-      limit: result.limit,
-      totalPages: result.totalPages
-    };
-  } catch (error) {
-    console.error('Error getting all maintenance requests:', error);
-    throw error;
-  }
+// Get maintenance requests by severity
+async function getMaintenanceRequestsBySeverity(severity) {
+	const attrId = await getAttributeId('severity', 'string');
+	const [values] = await pool.query(
+		`SELECT entity_id FROM maintenance_eav_values WHERE attribute_id = ? AND value_string = ?`,
+		[attrId, severity]
+	);
+	if (values.length === 0) return [];
+	const ids = values.map(v => v.entity_id);
+	const [entities] = await pool.query(
+		`SELECT * FROM maintenance_eav_entities WHERE entity_id IN (${ids.map(() => '?').join(',')})`,
+		ids
+	);
+	if (entities.length === 0) return [];
+	const [allValues] = await pool.query(
+		`SELECT v.entity_id, a.attribute_name, v.value_string, v.value_number, v.value_text, v.value_boolean, v.value_date
+		 FROM maintenance_eav_values v
+		 JOIN maintenance_eav_attributes a ON v.attribute_id = a.attribute_id
+		 WHERE v.entity_id IN (${ids.map(() => '?').join(',')})`,
+		ids
+	);
+	const valueMap = {};
+	for (const v of allValues) {
+		if (!valueMap[v.entity_id]) valueMap[v.entity_id] = [];
+		valueMap[v.entity_id].push(v);
+	}
+	return entities.map(e => mapMaintenance(e, valueMap[e.entity_id] || []));
+}
+
+// Get pending maintenance requests
+async function getPendingMaintenanceRequests() {
+	return getMaintenanceRequestsByStatus('pending');
+}
+
+// Assign maintenance request to staff
+async function assignMaintenanceRequest(entityId, assignedToId) {
+	const attrId = await getAttributeId('assigned_to', 'number');
+	await pool.query(
+		`INSERT INTO maintenance_eav_values (entity_id, attribute_id, value_number)
+		 VALUES (?, ?, ?)
+		 ON DUPLICATE KEY UPDATE value_number=VALUES(value_number)`,
+		[entityId, attrId, assignedToId]
+	);
+	const statusAttrId = await getAttributeId('status', 'string');
+	await pool.query(
+		`INSERT INTO maintenance_eav_values (entity_id, attribute_id, value_string)
+		 VALUES (?, ?, ?)
+		 ON DUPLICATE KEY UPDATE value_string=VALUES(value_string)`,
+		[entityId, statusAttrId, 'assigned']
+	);
+	return getMaintenanceRequestById(entityId);
+}
+
+// Complete maintenance request
+async function completeMaintenanceRequest(entityId, completionData = {}) {
+	const statusAttrId = await getAttributeId('status', 'string');
+	await pool.query(
+		`INSERT INTO maintenance_eav_values (entity_id, attribute_id, value_string)
+		 VALUES (?, ?, ?)
+		 ON DUPLICATE KEY UPDATE value_string=VALUES(value_string)`,
+		[entityId, statusAttrId, 'completed']
+	);
+	const completedDateAttrId = await getAttributeId('completed_date', 'date');
+	await pool.query(
+		`INSERT INTO maintenance_eav_values (entity_id, attribute_id, value_date)
+		 VALUES (?, ?, ?)
+		 ON DUPLICATE KEY UPDATE value_date=VALUES(value_date)`,
+		[entityId, completedDateAttrId, completionData.completedDate || new Date()]
+	);
+	if (completionData.actualCost !== undefined) {
+		const actualCostAttrId = await getAttributeId('actual_cost', 'number');
+		await pool.query(
+			`INSERT INTO maintenance_eav_values (entity_id, attribute_id, value_number)
+			 VALUES (?, ?, ?)
+			 ON DUPLICATE KEY UPDATE value_number=VALUES(value_number)`,
+			[entityId, actualCostAttrId, completionData.actualCost]
+		);
+	}
+	if (completionData.notes !== undefined) {
+		const notesAttrId = await getAttributeId('notes', 'text');
+		await pool.query(
+			`INSERT INTO maintenance_eav_values (entity_id, attribute_id, value_text)
+			 VALUES (?, ?, ?)
+			 ON DUPLICATE KEY UPDATE value_text=VALUES(value_text)`,
+			[entityId, notesAttrId, completionData.notes]
+		);
+	}
+	// No is_active update needed
+	return getMaintenanceRequestById(entityId);
 }
 
 module.exports = {
-  createMaintenanceRequest,
-  getMaintenanceRequestById,
-  updateMaintenanceRequest,
-  deleteMaintenanceRequest,
-  getAllMaintenanceRequests
+	getAllMaintenanceRequests,
+	getMaintenanceRequestById,
+	createMaintenanceRequest,
+	updateMaintenanceRequest,
+	deleteMaintenanceRequest,
+	getMaintenanceRequestsByRoom,
+	getMaintenanceRequestsByStatus,
+	getMaintenanceRequestsBySeverity,
+	getPendingMaintenanceRequests,
+	assignMaintenanceRequest,
+	completeMaintenanceRequest
 };
