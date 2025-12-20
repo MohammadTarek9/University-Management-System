@@ -1,11 +1,9 @@
-const eav = require('../utils/eavNew');
+const subjectsEav = require('../utils/subjectsEav');
 
 /**
- * Subject Repository using 3-Table EAV Model
- * Works with: eav_entities, eav_attributes, eav_values
+ * Subject Repository using Subjects-Specific 3-Table EAV Model
+ * Works with: subjects_eav_entities, subjects_eav_attributes, subjects_eav_values
  */
-
-const ENTITY_TYPE = 'subject';
 
 /**
  * Map EAV entity to Subject object format
@@ -61,7 +59,7 @@ async function getAllSubjects(options = {}) {
     const { page = 1, limit = 50, search = '', departmentId, classification, isActive } = options;
     
     // Get all subjects
-    const allEntities = await eav.getEntitiesByType(ENTITY_TYPE);
+    const allEntities = await subjectsEav.getAllEntities({ includeInactive: isActive === false || isActive === 0 });
     let subjects = allEntities.map(mapSubjectEntity);
     
     // Apply filters
@@ -108,8 +106,8 @@ async function getAllSubjects(options = {}) {
  */
 async function getSubjectById(id) {
   try {
-    const entity = await eav.getEntityById(id);
-    if (!entity || entity.entity_type !== ENTITY_TYPE) {
+    const entity = await subjectsEav.getEntityById(id);
+    if (!entity) {
       return null;
     }
     return mapSubjectEntity(entity);
@@ -124,8 +122,9 @@ async function getSubjectById(id) {
  */
 async function getSubjectsByDepartment(departmentId) {
   try {
-    const entities = await eav.getEntitiesByType(ENTITY_TYPE, { departmentId, isActive: 1 });
-    return entities.map(mapSubjectEntity);
+    const allEntities = await subjectsEav.getAllEntities({ includeInactive: false });
+    const filtered = allEntities.filter(e => e.department_id == departmentId);
+    return filtered.map(mapSubjectEntity);
   } catch (error) {
     console.error('Error in getSubjectsByDepartment:', error);
     throw error;
@@ -139,8 +138,8 @@ async function createSubject(subjectData) {
   try {
     console.log('Creating subject with data:', JSON.stringify(subjectData, null, 2));
     
-    // Create entity (truly generic - no specific columns)
-    const entityId = await eav.createEntity(ENTITY_TYPE, subjectData.name, {
+    // Create entity
+    const entityId = await subjectsEav.createEntity(subjectData.name, {
       isActive: subjectData.isActive !== undefined ? subjectData.isActive : 1
     });
 
@@ -169,7 +168,7 @@ async function createSubject(subjectData) {
       typical_offering: { value: subjectData.typicalOffering, type: 'string' }
     };
 
-    await eav.setEntityAttributes(entityId, attributes);
+    await subjectsEav.setEntityAttributes(entityId, attributes);
 
     return await getSubjectById(entityId);
   } catch (error) {
@@ -186,10 +185,10 @@ async function updateSubject(id, subjectData) {
     // Update entity base fields (only name and is_active)
     const entityUpdates = {};
     if (subjectData.name) entityUpdates.name = subjectData.name;
-    if (subjectData.isActive !== undefined) entityUpdates.is_active = subjectData.isActive;
+    if (subjectData.isActive !== undefined) entityUpdates.isActive = subjectData.isActive;
 
     if (Object.keys(entityUpdates).length > 0) {
-      await eav.updateEntity(id, entityUpdates);
+      await subjectsEav.updateEntity(id, entityUpdates);
     }
 
     // Update attributes (department_id is an attribute, not a column)
@@ -217,7 +216,7 @@ async function updateSubject(id, subjectData) {
       typical_offering: { value: subjectData.typicalOffering, type: 'string' }
     };
 
-    await eav.setEntityAttributes(id, attributes);
+    await subjectsEav.setEntityAttributes(id, attributes);
 
     return await getSubjectById(id);
   } catch (error) {
@@ -231,7 +230,7 @@ async function updateSubject(id, subjectData) {
  */
 async function deleteSubject(id) {
   try {
-    await eav.deleteEntity(id);
+    await subjectsEav.deleteEntity(id);
     return true;
   } catch (error) {
     console.error('Error in deleteSubject:', error);
@@ -244,7 +243,7 @@ async function deleteSubject(id) {
  */
 async function searchSubjects(searchTerm) {
   try {
-    const codeResults = await eav.searchEntitiesByAttribute(ENTITY_TYPE, 'code', searchTerm);
+    const codeResults = await subjectsEav.searchEntities(searchTerm, 'code');
     return codeResults.map(mapSubjectEntity);
   } catch (error) {
     console.error('Error in searchSubjects:', error);
@@ -257,7 +256,7 @@ async function searchSubjects(searchTerm) {
  */
 async function getSubjectByCode(code) {
   try {
-    const allEntities = await eav.getEntitiesByType(ENTITY_TYPE);
+    const allEntities = await subjectsEav.getAllEntities();
     const subject = allEntities.find(entity => entity.code === code);
     return subject ? mapSubjectEntity(subject) : null;
   } catch (error) {
