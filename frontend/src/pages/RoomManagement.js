@@ -768,9 +768,13 @@ const RoomManagement = () => {
     return `${room.name}`;
   };
 
-  // Format location for display
+  // Format location for display (no leading/trailing commas, skip empty parts, show placeholder if all empty)
   const formatLocation = (location) => {
-    return `${location.building}, Floor ${location.floor}, Room ${location.roomNumber}`;
+    const parts = [];
+    if (location.building) parts.push(location.building);
+    if (location.floor) parts.push(`Floor ${location.floor}`);
+    if (location.roomNumber) parts.push(`Room ${location.roomNumber}`);
+    return parts.length > 0 ? parts.join(', ') : '—';
   };
 
   // Get buildings for filter dropdown (from current rooms)
@@ -975,7 +979,7 @@ const RoomManagement = () => {
                     </TableCell>
                     <TableCell align="center">
                       <Typography variant="body2" fontWeight="medium">
-                        {room.capacity}
+                        {Number(room.capacity) % 1 === 0 ? Number(room.capacity) : Number(room.capacity).toFixed(2)}
                       </Typography>
                     </TableCell>
                     <TableCell>

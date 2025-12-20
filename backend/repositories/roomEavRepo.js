@@ -1,301 +1,307 @@
-const eav = require('../utils/eav');
+const pool = require('../db/mysql');
 
-/**
- * Room Repository using EAV Model
- * Handles CRUD operations for rooms with type-specific attributes
- */
+// Helper: Get attribute_id by name (or create if not exists)
+async function getAttributeId(attributeName, dataType = 'string') {
+  const [rows] = await pool.query(
+    'SELECT attribute_id FROM rooms_eav_attributes WHERE attribute_name = ?',
+    [attributeName]
+  );
+  if (rows.length > 0) return rows[0].attribute_id;
 
-const ENTITY_TYPE_CODE = 'room';
-
-/**
- * Map EAV entity to Room object format
- */
-function mapRoomEntity(entity) {
-  console.log('Mapping room entity old:', entity);
-  if (!entity) return null;
-
-  const baseData = {
-    id: entity.id,
-    roomNumber: entity['room_number'] || entity.roomNumber,
-    roomName: entity['room_name'] || entity.roomName,
-    building: entity.building,
-    floor: entity.floor,
-    capacity: entity.capacity,
-    roomType: entity['room_type'] || entity.roomType,
-    isActive: entity['is_active'] !== undefined ? entity['is_active'] : entity.isActive,
-    description: entity.description,
-    
-    createdAt: entity.createdAt,
-    updatedAt: entity.updatedAt
-  };
-
-  // Type-specific attributes
-  const typeAttributes = {};
-  
-  // Lab-specific fields
-  if (entity['fume_hoods_count']) typeAttributes.fumeHoodsCount = entity['fume_hoods_count'];
-  if (entity['safety_equipment']) typeAttributes.safetyEquipment = entity['safety_equipment'];
-  if (entity['lab_type']) typeAttributes.labType = entity['lab_type'];
-  if (entity['chemical_storage']) typeAttributes.chemicalStorage = entity['chemical_storage'];
-  if (entity['emergency_shower']) typeAttributes.emergencyShower = entity['emergency_shower'];
-  if (entity['eye_wash_station']) typeAttributes.eyeWashStation = entity['eye_wash_station'];
-  if (entity['hazmat_certified']) typeAttributes.hazmatCertified = entity['hazmat_certified'];
-  
-  // Computer Lab fields
-  if (entity['computers_count']) typeAttributes.computersCount = entity['computers_count'];
-  if (entity['software_installed']) typeAttributes.softwareInstalled = entity['software_installed'];
-  if (entity['hardware_specs']) typeAttributes.hardwareSpecs = entity['hardware_specs'];
-  if (entity['network_type']) typeAttributes.networkType = entity['network_type'];
-  if (entity['printer_available']) typeAttributes.printerAvailable = entity['printer_available'];
-  if (entity['scanner_available']) typeAttributes.scannerAvailable = entity['scanner_available'];
-  
-  // Lecture Hall fields
-  if (entity['seating_arrangement']) typeAttributes.seatingArrangement = entity['seating_arrangement'];
-  if (entity['av_equipment']) typeAttributes.avEquipment = entity['av_equipment'];
-  if (entity['projector_type']) typeAttributes.projectorType = entity['projector_type'];
-  if (entity['sound_system']) typeAttributes.soundSystem = entity['sound_system'];
-  if (entity['recording_capable']) typeAttributes.recordingCapable = entity['recording_capable'];
-  if (entity['whiteboard_count']) typeAttributes.whiteboardCount = entity['whiteboard_count'];
-  if (entity['document_camera']) typeAttributes.documentCamera = entity['document_camera'];
-  
-  // Office fields
-  if (entity['access_control_type']) typeAttributes.accessControlType = entity['access_control_type'];
-  if (entity['furniture_list']) typeAttributes.furnitureList = entity['furniture_list'];
-  if (entity['phone_extension']) typeAttributes.phoneExtension = entity['phone_extension'];
-  if (entity['network_ports']) typeAttributes.networkPorts = entity['network_ports'];
-  if (entity['window_count']) typeAttributes.windowCount = entity['window_count'];
-  if (entity['occupant_name']) typeAttributes.occupantName = entity['occupant_name'];
-  
-  // Studio/Workshop fields
-  if (entity['studio_type']) typeAttributes.studioType = entity['studio_type'];
-  if (entity['equipment_list']) typeAttributes.equipmentList = entity['equipment_list'];
-  if (entity['power_outlets_count']) typeAttributes.powerOutletsCount = entity['power_outlets_count'];
-  if (entity['specialized_lighting']) typeAttributes.specializedLighting = entity['specialized_lighting'];
-  if (entity['storage_space']) typeAttributes.storageSpace = entity['storage_space'];
-  
-  // Common additional fields
-  if (entity['accessibility_features']) typeAttributes.accessibilityFeatures = entity['accessibility_features'];
-  if (entity['climate_control']) typeAttributes.climateControl = entity['climate_control'];
-  if (entity['natural_light']) typeAttributes.naturalLight = entity['natural_light'];
-  if (entity['last_maintenance_date']) typeAttributes.lastMaintenanceDate = entity['last_maintenance_date'];
-  if (entity['next_maintenance_date']) typeAttributes.nextMaintenanceDate = entity['next_maintenance_date'];
-  if (entity['usage_notes']) typeAttributes.usageNotes = entity['usage_notes'];
-  if (entity['booking_restrictions']) typeAttributes.bookingRestrictions = entity['booking_restrictions'];
-
-  return {
-    ...baseData,
-    typeSpecific: typeAttributes
-  };
+  // Optionally, create the attribute if not found
+  const [result] = await pool.query(
+    'INSERT INTO rooms_eav_attributes (attribute_name, data_type) VALUES (?, ?)',
+    [attributeName, dataType]
+  );
+  return result.insertId;
 }
 
-/**
- * Prepare room data for EAV storage
- */
-function prepareRoomAttributes(data) {
+// Helper: Map EAV values to a room object
+function mapRoom(entity, values) {
+  const location = {
+    building: '',
+    floor: '',
+    roomNumber: ''
+  };
+  let type = '';
+  const room = {
+    id: entity.entity_id,
+    name: entity.name,
+    isActive: !!entity.is_active,
+    createdAt: entity.created_at,
+    updatedAt: entity.updated_at,
+    location,
+    type
+  };
+  for (const row of values) {
+    let val = row.value_string ?? row.value_number ?? row.value_text ?? row.value_boolean ?? row.value_date;
+    if (row.attribute_name === 'equipment' || row.attribute_name === 'amenities') {
+      try { val = JSON.parse(val); } catch {}
+    }
+    if (row.attribute_name === 'building') location.building = val || '';
+    else if (row.attribute_name === 'floor') location.floor = val || '';
+    else if (row.attribute_name === 'room_number') location.roomNumber = val || '';
+    else if (row.attribute_name === 'room_type' || row.attribute_name === 'type') room.type = val || '';
+    else room[row.attribute_name] = val;
+  }
+  return room;
+}
+
+// Create a new room
+async function createRoom(data) {
+  const [entityResult] = await pool.query(
+    'INSERT INTO rooms_eav_entities (name, is_active, created_at, updated_at) VALUES (?, ?, NOW(), NOW())',
+    [data.name, data.isActive ? 1 : 0]
+  );
+  const entityId = entityResult.insertId;
+
+  // Insert attribute values
   const attributes = {
-    // Core fields
-    'room_number': data.roomNumber,
-    'room_name': data.roomName || null,
-    'building': data.building,
-    'floor': data.floor,
-    'capacity': data.capacity,
-    'room_type': data.roomType,
-    'is_active': data.isActive !== undefined ? data.isActive : true,
-    'description': data.description || null
+    room_name: { value: data.name, dataType: 'string' },
+    room_type: { value: data.type, dataType: 'string' },
+    capacity: { value: data.capacity, dataType: 'number' },
+    building: { value: data.location?.building, dataType: 'string' },
+    floor: { value: data.location?.floor, dataType: 'string' },
+    room_number: { value: data.location?.roomNumber, dataType: 'string' },
+    is_active: { value: data.isActive ? 1 : 0, dataType: 'boolean' },
+    maintenance_notes: { value: data.maintenanceNotes, dataType: 'text' },
+    equipment: { value: JSON.stringify(data.equipment || []), dataType: 'text' },
+    amenities: { value: JSON.stringify(data.amenities || []), dataType: 'text' },
+    created_by: { value: data.createdBy, dataType: 'number' }
   };
 
-  // Add type-specific attributes if provided
-  if (data.typeSpecific) {
-    const ts = data.typeSpecific;
-    
-    // Lab fields
-    if (ts.fumeHoodsCount) attributes['fume_hoods_count'] = ts.fumeHoodsCount;
-    if (ts.safetyEquipment) attributes['safety_equipment'] = ts.safetyEquipment;
-    if (ts.labType) attributes['lab_type'] = ts.labType;
-    if (ts.chemicalStorage !== undefined) attributes['chemical_storage'] = ts.chemicalStorage;
-    if (ts.emergencyShower !== undefined) attributes['emergency_shower'] = ts.emergencyShower;
-    if (ts.eyeWashStation !== undefined) attributes['eye_wash_station'] = ts.eyeWashStation;
-    if (ts.hazmatCertified !== undefined) attributes['hazmat_certified'] = ts.hazmatCertified;
-    
-    // Computer Lab fields
-    if (ts.computersCount) attributes['computers_count'] = ts.computersCount;
-    if (ts.softwareInstalled) attributes['software_installed'] = ts.softwareInstalled;
-    if (ts.hardwareSpecs) attributes['hardware_specs'] = ts.hardwareSpecs;
-    if (ts.networkType) attributes['network_type'] = ts.networkType;
-    if (ts.printerAvailable !== undefined) attributes['printer_available'] = ts.printerAvailable;
-    if (ts.scannerAvailable !== undefined) attributes['scanner_available'] = ts.scannerAvailable;
-    
-    // Lecture Hall fields
-    if (ts.seatingArrangement) attributes['seating_arrangement'] = ts.seatingArrangement;
-    if (ts.avEquipment) attributes['av_equipment'] = ts.avEquipment;
-    if (ts.projectorType) attributes['projector_type'] = ts.projectorType;
-    if (ts.soundSystem) attributes['sound_system'] = ts.soundSystem;
-    if (ts.recordingCapable !== undefined) attributes['recording_capable'] = ts.recordingCapable;
-    if (ts.whiteboardCount) attributes['whiteboard_count'] = ts.whiteboardCount;
-    if (ts.documentCamera !== undefined) attributes['document_camera'] = ts.documentCamera;
-    
-    // Office fields
-    if (ts.accessControlType) attributes['access_control_type'] = ts.accessControlType;
-    if (ts.furnitureList) attributes['furniture_list'] = ts.furnitureList;
-    if (ts.phoneExtension) attributes['phone_extension'] = ts.phoneExtension;
-    if (ts.networkPorts) attributes['network_ports'] = ts.networkPorts;
-    if (ts.windowCount) attributes['window_count'] = ts.windowCount;
-    if (ts.occupantName) attributes['occupant_name'] = ts.occupantName;
-    
-    // Studio/Workshop fields
-    if (ts.studioType) attributes['studio_type'] = ts.studioType;
-    if (ts.equipmentList) attributes['equipment_list'] = ts.equipmentList;
-    if (ts.powerOutletsCount) attributes['power_outlets_count'] = ts.powerOutletsCount;
-    if (ts.specializedLighting) attributes['specialized_lighting'] = ts.specializedLighting;
-    if (ts.storageSpace) attributes['storage_space'] = ts.storageSpace;
-    
-    // Common fields
-    if (ts.accessibilityFeatures) attributes['accessibility_features'] = ts.accessibilityFeatures;
-    if (ts.climateControl) attributes['climate_control'] = ts.climateControl;
-    if (ts.naturalLight !== undefined) attributes['natural_light'] = ts.naturalLight;
-    if (ts.lastMaintenanceDate) attributes['last_maintenance_date'] = ts.lastMaintenanceDate;
-    if (ts.nextMaintenanceDate) attributes['next_maintenance_date'] = ts.nextMaintenanceDate;
-    if (ts.usageNotes) attributes['usage_notes'] = ts.usageNotes;
-    if (ts.bookingRestrictions) attributes['booking_restrictions'] = ts.bookingRestrictions;
+  for (const [attr, { value, dataType }] of Object.entries(attributes)) {
+    if (value !== undefined && value !== null) {
+      const attrId = await getAttributeId(attr, dataType);
+      await pool.query(
+        `INSERT INTO rooms_eav_values (entity_id, attribute_id, value_string, value_number, value_text, value_boolean, value_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE value_string=VALUES(value_string), value_number=VALUES(value_number), value_text=VALUES(value_text), value_boolean=VALUES(value_boolean), value_date=VALUES(value_date)`,
+        [
+          entityId,
+          attrId,
+          dataType === 'string' ? value : null,
+          dataType === 'number' ? value : null,
+          dataType === 'text' ? value : null,
+          dataType === 'boolean' ? value : null,
+          dataType === 'date' ? value : null
+        ]
+      );
+    }
   }
 
-  // Remove undefined values
-  Object.keys(attributes).forEach(key => {
-    if (attributes[key] === undefined) {
-      delete attributes[key];
-    }
-  });
-
-  return attributes;
+  return getRoomById(entityId);
 }
 
-/**
- * Create a new room
- */
-async function createRoom(roomData) {
-  try {
-    const attributes = prepareRoomAttributes(roomData);
-    const naturalKey = `${roomData.building}-${roomData.roomNumber}`;
-    
-    const entityId = await eav.createEntityWithAttributes(
-      ENTITY_TYPE_CODE,
-      attributes,
-      naturalKey
+// Get a room by ID
+async function getRoomById(entityId) {
+  const [entities] = await pool.query(
+    'SELECT * FROM rooms_eav_entities WHERE entity_id = ?',
+    [entityId]
+  );
+  if (entities.length === 0) return null;
+
+  const [values] = await pool.query(
+    `SELECT a.attribute_name, v.value_string, v.value_number, v.value_text, v.value_boolean, v.value_date
+     FROM rooms_eav_values v
+     JOIN rooms_eav_attributes a ON v.attribute_id = a.attribute_id
+     WHERE v.entity_id = ?`,
+    [entityId]
+  );
+
+  return mapRoom(entities[0], values);
+}
+
+// Update a room
+async function updateRoom(entityId, data) {
+  // Update entity name and is_active if provided
+  if (data.name || data.isActive !== undefined) {
+    await pool.query(
+      'UPDATE rooms_eav_entities SET name = COALESCE(?, name), is_active = COALESCE(?, is_active), updated_at = NOW() WHERE entity_id = ?',
+      [data.name, data.isActive !== undefined ? (data.isActive ? 1 : 0) : null, entityId]
+    );
+  }
+
+  // Update attribute values
+  const attributes = {
+    room_name: { value: data.name, dataType: 'string' },
+    room_type: { value: data.type, dataType: 'string' },
+    capacity: { value: data.capacity, dataType: 'number' },
+    building: { value: data.location?.building, dataType: 'string' },
+    floor: { value: data.location?.floor, dataType: 'string' },
+    room_number: { value: data.location?.roomNumber, dataType: 'string' },
+    is_active: { value: data.isActive !== undefined ? (data.isActive ? 1 : 0) : undefined, dataType: 'boolean' },
+    maintenance_notes: { value: data.maintenanceNotes, dataType: 'text' },
+    equipment: { value: data.equipment ? JSON.stringify(data.equipment) : undefined, dataType: 'text' },
+    amenities: { value: data.amenities ? JSON.stringify(data.amenities) : undefined, dataType: 'text' },
+    updated_by: { value: data.updatedBy, dataType: 'number' }
+  };
+
+  for (const [attr, { value, dataType }] of Object.entries(attributes)) {
+    if (value !== undefined && value !== null) {
+      const attrId = await getAttributeId(attr, dataType);
+      await pool.query(
+        `INSERT INTO rooms_eav_values (entity_id, attribute_id, value_string, value_number, value_text, value_boolean, value_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE value_string=VALUES(value_string), value_number=VALUES(value_number), value_text=VALUES(value_text), value_boolean=VALUES(value_boolean), value_date=VALUES(value_date)`,
+        [
+          entityId,
+          attrId,
+          dataType === 'string' ? value : null,
+          dataType === 'number' ? value : null,
+          dataType === 'text' ? value : null,
+          dataType === 'boolean' ? value : null,
+          dataType === 'date' ? value : null
+        ]
+      );
+    }
+  }
+
+  return getRoomById(entityId);
+}
+
+// Delete a room
+async function deleteRoom(entityId) {
+  const [result] = await pool.query(
+    'DELETE FROM rooms_eav_entities WHERE entity_id = ?',
+    [entityId]
+  );
+  return result.affectedRows > 0;
+}
+
+// Get all rooms (with optional filters and pagination)
+async function getAllRooms(filters = {}, page = 1, limit = 10) {
+  let where = 'WHERE 1=1';
+  let params = [];
+
+  if (filters.isActive !== undefined) {
+    where += ' AND is_active = ?';
+    params.push(filters.isActive ? 1 : 0);
+  }
+
+  // Count total rooms for pagination
+  const [[{ count: total }]] = await pool.query(
+    `SELECT COUNT(*) as count FROM rooms_eav_entities ${where}`,
+    params
+  );
+
+  const totalPages = Math.ceil(total / limit) || 1;
+  const offset = (page - 1) * limit;
+  const [entities] = await pool.query(
+    `SELECT * FROM rooms_eav_entities ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  // Get all attribute values for these entities
+  const ids = entities.map(e => e.entity_id);
+  let rooms = [];
+  if (ids.length > 0) {
+    const [values] = await pool.query(
+      `SELECT v.entity_id, a.attribute_name, v.value_string, v.value_number, v.value_text, v.value_boolean, v.value_date
+       FROM rooms_eav_values v
+       JOIN rooms_eav_attributes a ON v.attribute_id = a.attribute_id
+       WHERE v.entity_id IN (${ids.map(() => '?').join(',')})`,
+      ids
     );
 
-    return await getRoomById(entityId);
-  } catch (error) {
-    console.error('Error creating room:', error);
-    throw error;
-  }
-}
-
-/**
- * Get room by ID
- */
-async function getRoomById(id) {
-  try {
-    const entity = await eav.getEntity(id, ENTITY_TYPE_CODE);
-    return mapRoomEntity(entity);
-  } catch (error) {
-    console.error('Error getting room:', error);
-    throw error;
-  }
-}
-
-/**
- * Update room
- */
-async function updateRoom(id, roomData) {
-  try {
-    const attributes = prepareRoomAttributes(roomData);
-    await eav.updateEntityAttributes(id, attributes, ENTITY_TYPE_CODE);
-    
-    return await getRoomById(id);
-  } catch (error) {
-    console.error('Error updating room:', error);
-    throw error;
-  }
-}
-
-/**
- * Delete room
- */
-async function deleteRoom(id) {
-  try {
-    await eav.deleteEntity(id);
-    return { success: true };
-  } catch (error) {
-    console.error('Error deleting room:', error);
-    throw error;
-  }
-}
-
-/**
- * Get all rooms with filters and pagination
- */
-async function getAllRooms(options = {}) {
-  try {
-    const {
-      page = 1,
-      limit = 50,
-      building,
-      roomType,
-      isActive,
-      minCapacity,
-      maxCapacity
-    } = options;
-
-    const filters = {};
-    
-    if (building) filters['building'] = building;
-    if (roomType) filters['room_type'] = roomType;
-    if (isActive !== undefined) filters['is_active'] = isActive;
-
-    const result = await eav.queryEntities(ENTITY_TYPE_CODE, filters, { page, limit });
-
-    // Filter by capacity if needed (post-query filtering since capacity is numeric comparison)
-    let rooms = result.entities.map(mapRoomEntity);
-    
-    if (minCapacity !== undefined) {
-      rooms = rooms.filter(room => room.capacity >= minCapacity);
-    }
-    if (maxCapacity !== undefined) {
-      rooms = rooms.filter(room => room.capacity <= maxCapacity);
+    // Group values by entity_id
+    const valueMap = {};
+    for (const v of values) {
+      if (!valueMap[v.entity_id]) valueMap[v.entity_id] = [];
+      valueMap[v.entity_id].push(v);
     }
 
-    return {
-      rooms,
-      total: rooms.length, // Adjusted for post-filtering
-      page: result.page,
-      limit: result.limit,
-      totalPages: Math.ceil(rooms.length / limit)
-    };
-  } catch (error) {
-    console.error('Error getting all rooms:', error);
-    throw error;
+    rooms = entities.map(e => mapRoom(e, valueMap[e.entity_id] || []));
   }
+
+  return { rooms, total, totalPages };
 }
 
-/**
- * Get room by natural key (building + room number)
- */
-async function getRoomByNumber(building, roomNumber) {
-  try {
-    const naturalKey = `${building}-${roomNumber}`;
-    const entity = await eav.getEntityByNaturalKey(ENTITY_TYPE_CODE, naturalKey);
-    return mapRoomEntity(entity);
-  } catch (error) {
-    console.error('Error getting room by number:', error);
-    throw error;
+// Search rooms by name, building, or number
+async function searchRooms(query) {
+  const [entities] = await pool.query(
+    `SELECT * FROM rooms_eav_entities WHERE name LIKE ?`,
+    [`%${query}%`]
+  );
+  if (entities.length === 0) return [];
+
+  const ids = entities.map(e => e.entity_id);
+  const [values] = await pool.query(
+    `SELECT v.entity_id, a.attribute_name, v.value_string, v.value_number, v.value_text, v.value_boolean, v.value_date
+     FROM rooms_eav_values v
+     JOIN rooms_eav_attributes a ON v.attribute_id = a.attribute_id
+     WHERE v.entity_id IN (${ids.map(() => '?').join(',')})`,
+    ids
+  );
+
+  const valueMap = {};
+  for (const v of values) {
+    if (!valueMap[v.entity_id]) valueMap[v.entity_id] = [];
+    valueMap[v.entity_id].push(v);
   }
+
+  return entities.map(e => mapRoom(e, valueMap[e.entity_id] || []));
+}
+
+// Get available rooms (is_active = 1)
+async function getAvailableRooms() {
+  return getAllRooms({ isActive: true });
+}
+
+// Get rooms by building
+async function getRoomsByBuilding(building) {
+  // Find attribute_id for 'building'
+  const attrId = await getAttributeId('building', 'string');
+  const [values] = await pool.query(
+    `SELECT entity_id FROM rooms_eav_values WHERE attribute_id = ? AND value_string = ?`,
+    [attrId, building]
+  );
+  if (values.length === 0) return [];
+
+  const ids = values.map(v => v.entity_id);
+  const [entities] = await pool.query(
+    `SELECT * FROM rooms_eav_entities WHERE entity_id IN (${ids.map(() => '?').join(',')})`,
+    ids
+  );
+  if (entities.length === 0) return [];
+
+  const [allValues] = await pool.query(
+    `SELECT v.entity_id, a.attribute_name, v.value_string, v.value_number, v.value_text, v.value_boolean, v.value_date
+     FROM rooms_eav_values v
+     JOIN rooms_eav_attributes a ON v.attribute_id = a.attribute_id
+     WHERE v.entity_id IN (${ids.map(() => '?').join(',')})`,
+    ids
+  );
+
+  const valueMap = {};
+  for (const v of allValues) {
+    if (!valueMap[v.entity_id]) valueMap[v.entity_id] = [];
+    valueMap[v.entity_id].push(v);
+  }
+
+  return entities.map(e => mapRoom(e, valueMap[e.entity_id] || []));
+}
+
+// Get room by room number
+async function getRoomByNumber(roomNumber) {
+  const attrId = await getAttributeId('room_number', 'string');
+  const [values] = await pool.query(
+    `SELECT entity_id FROM rooms_eav_values WHERE attribute_id = ? AND value_string = ?`,
+    [attrId, roomNumber]
+  );
+  if (values.length === 0) return null;
+
+  return getRoomById(values[0].entity_id);
 }
 
 module.exports = {
-  createRoom,
+  getAllRooms,
   getRoomById,
+  createRoom,
   updateRoom,
   deleteRoom,
-  getAllRooms,
+  searchRooms,
+  getAvailableRooms,
+  getRoomsByBuilding,
   getRoomByNumber
 };
