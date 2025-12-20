@@ -374,7 +374,7 @@ exports.getApplicationStats = async (req, res) => {
 
 // @desc    Get student credentials for approved application (Admin only)
 // @route   GET /api/facilities/applications/:id/credentials
-// @access  Private (Admin only)
+// @access  Private (Admin only) edit
 exports.getStudentCredentials = async (req, res) => {
   try {
     const application = await applicationRepo.getStudentCredentialsForApplication(req.params.id);
