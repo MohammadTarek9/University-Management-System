@@ -223,6 +223,7 @@ const updateAssessment = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+    const { questions } = req.body; // Extract questions from request body
     
     // Check if assessment exists
     const existingAssessment = await assessmentRepo.getAssessmentById(id);
@@ -256,10 +257,18 @@ const updateAssessment = async (req, res) => {
       updateData.availableFrom = availableFromObj;
     }
     
-    // Update assessment
+    // Update assessment metadata
     const assessment = await assessmentRepo.updateAssessment(id, updateData);
     
-    successResponse(res, 200, 'Assessment updated successfully', { assessment });
+    // Handle questions update if questions are provided
+    if (questions !== undefined) {
+      await assessmentRepo.replaceAssessmentQuestions(id, questions);
+      // Refresh assessment data to include updated question count
+      const updatedAssessment = await assessmentRepo.getAssessmentById(id);
+      successResponse(res, 200, 'Assessment updated successfully', { assessment: updatedAssessment });
+    } else {
+      successResponse(res, 200, 'Assessment updated successfully', { assessment });
+    }
   } catch (error) {
     console.error('Error updating assessment:', error);
     errorResponse(res, 500, 'Server error while updating assessment');
@@ -501,6 +510,39 @@ const gradeSubmission = async (req, res) => {
   }
 };
 
+// ===================================================================
+// @desc    Get submission with answers for grading (faculty)
+// @route   GET /api/curriculum/assessments/:id/submissions/:submissionId
+// @access  Private (Faculty only)
+// ===================================================================
+const getSubmissionForGrading = async (req, res) => {
+  try {
+    const { id, submissionId } = req.params;
+
+    // Get assessment to verify authorization
+    const assessment = await assessmentRepo.getAssessmentById(id);
+    if (!assessment) {
+      return errorResponse(res, 404, 'Assessment not found');
+    }
+
+    // Verify authorization (using EAV repo)
+    const course = await courseRepo.getCourseById(assessment.courseId);
+    if (req.user.role !== 'admin' && course.instructorId !== req.user.id) {
+      return errorResponse(res, 403, 'You are not authorized to view this submission');
+    }
+
+    const submission = await assessmentRepo.getSubmissionWithAnswers(submissionId);
+    if (!submission) {
+      return errorResponse(res, 404, 'Submission not found');
+    }
+
+    successResponse(res, 200, 'Submission retrieved successfully', { submission });
+  } catch (error) {
+    console.error('Error fetching submission for grading:', error);
+    errorResponse(res, 500, 'Server error while retrieving submission');
+  }
+};
+
 module.exports = {
   getAssessmentsByCourse,
   getAssessmentById,
@@ -510,5 +552,6 @@ module.exports = {
   submitAssessment,
   getAssessmentSubmissions,
   getMySubmission,
-  gradeSubmission
+  gradeSubmission,
+  getSubmissionForGrading
 };
