@@ -170,25 +170,80 @@ async function deleteRoom(entityId) {
 }
 
 // Get all rooms (with optional filters and pagination)
+/**
+ * Get all rooms with EAV filtering and pagination
+ * @param {Object} filters - Filter criteria
+ * @param {number} page - Page number (1-indexed)
+ * @param {number} limit - Items per page
+ * @returns {Object} - { rooms, total, page, pages }
+ */
 async function getAllRooms(filters = {}, page = 1, limit = 10) {
-  let where = 'WHERE 1=1';
+  const {
+    search = '',
+    type = null,
+    building = null,
+    capacity = null,
+    isActive = null
+  } = filters;
+
+  let whereClauses = ['1=1'];
   let params = [];
 
-  if (filters.isActive !== undefined) {
-    where += ' AND is_active = ?';
-    params.push(filters.isActive ? 1 : 0);
+  // Entity-level filter
+  if (isActive !== null && isActive !== 'all') {
+    whereClauses.push('e.is_active = ?');
+    params.push(isActive === true || isActive === 'true' ? 1 : 0);
   }
 
-  // Count total rooms for pagination
-  const [[{ count: total }]] = await pool.query(
-    `SELECT COUNT(*) as count FROM rooms_eav_entities ${where}`,
+  // EAV attribute filters
+  const eavJoins = [];
+  let joinIdx = 0;
+  // Search filter (name or EAV attributes)
+  if (search && search.trim() !== '') {
+    const like = `%${search.trim()}%`;
+    whereClauses.push('(e.name LIKE ? OR v_building.value_string LIKE ? OR v_room_number.value_string LIKE ?)');
+    params.push(like, like, like);
+    // Join for building
+    eavJoins.push('LEFT JOIN rooms_eav_values v_building ON v_building.entity_id = e.entity_id AND v_building.attribute_id = (SELECT attribute_id FROM rooms_eav_attributes WHERE attribute_name = "building" LIMIT 1)');
+    // Join for room_number
+    eavJoins.push('LEFT JOIN rooms_eav_values v_room_number ON v_room_number.entity_id = e.entity_id AND v_room_number.attribute_id = (SELECT attribute_id FROM rooms_eav_attributes WHERE attribute_name = "room_number" LIMIT 1)');
+  }
+  // Type filter
+  if (type && type !== 'all') {
+    joinIdx++;
+    eavJoins.push(`JOIN rooms_eav_values v_type ON v_type.entity_id = e.entity_id AND v_type.attribute_id = (SELECT attribute_id FROM rooms_eav_attributes WHERE attribute_name = 'room_type' LIMIT 1)`);
+    whereClauses.push(`v_type.value_string = ?`);
+    params.push(type);
+  }
+  // Building filter
+  if (building && building !== 'all') {
+    joinIdx++;
+    eavJoins.push(`JOIN rooms_eav_values v_building2 ON v_building2.entity_id = e.entity_id AND v_building2.attribute_id = (SELECT attribute_id FROM rooms_eav_attributes WHERE attribute_name = 'building' LIMIT 1)`);
+    whereClauses.push(`v_building2.value_string = ?`);
+    params.push(building);
+  }
+  // Capacity filter
+  if (capacity !== null && capacity !== '' && !isNaN(capacity)) {
+    joinIdx++;
+    eavJoins.push(`JOIN rooms_eav_values v_capacity ON v_capacity.entity_id = e.entity_id AND v_capacity.attribute_id = (SELECT attribute_id FROM rooms_eav_attributes WHERE attribute_name = 'capacity' LIMIT 1)`);
+    whereClauses.push(`v_capacity.value_number >= ?`);
+    params.push(parseInt(capacity));
+  }
+
+  const whereClause = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
+  const joinClause = eavJoins.join(' ');
+
+  // Get total count
+  const [countResult] = await pool.query(
+    `SELECT COUNT(DISTINCT e.entity_id) as count FROM rooms_eav_entities e ${joinClause} ${whereClause}`,
     params
   );
+  const total = countResult[0].count;
 
-  const totalPages = Math.ceil(total / limit) || 1;
+  // Get paginated results
   const offset = (page - 1) * limit;
   const [entities] = await pool.query(
-    `SELECT * FROM rooms_eav_entities ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    `SELECT DISTINCT e.* FROM rooms_eav_entities e ${joinClause} ${whereClause} ORDER BY e.created_at DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );
 
@@ -203,18 +258,21 @@ async function getAllRooms(filters = {}, page = 1, limit = 10) {
        WHERE v.entity_id IN (${ids.map(() => '?').join(',')})`,
       ids
     );
-
     // Group values by entity_id
     const valueMap = {};
     for (const v of values) {
       if (!valueMap[v.entity_id]) valueMap[v.entity_id] = [];
       valueMap[v.entity_id].push(v);
     }
-
     rooms = entities.map(e => mapRoom(e, valueMap[e.entity_id] || []));
   }
 
-  return { rooms, total, totalPages };
+  return {
+    rooms,
+    total,
+    page,
+    pages: Math.ceil(total / limit)
+  };
 }
 
 // Search rooms by name, building, or number

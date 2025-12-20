@@ -29,7 +29,8 @@ exports.getAllRooms = async (req, res) => {
     }
 
     if (roomType && roomType !== 'all') {
-      options.roomType = roomType;
+      // repository expects `type`
+      options.type = roomType;
     }
 
     if (isActive !== undefined && isActive !== 'all') {
@@ -37,12 +38,14 @@ exports.getAllRooms = async (req, res) => {
     }
 
     if (capacity && !isNaN(capacity)) {
-      options.minCapacity = parseInt(capacity);
+      // repository expects `capacity`
+      options.capacity = parseInt(capacity);
     }
 
-    const { rooms, total, totalPages } = await roomRepo.getAllRooms(options);
+    const { rooms, total, pages } = await roomRepo.getAllRooms(options);
+    const totalPages = pages;
 
-    console.log(`fetched ${rooms}`);
+    console.log(`fetched ${rooms.length} rooms`);
 
     const pagination = {
       currentPage: page,
@@ -117,9 +120,12 @@ exports.createRoom = async (req, res) => {
     const actualRoomType = type || roomType;
 
     // Check for duplicate room by building + room number
-    const existingRoom = await roomRepo.getRoomByNumber(building, roomNumber);
-    if (existingRoom) {
-      return errorResponse(res, 409, 'A room with this number already exists in this building');
+    let existingRoom = null;
+    if (roomNumber) {
+      existingRoom = await roomRepo.getRoomByNumber(roomNumber);
+      if (existingRoom && existingRoom.location?.building === building) {
+        return errorResponse(res, 409, 'A room with this number already exists in this building');
+      }
     }
 
     const room = await roomRepo.createRoom({
@@ -191,9 +197,12 @@ exports.updateRoom = async (req, res) => {
     const updateData = {};
     if (name || roomName) updateData.roomName = name || roomName;
     if (name || roomName) updateData.name = name || roomName;
-    if (roomNumber !== undefined) updateData.roomNumber = roomNumber;
-    if (building !== undefined) updateData.building = building;
-    if (floor !== undefined) updateData.floor = floor;
+    // package location into nested object expected by repo
+    const locationUpdates = {};
+    if (roomNumber !== undefined) locationUpdates.roomNumber = roomNumber;
+    if (building !== undefined) locationUpdates.building = building;
+    if (floor !== undefined) locationUpdates.floor = floor;
+    if (Object.keys(locationUpdates).length > 0) updateData.location = locationUpdates;
     if (capacity !== undefined) updateData.capacity = capacity;
     if (type || roomType) updateData.roomType = type || roomType;
     if (type || roomType) updateData.type = type || roomType;
