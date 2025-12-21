@@ -15,9 +15,6 @@ import {
   Card,
   CardContent
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { leaveRequestService } from '../services/leaveRequestService';
 import { useAuth } from '../context/AuthContext';
 
@@ -31,8 +28,8 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
 
   const [formData, setFormData] = useState({
     leaveTypeId: '',
-    startDate: null,
-    endDate: null,
+    startDate: '',  // ✓ Changed to string (YYYY-MM-DD format)
+    endDate: '',    // ✓ Changed to string (YYYY-MM-DD format)
     reason: ''
   });
 
@@ -48,6 +45,11 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
     if (formData.startDate && formData.endDate) {
       const start = new Date(formData.startDate);
       const end = new Date(formData.endDate);
+      
+      // Reset hours to avoid timezone issues
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      
       const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
       setNumberOfDays(days > 0 ? days : 0);
     } else {
@@ -58,10 +60,15 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
   const fetchLeaveTypes = async () => {
     try {
       setTypesLoading(true);
+      setError('');
+      
       const response = await leaveRequestService.getLeaveTypes();
-      setLeaveTypes(response.data?.types || []);
+      const types = response.types || response.data?.types || [];
+      setLeaveTypes(Array.isArray(types) ? types : []);
     } catch (err) {
-      setError(err.message || 'Failed to load leave types');
+      const errorMessage = err?.message || 'Failed to load leave types';
+      setError(errorMessage);
+      console.error('Error fetching leave types:', err);
     } finally {
       setTypesLoading(false);
     }
@@ -75,11 +82,10 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
     }));
   };
 
-  const handleDateChange = (name, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Get today's date in YYYY-MM-DD format for minDate
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
   };
 
   const handleSubmit = async (e) => {
@@ -117,8 +123,8 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
       setLoading(true);
       const submitData = {
         leaveTypeId: parseInt(formData.leaveTypeId),
-        startDate: formData.startDate.toISOString().split('T')[0],
-        endDate: formData.endDate.toISOString().split('T')[0],
+        startDate: formData.startDate,  // Already in YYYY-MM-DD format
+        endDate: formData.endDate,      // Already in YYYY-MM-DD format
         reason: formData.reason
       };
 
@@ -127,8 +133,8 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
       setSuccess('Leave request submitted successfully!');
       setFormData({
         leaveTypeId: '',
-        startDate: null,
-        endDate: null,
+        startDate: '',
+        endDate: '',
         reason: ''
       });
 
@@ -137,7 +143,9 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
         setTimeout(onSubmitSuccess, 1500);
       }
     } catch (err) {
-      setError(err.message || 'Failed to submit leave request');
+      const errorMessage = err?.message || 'Failed to submit leave request';
+      setError(errorMessage);
+      console.error('Error submitting leave request:', err);
     } finally {
       setLoading(false);
     }
@@ -205,33 +213,42 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
             </Card>
           </Grid>
 
-          {/* Date Pickers wrapped in LocalizationProvider */}
+          {/* Start Date - HTML5 Input */}
           <Grid item xs={12} md={6}>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                label="Start Date"
-                value={formData.startDate}
-                onChange={(newValue) => handleDateChange('startDate', newValue)}
-                minDate={new Date()}
-                slotProps={{
-                  textField: { fullWidth: true, required: true }
-                }}
-              />
-            </LocalizationProvider>
+            <TextField
+              fullWidth
+              type="date"
+              label="Start Date"
+              name="startDate"
+              value={formData.startDate}
+              onChange={handleInputChange}
+              inputProps={{
+                min: getTodayDate()  // Can't select past dates
+              }}
+              InputLabelProps={{
+                shrink: true
+              }}
+              required
+            />
           </Grid>
 
+          {/* End Date - HTML5 Input */}
           <Grid item xs={12} md={6}>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                label="End Date"
-                value={formData.endDate}
-                onChange={(newValue) => handleDateChange('endDate', newValue)}
-                minDate={formData.startDate || new Date()}
-                slotProps={{
-                  textField: { fullWidth: true, required: true }
-                }}
-              />
-            </LocalizationProvider>
+            <TextField
+              fullWidth
+              type="date"
+              label="End Date"
+              name="endDate"
+              value={formData.endDate}
+              onChange={handleInputChange}
+              inputProps={{
+                min: formData.startDate || getTodayDate()  // Can't select before start date
+              }}
+              InputLabelProps={{
+                shrink: true
+              }}
+              required
+            />
           </Grid>
 
           {/* Reason */}

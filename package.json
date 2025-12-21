@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@mui/x-date-pickers": "^8.22.1",
-    "date-fns": "^4.1.0"
+    "date-fns": "^4.1.0",
+    "mysql2": "^3.16.0"
   }
 }
