@@ -15,7 +15,7 @@ const { handleValidationErrors } = require('../utils/responseHelpers');
 
 // All routes require admin authorization
 router.use(protect);
-router.use(authorize('admin'));
+router.use(authorize('admin','professor'));
 
 // User management routes
 router.route('/')

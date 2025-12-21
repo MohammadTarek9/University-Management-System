@@ -17,6 +17,7 @@ import MainLayout from './components/layout/MainLayout';
 import MaintenanceDashboard from './components/Maintenance/MaintenanceDashboard';
 
 
+
 // Pages
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
@@ -34,6 +35,9 @@ import BrowseSubjects from './pages/BrowseSubjects';
 import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
 import AssessmentManagement from './pages/AssessmentManagement';
+import StaffHome from './pages/StaffHome';
+import TAResponsibilitiesManagement from './pages/TAResponsibilitiesManagement';
+import MyTAResponsibilities from './pages/MyTAResponsibilities';
 
 
 
@@ -232,17 +236,33 @@ function App() {
                     }
                   />
                   
-                  
+                   <Route
+                    path="/staff"
+                    element={
+                   <ProtectedRoute allowedRoles={['professor', 'staff', 'admin','ta']}>
+                   <StaffHome />
+                   </ProtectedRoute>
+                      }
+                      />
 
                   <Route
-                    path="/staff/*"
-                    element={
-                      <ProtectedRoute>
-                        <div>Staff Module - Coming Soon</div>
-                      </ProtectedRoute>
-                    }
-                  />
+                   path="/staff/ta-responsibilities"
+                   element={
+                   <ProtectedRoute allowedRoles={['professor']}>
+                   <TAResponsibilitiesManagement />
+                   </ProtectedRoute>
+                      }
+                     />
                   
+                <Route
+                 path="/staff/my-responsibilities"
+                 element={
+                  <ProtectedRoute>
+                 <MyTAResponsibilities />
+                 </ProtectedRoute>
+                   }
+                  />
+
                   <Route
                     path="/community/*"
                     element={
@@ -251,6 +271,8 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                
+
                   <Route path="/forgot-password" element={<ForgotPassword />} />
 
                   {/* Default redirects */}

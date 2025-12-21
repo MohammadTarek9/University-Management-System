@@ -13,7 +13,7 @@ const enrollmentRoutes = require('./routes/enrollments');
 const facilitiesRoutes = require('./modules/facilities/routes');
 const curriculumRoutes = require('./modules/curriculum/routes');
 const materialRoutes = require('./routes/materials');
-// const staffRoutes = require('./modules/staff/routes');
+const staffRoutes = require('./modules/staff/routes');
 // const communityRoutes = require('./modules/community/routes');
 
 const app = express();
@@ -99,7 +99,7 @@ app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/facilities', facilitiesRoutes);
 app.use('/api/curriculum', curriculumRoutes);
 app.use('/api/materials', materialRoutes);
-// app.use('/api/staff', staffRoutes);
+app.use('/api/staff', staffRoutes);
 // app.use('/api/community', communityRoutes);
 
 app.get('/api/health', (req, res) => {
