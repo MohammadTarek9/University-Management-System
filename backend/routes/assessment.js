@@ -10,7 +10,8 @@ const {
   submitAssessment,
   getAssessmentSubmissions,
   getMySubmission,
-  gradeSubmission
+  gradeSubmission,
+  getSubmissionForGrading
 } = require('../controllers/assessmentController');
 const { protect, authorize } = require('../middleware/auth');
 const { handleValidationErrors } = require('../utils/responseHelpers');
@@ -168,6 +169,13 @@ router.get(
   '/:id/submissions',
   authorize('professor', 'ta', 'admin'),
   getAssessmentSubmissions
+);
+
+// Get submission with answers for grading - faculty only
+router.get(
+  '/:id/submissions/:submissionId',
+  authorize('professor', 'ta', 'admin'),
+  getSubmissionForGrading
 );
 
 // Grade submission - faculty only

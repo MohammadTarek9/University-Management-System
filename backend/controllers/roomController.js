@@ -1,4 +1,4 @@
-const roomRepo = require('../repositories/roomEavRepoNew'); // Using 3-table EAV repository
+const roomRepo = require('../repositories/roomEavRepo'); // Using 3-table EAV repository
 const userRepo = require('../repositories/userRepo');
 const { successResponse, errorResponse } = require('../utils/responseHelpers');
 const { validationResult } = require('express-validator');
@@ -29,7 +29,8 @@ exports.getAllRooms = async (req, res) => {
     }
 
     if (roomType && roomType !== 'all') {
-      options.roomType = roomType;
+      // repository expects `type`
+      options.type = roomType;
     }
 
     if (isActive !== undefined && isActive !== 'all') {
@@ -37,12 +38,14 @@ exports.getAllRooms = async (req, res) => {
     }
 
     if (capacity && !isNaN(capacity)) {
-      options.minCapacity = parseInt(capacity);
+      // repository expects `capacity`
+      options.capacity = parseInt(capacity);
     }
 
-    const { rooms, total, totalPages } = await roomRepo.getAllRooms(options);
+    const { rooms, total, pages } = await roomRepo.getAllRooms(options);
+    const totalPages = pages;
 
-    console.log(`fetched ${rooms}`);
+    console.log(`fetched ${rooms.length} rooms`);
 
     const pagination = {
       currentPage: page,
@@ -117,17 +120,22 @@ exports.createRoom = async (req, res) => {
     const actualRoomType = type || roomType;
 
     // Check for duplicate room by building + room number
-    const existingRoom = await roomRepo.getRoomByNumber(building, roomNumber);
-    if (existingRoom) {
-      return errorResponse(res, 409, 'A room with this number already exists in this building');
+    let existingRoom = null;
+    if (roomNumber) {
+      existingRoom = await roomRepo.getRoomByNumber(roomNumber);
+      if (existingRoom && existingRoom.location?.building === building) {
+        return errorResponse(res, 409, 'A room with this number already exists in this building');
+      }
     }
 
     const room = await roomRepo.createRoom({
       roomName: actualRoomName,
       name: actualRoomName,
-      roomNumber,
-      building,
-      floor,
+      location: {
+        building,
+        floor,
+        roomNumber
+      },
       capacity,
       roomType: actualRoomType,
       type: actualRoomType,
@@ -135,7 +143,8 @@ exports.createRoom = async (req, res) => {
       equipment,
       amenities,
       typeSpecific: typeSpecific || {},
-      isActive: isActive !== undefined ? isActive : true
+      isActive: isActive !== undefined ? isActive : true,
+      createdBy: req.user?.id || null
     });
 
     return successResponse(res, 201, 'Room created successfully', { room });
@@ -188,9 +197,12 @@ exports.updateRoom = async (req, res) => {
     const updateData = {};
     if (name || roomName) updateData.roomName = name || roomName;
     if (name || roomName) updateData.name = name || roomName;
-    if (roomNumber !== undefined) updateData.roomNumber = roomNumber;
-    if (building !== undefined) updateData.building = building;
-    if (floor !== undefined) updateData.floor = floor;
+    // package location into nested object expected by repo
+    const locationUpdates = {};
+    if (roomNumber !== undefined) locationUpdates.roomNumber = roomNumber;
+    if (building !== undefined) locationUpdates.building = building;
+    if (floor !== undefined) locationUpdates.floor = floor;
+    if (Object.keys(locationUpdates).length > 0) updateData.location = locationUpdates;
     if (capacity !== undefined) updateData.capacity = capacity;
     if (type || roomType) updateData.roomType = type || roomType;
     if (type || roomType) updateData.type = type || roomType;
@@ -200,6 +212,7 @@ exports.updateRoom = async (req, res) => {
     if (isActive !== undefined) updateData.isActive = isActive;
     if (typeSpecific !== undefined) updateData.typeSpecific = typeSpecific;
 
+    updateData.updatedBy = req.user?.id || null;
     const updatedRoom = await roomRepo.updateRoom(roomId, updateData);
 
     return successResponse(res, 200, 'Room updated successfully', { room: updatedRoom });

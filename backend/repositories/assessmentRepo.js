@@ -437,6 +437,92 @@ async function getSubmissionAnswers(submissionId) {
   }));
 }
 
+// Delete all questions for an assessment
+async function deleteAssessmentQuestions(assessmentId) {
+  await pool.query(
+    'DELETE FROM assessment_questions WHERE assessment_id = ?',
+    [assessmentId]
+  );
+}
+
+// Replace all questions for an assessment
+async function replaceAssessmentQuestions(assessmentId, questions) {
+  try {
+    console.log('Replacing questions for assessment', assessmentId, 'with', questions?.length || 0, 'questions');
+    
+    // Delete existing questions
+    await deleteAssessmentQuestions(assessmentId);
+    console.log('Deleted existing questions for assessment', assessmentId);
+    
+    // Add new questions
+    if (questions && questions.length > 0) {
+      for (let i = 0; i < questions.length; i++) {
+        await addQuestion(assessmentId, {
+          ...questions[i],
+          orderNumber: i + 1
+        });
+      }
+      console.log(`Added ${questions.length} new questions to assessment`, assessmentId);
+    }
+  } catch (error) {
+    console.error('Error replacing assessment questions:', error);
+    throw error;
+  }
+}
+
+// Get submission with answers and questions for grading
+async function getSubmissionWithAnswers(submissionId) {
+  // Get submission details
+  const [submissionRows] = await pool.query(
+    `
+    SELECT 
+      s.*,
+      CONCAT(u.first_name, ' ', u.last_name) AS student_name,
+      u.email AS student_email,
+      a.title AS assessment_title,
+      a.total_points,
+      a.assessment_type
+    FROM assessment_submissions s
+    JOIN users u ON s.student_id = u.id
+    JOIN assessments a ON s.assessment_id = a.id
+    WHERE s.id = ?
+    `,
+    [submissionId]
+  );
+
+  if (submissionRows.length === 0) {
+    return null;
+  }
+
+  const submission = mapSubmissionRow(submissionRows[0]);
+
+  // Get all questions for this assessment
+  const questions = await getAssessmentQuestions(submission.assessmentId);
+
+  // Get student's answers
+  const answers = await getSubmissionAnswers(submissionId);
+
+  // Combine questions with answers
+  const questionsWithAnswers = questions.map(question => {
+    const answer = answers.find(a => a.questionId === question.id);
+    return {
+      ...question,
+      studentAnswer: answer ? {
+        id: answer.id,
+        answerText: answer.answerText,
+        isCorrect: answer.isCorrect,
+        pointsEarned: answer.pointsEarned,
+        feedback: answer.feedback
+      } : null
+    };
+  });
+
+  return {
+    ...submission,
+    questions: questionsWithAnswers
+  };
+}
+
 module.exports = {
   getAssessmentsByCourse,
   getAssessmentById,
@@ -445,10 +531,13 @@ module.exports = {
   deleteAssessment,
   getAssessmentQuestions,
   addQuestion,
+  deleteAssessmentQuestions,
+  replaceAssessmentQuestions,
   getSubmissionsByAssessment,
   getStudentSubmission,
   createSubmission,
   updateSubmission,
   saveAnswer,
-  getSubmissionAnswers
+  getSubmissionAnswers,
+  getSubmissionWithAnswers
 };

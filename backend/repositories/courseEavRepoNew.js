@@ -1,11 +1,9 @@
-const eav = require('../utils/eavNew');
+const coursesEav = require('../utils/coursesEav');
 
 /**
- * Course Repository using 3-Table EAV Model
- * Works with: eav_entities, eav_attributes, eav_values
+ * Course Repository using Courses-Specific 3-Table EAV Model
+ * Works with: courses_eav_entities, courses_eav_attributes, courses_eav_values
  */
-
-const ENTITY_TYPE = 'course';
 
 /**
  * Map EAV entity to Course object format
@@ -62,7 +60,7 @@ async function getAllCourses(options = {}) {
     const { page = 1, limit = 50, search = '', subjectId, semester, year, instructorId, isActive } = options;
     
     // Get all courses
-    const allEntities = await eav.getEntitiesByType(ENTITY_TYPE);
+    const allEntities = await coursesEav.getAllEntities({ includeInactive: isActive === false || isActive === 0 });
     let courses = allEntities.map(mapCourseEntity);
     
     // Apply filters
@@ -115,8 +113,8 @@ async function getAllCourses(options = {}) {
  */
 async function getCourseById(id) {
   try {
-    const entity = await eav.getEntityById(id);
-    if (!entity || entity.entity_type !== ENTITY_TYPE) {
+    const entity = await coursesEav.getEntityById(id);
+    if (!entity) {
       return null;
     }
     return mapCourseEntity(entity);
@@ -131,8 +129,9 @@ async function getCourseById(id) {
  */
 async function getCoursesBySubjectId(subjectId) {
   try {
-    const entities = await eav.getEntitiesByType(ENTITY_TYPE, { subjectId, isActive: 1 });
-    return entities.map(mapCourseEntity);
+    const allEntities = await coursesEav.getAllEntities({ includeInactive: false });
+    const filtered = allEntities.filter(e => e.subject_id == subjectId);
+    return filtered.map(mapCourseEntity);
   } catch (error) {
     console.error('Error in getCoursesBySubjectId:', error);
     throw error;
@@ -147,8 +146,8 @@ async function createCourse(courseData) {
     // Generate course name from subject info
     const courseName = courseData.name || `Course ${courseData.semester} ${courseData.year}`;
     
-    // Create entity (truly generic - no specific columns)
-    const entityId = await eav.createEntity(ENTITY_TYPE, courseName, {
+    // Create entity
+    const entityId = await coursesEav.createEntity(courseName, {
       isActive: courseData.isActive !== undefined ? courseData.isActive : 1
     });
 
@@ -179,7 +178,7 @@ async function createCourse(courseData) {
       textbook_required: { value: courseData.textbookRequired, type: 'boolean' }
     };
 
-    await eav.setEntityAttributes(entityId, attributes);
+    await coursesEav.setEntityAttributes(entityId, attributes);
 
     return await getCourseById(entityId);
   } catch (error) {
@@ -196,10 +195,10 @@ async function updateCourse(id, courseData) {
     // Update entity base fields (only name and is_active)
     const entityUpdates = {};
     if (courseData.name) entityUpdates.name = courseData.name;
-    if (courseData.isActive !== undefined) entityUpdates.is_active = courseData.isActive;
+    if (courseData.isActive !== undefined) entityUpdates.isActive = courseData.isActive;
 
     if (Object.keys(entityUpdates).length > 0) {
-      await eav.updateEntity(id, entityUpdates);
+      await coursesEav.updateEntity(id, entityUpdates);
     }
 
     // Update attributes (subject_id is an attribute, not a column)
@@ -229,7 +228,7 @@ async function updateCourse(id, courseData) {
       textbook_required: { value: courseData.textbookRequired, type: 'boolean' }
     };
 
-    await eav.setEntityAttributes(id, attributes);
+    await coursesEav.setEntityAttributes(id, attributes);
 
     return await getCourseById(id);
   } catch (error) {
@@ -243,7 +242,7 @@ async function updateCourse(id, courseData) {
  */
 async function deleteCourse(id) {
   try {
-    await eav.deleteEntity(id);
+    await coursesEav.deleteEntity(id);
     return true;
   } catch (error) {
     console.error('Error in deleteCourse:', error);

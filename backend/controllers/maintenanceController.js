@@ -1,4 +1,4 @@
-const maintenanceRepo = require('../repositories/maintenanceEavRepoNew'); // Using 3-table EAV repository
+const maintenanceRepo = require('../repositories/maintenanceEavRepo'); // Using 3-table EAV repository
 const userRepo = require('../repositories/userRepo');
 const { validationResult } = require('express-validator');
 
