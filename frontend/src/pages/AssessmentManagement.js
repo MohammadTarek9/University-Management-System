@@ -429,6 +429,25 @@ const AssessmentsManagement = () => {
     }
   };
 
+  const handleViewSubmissionDetails = async (submission) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/curriculum/assessments/${selectedAssessment.id}/submissions/${submission.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSelectedSubmission(response.data.data.submission);
+      setGradeData({ 
+        score: response.data.data.submission.score || '', 
+        feedback: response.data.data.submission.feedback || '' 
+      });
+    } catch (error) {
+      console.error('Error fetching submission details:', error);
+      setError('Failed to load submission details');
+    }
+  };
+
   const handleGradeSubmission = async () => {
     if (!selectedSubmission) return;
 
@@ -1312,13 +1331,7 @@ const AssessmentsManagement = () => {
                         <Button
                           size="small"
                           startIcon={<Grade />}
-                          onClick={() => {
-                            setSelectedSubmission(sub);
-                            setGradeData({
-                              score: sub.score !== null && sub.score !== undefined ? sub.score.toString() : '',
-                              feedback: sub.feedback || ''
-                            });
-                          }}
+                          onClick={() => handleViewSubmissionDetails(sub)}
                         >
                           Grade
                         </Button>
@@ -1335,6 +1348,87 @@ const AssessmentsManagement = () => {
             <Paper sx={{ mt: 3, p: 3, bgcolor: 'grey.50' }}>
               <Typography variant="h6" gutterBottom>
                 Grade Submission - {selectedSubmission.studentName}
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
+              {/* Display Student Answers */}
+              {selectedSubmission.questions && selectedSubmission.questions.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    Student Answers
+                  </Typography>
+                  {selectedSubmission.questions.map((question, index) => {
+                    const options = (() => {
+                      try {
+                        if (!question.options) return [];
+                        if (typeof question.options === 'string') return JSON.parse(question.options);
+                        if (Array.isArray(question.options)) return question.options;
+                        return [];
+                      } catch (e) {
+                        console.warn('Failed to parse question options', e, question.options);
+                        return [];
+                      }
+                    })();
+
+                    return (
+                      <Paper key={question.id || index} sx={{ p: 2, mb: 2, bgcolor: 'white', border: '1px solid', borderColor: 'grey.300' }}>
+                        <Typography variant="body1" fontWeight="bold" gutterBottom>
+                          Q{index + 1}. {question.questionText} ({question.points} pts)
+                        </Typography>
+                        
+                        {question.questionType === 'multiple_choice' && options.length > 0 && (
+                          <Box sx={{ mb: 1, ml: 2 }}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              Options:
+                            </Typography>
+                            {options.map((option, i) => (
+                              <Typography key={i} variant="body2" sx={{ ml: 1 }}>
+                                {String.fromCharCode(65 + i)}. {option}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+
+                        <Typography variant="body2" color="success.main" sx={{ mb: 1, ml: 2 }}>
+                          <strong>Correct Answer:</strong> {question.correctAnswer}
+                        </Typography>
+
+                        <Divider sx={{ my: 1 }} />
+
+                        <Typography variant="body2" fontWeight="bold" gutterBottom>
+                          Student's Answer:
+                        </Typography>
+                        
+                        {question.studentAnswer ? (
+                          <Box sx={{ ml: 2 }}>
+                            <Typography variant="body1" sx={{ 
+                              bgcolor: question.studentAnswer.isCorrect ? 'success.light' : 'error.light',
+                              p: 1.5, 
+                              borderRadius: 1,
+                              color: 'white',
+                              fontWeight: 'medium'
+                            }}>
+                              {question.studentAnswer.answerText || 'No answer provided'}
+                            </Typography>
+                            {question.studentAnswer.pointsEarned !== null && question.studentAnswer.pointsEarned !== undefined && (
+                              <Typography variant="body2" sx={{ mt: 1 }}>
+                                Points earned: {question.studentAnswer.pointsEarned} / {question.points}
+                              </Typography>
+                            )}
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary', ml: 2 }}>
+                            No answer submitted
+                          </Typography>
+                        )}
+                      </Paper>
+                    );
+                  })}
+                </Box>
+              )}
+              
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Grade & Feedback
               </Typography>
               <Divider sx={{ mb: 2 }} />
               
