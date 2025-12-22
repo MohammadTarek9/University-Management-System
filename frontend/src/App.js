@@ -16,7 +16,6 @@ import FirstLoginPasswordChange from './components/auth/FirstLoginPasswordChange
 import MainLayout from './components/layout/MainLayout';
 import MaintenanceDashboard from './components/Maintenance/MaintenanceDashboard';
 
-
 // Pages
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
@@ -27,6 +26,7 @@ import ProfilePage from './pages/ProfilePage';
 import BookingManagement from './pages/BookingManagement';
 import AdmissionsManagement from './pages/AdmissionsManagement';
 import Curriculum from './pages/Curriculum';
+import Staff from './pages/Staff';
 import CourseCatalogManagement from './pages/CurriculumManagement';
 import CourseRegistration from './pages/CourseRegistration';
 import AdminEnrollmentRequests from './pages/AdminEnrollmentRequests';
@@ -35,7 +35,8 @@ import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
 import AssessmentManagement from './pages/AssessmentManagement';
 
-
+// Leave Request Page
+import LeaveRequests from './pages/LeaveRequests';
 
 // Theme
 const theme = createTheme({
@@ -231,14 +232,23 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  
-                  
 
+                  {/* Staff Module Routes */}
                   <Route
-                    path="/staff/*"
+                    path="/staff"
                     element={
-                      <ProtectedRoute>
-                        <div>Staff Module - Coming Soon</div>
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
+                        <Staff />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Leave Requests Routes */}
+                  <Route
+                    path="/staff/leave-requests"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
+                        <LeaveRequests />
                       </ProtectedRoute>
                     }
                   />
