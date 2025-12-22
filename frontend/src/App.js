@@ -35,7 +35,6 @@ import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
 import AssessmentManagement from './pages/AssessmentManagement';
 import StaffDirectoryPage from './pages/staffDirectory';
-import StaffHome from './pages/StaffHome';
 import TAResponsibilitiesManagement from './pages/TAResponsibilitiesManagement';
 import MyTAResponsibilities from './pages/MyTAResponsibilities';
 import TeachingStaffProfilePage from './pages/teachingStaffUpdateProfile.js';
