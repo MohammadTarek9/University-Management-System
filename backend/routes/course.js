@@ -112,7 +112,7 @@ router.get('/my-courses', protect, getMyCourses);
 router.route('/')
   .get(getAllCourses)
   .post(
-    authorize('admin', 'staff'),
+    authorize('admin', 'staff','professor'),
     createCourseValidation,
     handleValidationErrors,
     createCourse
@@ -121,7 +121,7 @@ router.route('/')
 router.route('/:id')
   .get(getCourseById)
   .put(
-    authorize('admin', 'staff'),
+    authorize('admin', 'staff','professor'),
     updateCourseValidation,
     handleValidationErrors,
     updateCourse

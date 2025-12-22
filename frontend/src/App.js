@@ -35,6 +35,9 @@ import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
 import AssessmentManagement from './pages/AssessmentManagement';
 import StaffDirectoryPage from './pages/staffDirectory';
+import StaffHome from './pages/StaffHome';
+import TAResponsibilitiesManagement from './pages/TAResponsibilitiesManagement';
+import MyTAResponsibilities from './pages/MyTAResponsibilities';
 
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
@@ -50,24 +53,12 @@ const theme = createTheme({
     },
   },
   typography: {
-    h1: {
-      fontWeight: 600,
-    },
-    h2: {
-      fontWeight: 600,
-    },
-    h3: {
-      fontWeight: 600,
-    },
-    h4: {
-      fontWeight: 600,
-    },
-    h5: {
-      fontWeight: 600,
-    },
-    h6: {
-      fontWeight: 600,
-    },
+    h1: { fontWeight: 600 },
+    h2: { fontWeight: 600 },
+    h3: { fontWeight: 600 },
+    h4: { fontWeight: 600 },
+    h5: { fontWeight: 600 },
+    h6: { fontWeight: 600 },
   },
 });
 
@@ -85,15 +76,18 @@ function App() {
             }}
           >
             <Header />
-            
+
             <Box component="main" sx={{ flexGrow: 1 }}>
               <MainLayout>
                 <Routes>
                   {/* Public routes */}
                   <Route path="/login" element={<Login />} />
-                  <Route path="/first-login-password-change" element={<FirstLoginPasswordChange />} />
+                  <Route
+                    path="/first-login-password-change"
+                    element={<FirstLoginPasswordChange />}
+                  />
                   <Route path="/unauthorized" element={<Unauthorized />} />
-                  
+
                   {/* Protected routes */}
                   <Route
                     path="/dashboard"
@@ -104,7 +98,7 @@ function App() {
                     }
                   />
 
-                   {/* Profile route */}
+                  {/* Profile route */}
                   <Route
                     path="/profile"
                     element={
@@ -113,7 +107,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  
+
                   {/* Admin routes */}
                   <Route
                     path="/admin/users"
@@ -123,12 +117,12 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  
+
                   {/* Facilities Module Routes */}
                   <Route
                     path="/facilities"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor','student']}>
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student']}>
                         <Facilities />
                       </ProtectedRoute>
                     }
@@ -157,21 +151,22 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/facilities/maintenance-dashboard"
                     element={
-                      <ProtectedRoute allowedRoles={['admin']}> {/* Only admin can access */}
+                      <ProtectedRoute allowedRoles={['admin']}>
                         <MaintenanceDashboard />
                       </ProtectedRoute>
                     }
                   />
-                                    
+
                   {/* Curriculum Module Routes */}
                   <Route
                     path="/curriculum"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student']}>
+                      <ProtectedRoute
+                        allowedRoles={['admin', 'staff', 'professor', 'student']}
+                      >
                         <Curriculum />
                       </ProtectedRoute>
                     }
@@ -187,12 +182,13 @@ function App() {
                   <Route
                     path="/curriculum/registration"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student']}>
+                      <ProtectedRoute
+                        allowedRoles={['admin', 'staff', 'professor', 'student']}
+                      >
                         <CourseRegistration />
                       </ProtectedRoute>
                     }
                   />
-                  
                   <Route
                     path="/curriculum/browse"
                     element={
@@ -212,15 +208,19 @@ function App() {
                   <Route
                     path="/curriculum/materials"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}>
+                      <ProtectedRoute
+                        allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}
+                      >
                         <CourseMaterials />
                       </ProtectedRoute>
                     }
-                  />                  
+                  />
                   <Route
                     path="/curriculum/assessments"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}>
+                      <ProtectedRoute
+                        allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}
+                      >
                         <AssessmentManagement />
                       </ProtectedRoute>
                     }
@@ -228,8 +228,22 @@ function App() {
                   <Route
                     path="/curriculum/grading"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}>
+                      <ProtectedRoute
+                        allowedRoles={['admin', 'staff', 'professor', 'student', 'ta']}
+                      >
                         <CourseGrading />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Optional: StaffHome as an entry page for staff module */}
+                  <Route
+                    path="/staff/home"
+                    element={
+                      <ProtectedRoute
+                        allowedRoles={['professor', 'staff', 'admin', 'ta']}
+                      >
+                        <StaffHome />
                       </ProtectedRoute>
                     }
                   />
@@ -238,7 +252,9 @@ function App() {
                   <Route
                     path="/staff"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
+                      <ProtectedRoute
+                        allowedRoles={['admin', 'staff', 'professor', 'ta']}
+                      >
                         <Staff />
                       </ProtectedRoute>
                     }
@@ -248,7 +264,9 @@ function App() {
                   <Route
                     path="/staff/leave-requests"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
+                      <ProtectedRoute
+                        allowedRoles={['admin', 'staff', 'professor', 'ta']}
+                      >
                         <LeaveRequests />
                       </ProtectedRoute>
                     }
@@ -256,12 +274,31 @@ function App() {
                   <Route
                     path="/staff/directory"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
+                      <ProtectedRoute
+                        allowedRoles={['admin', 'staff', 'professor', 'ta']}
+                      >
                         <StaffDirectoryPage />
                       </ProtectedRoute>
                     }
                   />
-                  
+                  <Route
+                    path="/staff/ta-responsibilities"
+                    element={
+                      <ProtectedRoute allowedRoles={['professor']}>
+                        <TAResponsibilitiesManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/staff/my-responsibilities"
+                    element={
+                      <ProtectedRoute>
+                        <MyTAResponsibilities />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Community placeholder */}
                   <Route
                     path="/community/*"
                     element={
@@ -270,6 +307,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+
                   <Route path="/forgot-password" element={<ForgotPassword />} />
 
                   {/* Default redirects */}
@@ -278,7 +316,7 @@ function App() {
                 </Routes>
               </MainLayout>
             </Box>
-            
+
             <Footer />
           </Box>
         </Router>
