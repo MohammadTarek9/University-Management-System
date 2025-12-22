@@ -40,6 +40,7 @@ import MyTAResponsibilities from './pages/MyTAResponsibilities';
 import PerformanceManagement from './pages/PerformanceManagement';
 import TeachingStaffProfilePage from './pages/teachingStaffUpdateProfile.js';
 import ViewTeachingStaffProfilePage from './pages/ViewTeachingStaffProfile';
+import ResearchManagement from './pages/ResearchManagement';
 
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
@@ -248,8 +249,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
-                  {/* Leave Requests Routes */}
+                  
                   <Route
                     path="/staff/leave-requests"
                     element={
@@ -308,6 +308,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={['student', 'professor', 'ta', 'admin', 'staff']}>
                         <ViewTeachingStaffProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/staff/research"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
+                        <ResearchManagement />
                       </ProtectedRoute>
                     }
                   />

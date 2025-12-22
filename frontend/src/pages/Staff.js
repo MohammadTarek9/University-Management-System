@@ -17,6 +17,7 @@ import {
   MenuBook,
   Assignment,
   ArrowForward,
+  LibraryBooks,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -92,6 +93,17 @@ const Staff = () => {
       permissions: ['professor', 'ta'],
       features: ['Update Office Hours', 'Update Contact Information'],
     },
+    
+    {
+      id: 'Research',
+      title: 'Research Publication Management',
+      description: 'Publish and manage your research outputs including papers, articles, books, and conference presentations.',
+      icon: <LibraryBooks sx={{ fontSize: 40 }} />,
+      path: '/staff/research',
+      color: 'success',
+      permissions: ['admin', 'staff', 'professor', 'ta'],
+      features: ['Publish Research', 'Track Publications', 'Share Outputs']
+    }
   ];
 
   const visibleModules = staffModules.filter((m) =>
