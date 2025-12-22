@@ -38,6 +38,7 @@ import StaffDirectoryPage from './pages/staffDirectory';
 import StaffHome from './pages/StaffHome';
 import TAResponsibilitiesManagement from './pages/TAResponsibilitiesManagement';
 import MyTAResponsibilities from './pages/MyTAResponsibilities';
+import TeachingStaffProfilePage from './pages/teachingStaffUpdateProfile.js';
 
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
@@ -297,7 +298,14 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
+                  <Route
+                    path="/staff/teaching-staff/profile/me"
+                    element={
+                      <ProtectedRoute allowedRoles={['professor', 'ta']}>
+                        <TeachingStaffProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
                   {/* Community placeholder */}
                   <Route
                     path="/community/*"
