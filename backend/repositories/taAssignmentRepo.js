@@ -1,4 +1,4 @@
-// repositories/taAssignmentRepo.js
+
 const pool = require('../db/mysql');
 
 async function createAssignment({

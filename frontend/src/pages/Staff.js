@@ -25,6 +25,9 @@ import { useAuth } from '../context/AuthContext';
 const Staff = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+   const isAdmin =
+    user?.role === 'admin' ||
+    (Array.isArray(user?.roles) && user.roles.includes('admin'));
 
   const staffModules = [
     {
@@ -103,7 +106,17 @@ const Staff = () => {
       color: 'success',
       permissions: ['admin', 'staff', 'professor', 'ta'],
       features: ['Publish Research', 'Track Publications', 'Share Outputs']
-    }
+    },
+    {
+  id: 'my-payroll',
+  title: 'My Payroll Information',
+  description: 'View your current salary breakdown and deductions.',
+  icon: <ManageHistory />,
+  path: isAdmin ? '/admin/payroll' : `/staff/${user?.id}/payroll`,
+  color: 'warning',
+  permissions: ['professor', 'ta', 'staff', 'admin'],
+  features: ['View Salary', 'Allowances', 'Deductions'],
+},
   ];
 
   const visibleModules = staffModules.filter((m) =>
