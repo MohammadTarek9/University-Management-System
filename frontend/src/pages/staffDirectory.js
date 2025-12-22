@@ -22,7 +22,9 @@ import {
   CircularProgress,
   Alert,
   InputAdornment,
-  Button
+  Button,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import {
   Search,
@@ -33,13 +35,16 @@ import {
   Person,
   Business,
   Work,
-  Refresh
+  Refresh,
+  Visibility
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { staffDirectoryService } from '../services/staffDirectoryService';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 const StaffDirectoryPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -204,6 +209,12 @@ const StaffDirectoryPage = () => {
     } catch {
       return 'N/A';
     }
+  };
+
+  //handle viewing profile
+  const handleViewProfile = (staffMember) => {
+    // Navigate to the profile view page
+    navigate(`/staff/teaching-staff/profiles/${staffMember.id}`);
   };
 
   // Calculate statistics from current staff data
@@ -378,12 +389,13 @@ const StaffDirectoryPage = () => {
               <TableCell sx={{ fontWeight: 'bold', color: 'primary.contrastText' }}>Contact Information</TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: 'primary.contrastText' }}>Employee ID</TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: 'primary.contrastText' }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', color: 'primary.contrastText' }}>Actions</TableCell> {/* Add this column */}
             </TableRow>
           </TableHead>
           <TableBody>
             {staff.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4 }}> {/* Update colSpan to 7 */}
                   <Typography color="text.secondary">
                     {loading ? 'Loading...' : 'No staff members found matching your criteria'}
                   </Typography>
@@ -395,8 +407,7 @@ const StaffDirectoryPage = () => {
                   key={staffMember.id}
                   hover
                   sx={{ 
-                    '&:hover': { backgroundColor: 'action.hover' },
-                    cursor: 'pointer'
+                    '&:hover': { backgroundColor: 'action.hover' }
                   }}
                 >
                   <TableCell>
@@ -429,7 +440,6 @@ const StaffDirectoryPage = () => {
                       size="small"
                       sx={{ fontWeight: 'medium' }}
                     />
-                    
                   </TableCell>
                   
                   <TableCell>
@@ -485,6 +495,23 @@ const StaffDirectoryPage = () => {
                       <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
                         Last active: {formatDate(staffMember.lastLogin)}
                       </Typography>
+                    )}
+                  </TableCell>
+                  
+                  {/* Add Actions Cell */}
+                  <TableCell>
+                    {/* Only show View Profile for professors and TAs */}
+                    {['professor', 'ta'].includes(staffMember.role) && (
+                      <Tooltip title="View Teaching Staff Profile">
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<Visibility />}
+                          onClick={() => handleViewProfile(staffMember)}
+                        >
+                          View Profile
+                        </Button>
+                      </Tooltip>
                     )}
                   </TableCell>
                 </TableRow>
