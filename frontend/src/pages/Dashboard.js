@@ -90,7 +90,7 @@ setMyCourses(Array.isArray(courses) ? courses : []);
       color: '#2e7d32',
       features: ['Faculty Directory', 'Performance Tracking', 'HR Integration'],
       path: '/staff',
-      available: false
+      available: ['admin', 'staff', 'professor','ta'].includes(user?.role)
     },
     {
       title: 'Community Module',
