@@ -11,6 +11,7 @@ const {
 // Import leave request routes
 const leaveRequestRoutes = require('../../routes/leaveRequestRoutes');
 const staffDirectoryRoutes = require('../../routes/staffDirectoryRoutes');
+const teachingStaffProfileRoutes = require('../../routes/teachingStaffProfileRoutes');
 
 // Placeholder routes for future implementation
 router.get('/health', (req, res) => {
@@ -24,7 +25,8 @@ router.get('/health', (req, res) => {
     ],
     activeRoutes: [
       'GET /api/staff/leave-requests - leave request management',
-      'GET /api/staff/directory - teaching staff directory'
+      'GET /api/staff/directory - teaching staff directory',
+      'GET /api/staff/teaching-staff - teaching staff profiles'
     ]
   });
 });
@@ -32,6 +34,7 @@ router.get('/health', (req, res) => {
 // Mount leave request management routes
 router.use('/leave-requests', leaveRequestRoutes);
 router.use('/directory', staffDirectoryRoutes);
+router.use('/teaching-staff', teachingStaffProfileRoutes);
 // Assign TA responsibilities (professors only)
 router.post(
   '/ta-assignments',
