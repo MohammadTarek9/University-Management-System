@@ -236,19 +236,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
-                  {/* Optional: StaffHome as an entry page for staff module */}
-                  <Route
-                    path="/staff/home"
-                    element={
-                      <ProtectedRoute
-                        allowedRoles={['professor', 'staff', 'admin', 'ta','student']}
-                      >
-                        <StaffHome />
-                      </ProtectedRoute>
-                    }
-                  />
-
                   {/* Staff Module Routes */}
                   <Route
                     path="/staff"
