@@ -25,7 +25,6 @@ async function getLeaveTypeById(leaveTypeId) {
  * Create a leave request
  */
 async function createLeaveRequest(userId, leaveTypeId, start_date, end_date, reason) {
-  // Calculate number of days
   const start = new Date(start_date);
   const end = new Date(end_date);
   const numberOfDays = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
@@ -44,8 +43,10 @@ async function createLeaveRequest(userId, leaveTypeId, start_date, end_date, rea
  */
 async function getLeaveRequestById(leaveRequestId) {
   const [requests] = await pool.query(
-    `SELECT lr.*, lt.type_name, u.firstName, u.lastName, u.email,
-            approver.firstName as approver_firstName, approver.lastName as approver_lastName
+    `SELECT lr.*, lt.type_name, 
+            u.first_name, u.last_name, u.email,
+            approver.first_name as approver_first_name, 
+            approver.last_name as approver_last_name
      FROM leave_requests lr
      LEFT JOIN leave_types lt ON lr.leave_type_id = lt.leave_type_id
      LEFT JOIN users u ON lr.user_id = u.id
@@ -105,9 +106,10 @@ async function getUserLeaveRequests(userId, filters = {}) {
  * Get all pending leave requests (for admin approval)
  */
 async function getPendingLeaveRequests(filters = {}) {
-  const { page = 1, limit = 10, department = '', search = '' } = filters;
+  const { page = 1, limit = 10, search = '' } = filters;
   
-  let query = `SELECT lr.*, lt.type_name, u.firstName, u.lastName, u.email, u.department
+  let query = `SELECT lr.*, lt.type_name, 
+               u.first_name, u.last_name, u.email
                FROM leave_requests lr
                LEFT JOIN leave_types lt ON lr.leave_type_id = lt.leave_type_id
                LEFT JOIN users u ON lr.user_id = u.id
@@ -115,18 +117,13 @@ async function getPendingLeaveRequests(filters = {}) {
   
   const params = [];
   
-  if (department) {
-    query += ' AND u.department = ?';
-    params.push(department);
-  }
-  
   if (search) {
-    query += ' AND (u.firstName LIKE ? OR u.lastName LIKE ? OR u.email LIKE ?)';
+    query += ' AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)';
     const searchTerm = `%${search}%`;
     params.push(searchTerm, searchTerm, searchTerm);
   }
   
-  query += ' ORDER BY lr.created_at DESC';
+  query += ' ORDER BY lr.start_date DESC';
   
   const offset = (page - 1) * limit;
   query += ` LIMIT ? OFFSET ?`;
@@ -135,22 +132,24 @@ async function getPendingLeaveRequests(filters = {}) {
   const [requests] = await pool.query(query, params);
   
   // Get total count
-  let countQuery = 'SELECT COUNT(*) as total FROM leave_requests WHERE status = ?';
+  let countQuery = 'SELECT COUNT(*) as total FROM leave_requests lr LEFT JOIN users u ON lr.user_id = u.id WHERE lr.status = ?';
   const countParams = ['pending'];
   
-  if (department) {
-    countQuery += ' AND user_id IN (SELECT id FROM users WHERE department = ?)';
-    countParams.push(department);
+  if (search) {
+    countQuery += ' AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)';
+    const searchTerm = `%${search}%`;
+    countParams.push(searchTerm, searchTerm, searchTerm);
   }
   
   const [countResult] = await pool.query(countQuery, countParams);
+  const total = countResult[0]?.total || 0;
   
   return {
-    requests,
-    total: countResult[0].total,
+    requests: requests || [],
+    total: total,
     page,
     limit,
-    pages: Math.ceil(countResult[0].total / limit)
+    pages: Math.ceil(total / limit) || 1
   };
 }
 
@@ -208,49 +207,6 @@ async function cancelLeaveRequest(leaveRequestId, userId) {
   return getLeaveRequestById(leaveRequestId);
 }
 
-/**
- * Get leave balance for user
- */
-async function getLeaveBalance(userId, leaveTypeId, fiscalYear) {
-  const [balance] = await pool.query(
-    `SELECT balance_id, user_id, leave_type_id, fiscal_year, total_days, used_days,
-            (total_days - used_days) as remaining_days
-     FROM leave_balance 
-     WHERE user_id = ? AND leave_type_id = ? AND fiscal_year = ?`,
-    [userId, leaveTypeId, fiscalYear]
-  );
-  
-  return balance[0] || null;
-}
-
-/**
- * Check leave availability
- */
-async function checkLeaveAvailability(userId, leaveTypeId, numberOfDays, fiscalYear) {
-  const balance = await getLeaveBalance(userId, leaveTypeId, fiscalYear);
-  
-  if (!balance) {
-    return {
-      available: false,
-      remaining: 0,
-      message: 'No leave balance found for this leave type'
-    };
-  }
-  
-  if (balance.remaining_days < numberOfDays) {
-    return {
-      available: false,
-      remaining: balance.remaining_days,
-      message: `Insufficient leave balance. You have ${balance.remaining_days} days remaining.`
-    };
-  }
-  
-  return {
-    available: true,
-    remaining: balance.remaining_days - numberOfDays
-  };
-}
-
 module.exports = {
   getAllLeaveTypes,
   getLeaveTypeById,
@@ -260,7 +216,5 @@ module.exports = {
   getPendingLeaveRequests,
   approveLeaveRequest,
   rejectLeaveRequest,
-  cancelLeaveRequest,
-  getLeaveBalance,
-  checkLeaveAvailability,
+  cancelLeaveRequest
 };

@@ -28,8 +28,8 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
 
   const [formData, setFormData] = useState({
     leaveTypeId: '',
-    startDate: '',  // ✓ Changed to string (YYYY-MM-DD format)
-    endDate: '',    // ✓ Changed to string (YYYY-MM-DD format)
+    start_date: '',  // ✓ Changed to string (YYYY-MM-DD format)
+    end_date: '',    // ✓ Changed to string (YYYY-MM-DD format)
     reason: ''
   });
 
@@ -42,9 +42,9 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
 
   // Calculate number of days when dates change
   useEffect(() => {
-    if (formData.startDate && formData.endDate) {
-      const start = new Date(formData.startDate);
-      const end = new Date(formData.endDate);
+    if (formData.start_date && formData.end_date) {
+      const start = new Date(formData.start_date);
+      const end = new Date(formData.end_date);
       
       // Reset hours to avoid timezone issues
       start.setHours(0, 0, 0, 0);
@@ -55,7 +55,7 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
     } else {
       setNumberOfDays(0);
     }
-  }, [formData.startDate, formData.endDate]);
+  }, [formData.start_date, formData.end_date]);
 
   const fetchLeaveTypes = async () => {
     try {
@@ -99,7 +99,7 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
       return;
     }
 
-    if (!formData.startDate || !formData.endDate) {
+    if (!formData.start_date || !formData.end_date) {
       setError('Please select both start and end dates');
       return;
     }
@@ -123,8 +123,8 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
       setLoading(true);
       const submitData = {
         leaveTypeId: parseInt(formData.leaveTypeId),
-        startDate: formData.startDate,  // Already in YYYY-MM-DD format
-        endDate: formData.endDate,      // Already in YYYY-MM-DD format
+        start_date: formData.start_date,  // Already in YYYY-MM-DD format
+        end_date: formData.end_date,      // Already in YYYY-MM-DD format
         reason: formData.reason
       };
 
@@ -133,8 +133,8 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
       setSuccess('Leave request submitted successfully!');
       setFormData({
         leaveTypeId: '',
-        startDate: '',
-        endDate: '',
+        start_date: '',
+        end_date: '',
         reason: ''
       });
 
@@ -219,8 +219,8 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
               fullWidth
               type="date"
               label="Start Date"
-              name="startDate"
-              value={formData.startDate}
+              name="start_date"
+              value={formData.start_date}
               onChange={handleInputChange}
               inputProps={{
                 min: getTodayDate()  // Can't select past dates
@@ -238,11 +238,11 @@ const LeaveRequestForm = ({ onSubmitSuccess }) => {
               fullWidth
               type="date"
               label="End Date"
-              name="endDate"
-              value={formData.endDate}
+              name="end_date"
+              value={formData.end_date}
               onChange={handleInputChange}
               inputProps={{
-                min: formData.startDate || getTodayDate()  // Can't select before start date
+                min: formData.start_date || getTodayDate()  // Can't select before start date
               }}
               InputLabelProps={{
                 shrink: true
