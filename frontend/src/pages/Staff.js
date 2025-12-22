@@ -15,7 +15,7 @@ import {
   RateReview,
   ManageHistory,
   MenuBook,
-  Assignment,        // use for responsibilities
+  Assignment,
   ArrowForward,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -56,7 +56,7 @@ const Staff = () => {
       icon: <Assignment sx={{ fontSize: 40 }} />,
       path: '/staff/ta-responsibilities',
       color: 'success',
-      permissions: ['professor'],              // only professors see this card
+      permissions: ['professor'],
       features: ['Select TA', 'Choose Course', 'Set Duty & Notes'],
     },
     {
@@ -66,18 +66,23 @@ const Staff = () => {
       icon: <Assignment sx={{ fontSize: 40 }} />,
       path: '/staff/my-responsibilities',
       color: 'warning',
-      permissions: ['ta'],                     // only TAs see this card
+      permissions: ['ta'],
       features: ['Course Overview', 'Responsibilities List', 'Notes & Schedule'],
     },
+
     {
       id: 'performance-admin',
       title: 'Performance Records (Admin)',
-      description: 'Admin interface to manage staff performance records (create, edit, delete).',
+      description:
+        'Admin interface to manage staff performance records (create, edit, delete).',
       icon: <RateReview sx={{ fontSize: 40 }} />,
       path: '/staff/performance',
       color: 'primary',
       permissions: ['admin'],
-      features: ['View Records', 'Create/Edit', 'Delete']
+      features: ['View Records', 'Create/Edit', 'Delete'],
+    },
+
+    {
       id: 'StaffProfile',
       title: 'My Teaching Staff Profile',
       description: 'My contact details and office hours',
@@ -85,8 +90,8 @@ const Staff = () => {
       path: '/staff/teaching-staff/profile/me',
       color: 'info',
       permissions: ['professor', 'ta'],
-      features: ['Update Office Hours', 'Update Contact Information']
-    }
+      features: ['Update Office Hours', 'Update Contact Information'],
+    },
   ];
 
   const visibleModules = staffModules.filter((m) =>
@@ -153,20 +158,28 @@ const Staff = () => {
                     <Typography variant="h5" component="h2" gutterBottom>
                       {module.title}
                     </Typography>
-                    {!module.comingSoon && canAccessModule(module.permissions) && (
-                      <Chip label="Available" color="success" size="small" />
-                    )}
+                    {!module.comingSoon &&
+                      canAccessModule(module.permissions) && (
+                        <Chip label="Available" color="success" size="small" />
+                      )}
                     {module.comingSoon && (
                       <Chip label="Coming Soon" size="small" />
                     )}
                   </Box>
                 </Box>
 
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography
+                  variant="body1"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
+                >
                   {module.description}
                 </Typography>
 
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ mb: 1, fontWeight: 600 }}
+                >
                   Features:
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -191,7 +204,9 @@ const Staff = () => {
                     !module.comingSoon &&
                     canAccessModule(module.permissions) && <ArrowForward />
                   }
-                  disabled={module.comingSoon || !canAccessModule(module.permissions)}
+                  disabled={
+                    module.comingSoon || !canAccessModule(module.permissions)
+                  }
                   onClick={(e) => {
                     e.stopPropagation();
                     handleModuleClick(module);
@@ -207,7 +222,11 @@ const Staff = () => {
 
       {/* Help Section */}
       <Box sx={{ mt: 4, p: 3, bgcolor: 'primary.light', borderRadius: 2 }}>
-        <Typography variant="h6" gutterBottom sx={{ color: 'primary.contrastText' }}>
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{ color: 'primary.contrastText' }}
+        >
           Need Help?
         </Typography>
         <Typography variant="body2" sx={{ color: 'primary.contrastText' }}>

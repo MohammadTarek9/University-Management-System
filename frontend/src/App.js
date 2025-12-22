@@ -295,13 +295,14 @@ function App() {
                     }
                   />
 
+                  <Route
                     path="/staff/teaching-staff/profile/me"
-                    element={
-                      <ProtectedRoute allowedRoles={['professor', 'ta']}>
-                        <TeachingStaffProfilePage />
-                      </ProtectedRoute>
-                    }
-                  />
+                      element={
+                        <ProtectedRoute allowedRoles={['professor', 'ta']}>
+                          <TeachingStaffProfilePage />
+                        </ProtectedRoute>
+                      }
+                    />
                   <Route
                     path="/staff/teaching-staff/profiles/:staffId"
                     element={
