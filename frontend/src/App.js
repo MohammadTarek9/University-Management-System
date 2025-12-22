@@ -35,7 +35,6 @@ import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
 import AssessmentManagement from './pages/AssessmentManagement';
 import StaffDirectoryPage from './pages/staffDirectory';
-import StaffHome from './pages/StaffHome';
 import TAResponsibilitiesManagement from './pages/TAResponsibilitiesManagement';
 import MyTAResponsibilities from './pages/MyTAResponsibilities';
 
@@ -236,17 +235,7 @@ function App() {
                     }
                   />
 
-                  {/* Optional: StaffHome as an entry page for staff module */}
-                  <Route
-                    path="/staff/home"
-                    element={
-                      <ProtectedRoute
-                        allowedRoles={['professor', 'staff', 'admin', 'ta']}
-                      >
-                        <StaffHome />
-                      </ProtectedRoute>
-                    }
-                  />
+              
 
                   {/* Staff Module Routes */}
                   <Route
