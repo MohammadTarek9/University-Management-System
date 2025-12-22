@@ -34,6 +34,7 @@ import BrowseSubjects from './pages/BrowseSubjects';
 import CourseMaterials from './pages/CourseMaterials';
 import CourseGrading from './pages/CourseGrading';
 import AssessmentManagement from './pages/AssessmentManagement';
+import StaffDirectoryPage from './pages/staffDirectory';
 
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
@@ -249,6 +250,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
                         <LeaveRequests />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/staff/directory"
+                    element={
+                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
+                        <StaffDirectoryPage />
                       </ProtectedRoute>
                     }
                   />

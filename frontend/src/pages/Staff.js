@@ -36,6 +36,16 @@ const Staff = () => {
       permissions: ['admin', 'staff', 'professor', 'ta'],
       features: ['Request Leave', 'Leave approvals']
     },
+    {
+      id: 'StaffDirectory',
+      title: 'Teaching Staff Directory',
+      description: 'Centralized directory of professors and TAs, with their contact information and roles.',
+      icon: <MenuBook sx={{ fontSize: 40 }} />,
+      path: '/staff/directory',
+      color: 'secondary',
+      permissions: ['admin', 'staff', 'professor', 'ta'],
+      features: ['View Teaching Staff', 'Find Contact Information']
+    }
   ];
 
   // Filter modules to show only what the user has permission to see
