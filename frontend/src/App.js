@@ -41,6 +41,10 @@ import PerformanceManagement from './pages/PerformanceManagement';
 import TeachingStaffProfilePage from './pages/teachingStaffUpdateProfile.js';
 import ViewTeachingStaffProfilePage from './pages/ViewTeachingStaffProfile';
 import ResearchManagement from './pages/ResearchManagement';
+import StaffPayrollPage, {
+  StaffPayrollListPage,
+} from './pages/StaffPayrollPage';
+
 
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
@@ -270,6 +274,24 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                 {/*admin list of all staff for payroll */}
+<Route
+  path="/admin/payroll"
+  element={
+    <ProtectedRoute allowedRoles={['admin']}>
+      <StaffPayrollListPage />
+    </ProtectedRoute>
+  }
+/>
+                  {/* Detail: single staff payroll (used by teaching staff directory and non‑admin self view) */}
+<Route
+  path="/staff/:id/payroll"
+  element={
+    <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
+      <StaffPayrollPage />
+    </ProtectedRoute>
+  }
+/>
                   <Route
                     path="/staff/ta-responsibilities"
                     element={
