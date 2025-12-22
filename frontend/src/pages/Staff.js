@@ -43,7 +43,7 @@ const Staff = () => {
       icon: <MenuBook sx={{ fontSize: 40 }} />,
       path: '/staff/directory',
       color: 'secondary',
-      permissions: ['admin', 'staff', 'professor', 'ta'],
+      permissions: ['admin', 'staff', 'professor', 'ta','student'],
       features: ['View Teaching Staff', 'Find Contact Information']
     },
     {

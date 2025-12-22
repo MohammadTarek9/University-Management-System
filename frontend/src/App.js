@@ -39,6 +39,7 @@ import StaffHome from './pages/StaffHome';
 import TAResponsibilitiesManagement from './pages/TAResponsibilitiesManagement';
 import MyTAResponsibilities from './pages/MyTAResponsibilities';
 import TeachingStaffProfilePage from './pages/teachingStaffUpdateProfile.js';
+import ViewTeachingStaffProfilePage from './pages/ViewTeachingStaffProfile';
 
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
@@ -242,7 +243,7 @@ function App() {
                     path="/staff/home"
                     element={
                       <ProtectedRoute
-                        allowedRoles={['professor', 'staff', 'admin', 'ta']}
+                        allowedRoles={['professor', 'staff', 'admin', 'ta','student']}
                       >
                         <StaffHome />
                       </ProtectedRoute>
@@ -254,7 +255,7 @@ function App() {
                     path="/staff"
                     element={
                       <ProtectedRoute
-                        allowedRoles={['admin', 'staff', 'professor', 'ta']}
+                        allowedRoles={['admin', 'staff', 'professor', 'ta', 'student']}
                       >
                         <Staff />
                       </ProtectedRoute>
@@ -276,7 +277,7 @@ function App() {
                     path="/staff/directory"
                     element={
                       <ProtectedRoute
-                        allowedRoles={['admin', 'staff', 'professor', 'ta']}
+                        allowedRoles={['admin', 'staff', 'professor', 'ta', 'student']}
                       >
                         <StaffDirectoryPage />
                       </ProtectedRoute>
@@ -303,6 +304,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={['professor', 'ta']}>
                         <TeachingStaffProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/staff/teaching-staff/profiles/:staffId"
+                    element={
+                      <ProtectedRoute allowedRoles={['student', 'professor', 'ta', 'admin', 'staff']}>
+                        <ViewTeachingStaffProfilePage />
                       </ProtectedRoute>
                     }
                   />
