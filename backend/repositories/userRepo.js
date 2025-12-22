@@ -989,6 +989,55 @@ async function getUsersByRole(roleCode, { page = 1, limit = 10 }) {
 
   return { users, totalUsers };
 }
+const getUsersByRoles = async (roles) => {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      u.id,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.role,
+      u.phone_number,
+      u.is_active,
+      u.is_email_verified,
+      u.profile_picture,
+      u.last_login,
+      u.first_login,
+      u.must_change_password,
+      u.security_question,
+      u.reset_password_token,
+      u.reset_password_expire,
+      u.email_verification_token,
+      u.email_verification_expire,
+      u.created_at,
+      u.updated_at
+    FROM users u
+    WHERE u.role IN (?)
+    ORDER BY u.last_name, u.first_name
+    `,
+    [roles]
+  );
+
+  // Attach employee_details for staff/professors/TAs/admins, like in getUsers
+  const users = await Promise.all(
+    rows.map(async (row) => {
+      let studentDetails = null;
+      let employeeDetails = null;
+
+      if (row.role === 'student') {
+        studentDetails = await getStudentDetails(row.id);
+      } else if (['professor', 'staff', 'admin', 'ta'].includes(row.role)) {
+        employeeDetails = await getEmployeeDetails(row.id);
+      }
+
+      return mapUserWithDetails(row, studentDetails, employeeDetails);
+    })
+  );
+
+  return users;
+};
+
 
 // Helper functions for external use
 async function createStudentDetails(userId, details) {
@@ -1043,5 +1092,10 @@ module.exports = {
   createStudentDetails,
   createEmployeeDetails,
   updateStudentDetails,
-  updateEmployeeDetails
+  updateEmployeeDetails,
+
+
+  getUsersByRoles,
+
+
 };

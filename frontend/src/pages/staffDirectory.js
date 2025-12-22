@@ -23,7 +23,6 @@ import {
   Alert,
   InputAdornment,
   Button,
-  IconButton,
   Tooltip
 } from '@mui/material';
 import {
@@ -60,7 +59,7 @@ const StaffDirectoryPage = () => {
   });
   const [pagination, setPagination] = useState({
     page: 0,
-    limit: 10,
+    limit: 25,
     total: 0,
     totalPages: 1
   });
@@ -498,22 +497,38 @@ const StaffDirectoryPage = () => {
                     )}
                   </TableCell>
                   
-                  {/* Add Actions Cell */}
-                  <TableCell>
-                    {/* Only show View Profile for professors and TAs */}
-                    {['professor', 'ta'].includes(staffMember.role) && (
-                      <Tooltip title="View Teaching Staff Profile">
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          startIcon={<Visibility />}
-                          onClick={() => handleViewProfile(staffMember)}
-                        >
-                          View Profile
-                        </Button>
-                      </Tooltip>
-                    )}
-                  </TableCell>
+                {/* Actions Cell (all actions here) */}
+<TableCell>
+  {/* Admin: open payroll editor for any staff/prof/TA */}
+  {user?.role === 'admin' &&
+    ['professor', 'ta', 'staff', 'admin'].includes(staffMember.role) && (
+      <Tooltip title="Manage Payroll">
+        <Button
+          variant="outlined"
+          size="small"
+          sx={{ mr: 1 }}
+          onClick={() => navigate(`/staff/${staffMember.id}/payroll`)}
+        >
+          Payroll
+        </Button>
+      </Tooltip>
+    )}
+  {/* Existing action for the other module: View Profile */}
+  {['professor', 'ta'].includes(staffMember.role) && (
+    <Tooltip title="View Teaching Staff Profile">
+      <Button
+        variant="outlined"
+        size="small"
+        startIcon={<Visibility />}
+        onClick={() => handleViewProfile(staffMember)}
+      >
+        View Profile
+      </Button>
+    </Tooltip>
+  )}
+</TableCell>
+
+
                 </TableRow>
               ))
             )}
