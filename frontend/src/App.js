@@ -38,6 +38,8 @@ import StaffDirectoryPage from './pages/staffDirectory';
 import TAResponsibilitiesManagement from './pages/TAResponsibilitiesManagement';
 import MyTAResponsibilities from './pages/MyTAResponsibilities';
 import PerformanceManagement from './pages/PerformanceManagement';
+import TeachingStaffProfilePage from './pages/teachingStaffUpdateProfile.js';
+import ViewTeachingStaffProfilePage from './pages/ViewTeachingStaffProfile';
 
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
@@ -165,7 +167,7 @@ function App() {
                     path="/curriculum"
                     element={
                       <ProtectedRoute
-                        allowedRoles={['admin', 'staff', 'professor', 'student']}
+                        allowedRoles={['admin', 'ta', 'staff', 'professor', 'student']}
                       >
                         <Curriculum />
                       </ProtectedRoute>
@@ -235,15 +237,12 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-
-              
-
                   {/* Staff Module Routes */}
                   <Route
                     path="/staff"
                     element={
                       <ProtectedRoute
-                        allowedRoles={['admin', 'staff', 'professor', 'ta']}
+                        allowedRoles={['admin', 'staff', 'professor', 'ta', 'student']}
                       >
                         <Staff />
                       </ProtectedRoute>
@@ -265,7 +264,7 @@ function App() {
                     path="/staff/directory"
                     element={
                       <ProtectedRoute
-                        allowedRoles={['admin', 'staff', 'professor', 'ta']}
+                        allowedRoles={['admin', 'staff', 'professor', 'ta', 'student']}
                       >
                         <StaffDirectoryPage />
                       </ProtectedRoute>
@@ -296,6 +295,21 @@ function App() {
                     }
                   />
 
+                    path="/staff/teaching-staff/profile/me"
+                    element={
+                      <ProtectedRoute allowedRoles={['professor', 'ta']}>
+                        <TeachingStaffProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/staff/teaching-staff/profiles/:staffId"
+                    element={
+                      <ProtectedRoute allowedRoles={['student', 'professor', 'ta', 'admin', 'staff']}>
+                        <ViewTeachingStaffProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
                   {/* Community placeholder */}
                   <Route
                     path="/community/*"

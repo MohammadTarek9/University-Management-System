@@ -38,14 +38,14 @@ const Staff = () => {
       features: ['Request Leave', 'Leave approvals'],
     },
     {
-      id: 'directory',
+      id: 'StaffDirectory',
       title: 'Teaching Staff Directory',
       description:
         'Centralized directory of professors and TAs, with their contact information and roles.',
       icon: <MenuBook sx={{ fontSize: 40 }} />,
       path: '/staff/directory',
       color: 'secondary',
-      permissions: ['admin', 'staff', 'professor', 'ta'],
+      permissions: ['admin', 'staff', 'professor', 'ta', 'student'],
       features: ['View Teaching Staff', 'Find Contact Information'],
     },
     {
@@ -55,7 +55,7 @@ const Staff = () => {
         'Assign courses and duties to your teaching assistants so that responsibilities are clearly distributed.',
       icon: <Assignment sx={{ fontSize: 40 }} />,
       path: '/staff/ta-responsibilities',
-      color: 'primary',
+      color: 'success',
       permissions: ['professor'],              // only professors see this card
       features: ['Select TA', 'Choose Course', 'Set Duty & Notes'],
     },
@@ -65,7 +65,7 @@ const Staff = () => {
       description: 'View and manage the courses and tasks assigned to you.',
       icon: <Assignment sx={{ fontSize: 40 }} />,
       path: '/staff/my-responsibilities',
-      color: 'primary',
+      color: 'warning',
       permissions: ['ta'],                     // only TAs see this card
       features: ['Course Overview', 'Responsibilities List', 'Notes & Schedule'],
     },
@@ -78,6 +78,14 @@ const Staff = () => {
       color: 'primary',
       permissions: ['admin'],
       features: ['View Records', 'Create/Edit', 'Delete']
+      id: 'StaffProfile',
+      title: 'My Teaching Staff Profile',
+      description: 'My contact details and office hours',
+      icon: <MenuBook sx={{ fontSize: 40 }} />,
+      path: '/staff/teaching-staff/profile/me',
+      color: 'info',
+      permissions: ['professor', 'ta'],
+      features: ['Update Office Hours', 'Update Contact Information']
     }
   ];
 
