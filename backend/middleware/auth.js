@@ -69,6 +69,7 @@ const authorize = (...roles) => {
         message: 'User not authenticated'
       });
     }
+  
 
     // Check if user has any of the allowed roles
     const hasPermission = req.user.roles && req.user.roles.some(role => allowedRoles.includes(role));

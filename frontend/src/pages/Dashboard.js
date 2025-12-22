@@ -100,7 +100,9 @@ setMyCourses(Array.isArray(courses) ? courses : []);
       features: ['Parent Communication', 'Student Forums', 'Announcements'],
       path: '/community',
       available: false
-    }
+    },
+
+  
   ];
 
   const getRoleDisplayName = (role) => {

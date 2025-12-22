@@ -99,4 +99,9 @@ export const courseService = {
     }
   },
 
+   getEligibleTAs: async (courseId) => {
+    const response = await api.get(`/curriculum/courses/${courseId}/eligible-tas`);
+    return response.data;
+  }
+
 };
