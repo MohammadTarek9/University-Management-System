@@ -12,6 +12,7 @@ import {
   Chip,
 } from '@mui/material';
 import {
+  RateReview,
   ManageHistory,
   MenuBook,
   Assignment,        // use for responsibilities
@@ -68,6 +69,16 @@ const Staff = () => {
       permissions: ['ta'],                     // only TAs see this card
       features: ['Course Overview', 'Responsibilities List', 'Notes & Schedule'],
     },
+    {
+      id: 'performance-admin',
+      title: 'Performance Records (Admin)',
+      description: 'Admin interface to manage staff performance records (create, edit, delete).',
+      icon: <RateReview sx={{ fontSize: 40 }} />,
+      path: '/staff/performance',
+      color: 'primary',
+      permissions: ['admin'],
+      features: ['View Records', 'Create/Edit', 'Delete']
+    }
   ];
 
   const visibleModules = staffModules.filter((m) =>
