@@ -45,6 +45,16 @@ const Staff = () => {
       color: 'secondary',
       permissions: ['admin', 'staff', 'professor', 'ta'],
       features: ['View Teaching Staff', 'Find Contact Information']
+    },
+    {
+      id: 'StaffProfile',
+      title: 'My Teaching Staff Profile',
+      description: 'My contact details and office hours',
+      icon: <MenuBook sx={{ fontSize: 40 }} />,
+      path: '/staff/teaching-staff/profile/me',
+      color: 'success',
+      permissions: ['professor', 'ta'],
+      features: ['Update Office Hours', 'Update Contact Information']
     }
   ];
 
