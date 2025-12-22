@@ -37,6 +37,7 @@ import AssessmentManagement from './pages/AssessmentManagement';
 import StaffDirectoryPage from './pages/staffDirectory';
 import TAResponsibilitiesManagement from './pages/TAResponsibilitiesManagement';
 import MyTAResponsibilities from './pages/MyTAResponsibilities';
+import PerformanceManagement from './pages/PerformanceManagement';
 
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
@@ -283,6 +284,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <MyTAResponsibilities />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/staff/performance"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin"]}>
+                        <PerformanceManagement />
                       </ProtectedRoute>
                     }
                   />
