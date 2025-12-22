@@ -37,6 +37,7 @@ import AssessmentManagement from './pages/AssessmentManagement';
 import StaffDirectoryPage from './pages/staffDirectory';
 import TAResponsibilitiesManagement from './pages/TAResponsibilitiesManagement';
 import MyTAResponsibilities from './pages/MyTAResponsibilities';
+import PerformanceManagement from './pages/PerformanceManagement';
 import TeachingStaffProfilePage from './pages/teachingStaffUpdateProfile.js';
 import ViewTeachingStaffProfilePage from './pages/ViewTeachingStaffProfile';
 
@@ -286,6 +287,14 @@ function App() {
                     }
                   />
                   <Route
+                    path="/staff/performance"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin"]}>
+                        <PerformanceManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+
                     path="/staff/teaching-staff/profile/me"
                     element={
                       <ProtectedRoute allowedRoles={['professor', 'ta']}>

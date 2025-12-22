@@ -11,6 +11,7 @@ const {
 // Import leave request routes
 const leaveRequestRoutes = require('../../routes/leaveRequestRoutes');
 const staffDirectoryRoutes = require('../../routes/staffDirectoryRoutes');
+const performanceEvalRoutes = require('../../routes/performanceEval');
 const teachingStaffProfileRoutes = require('../../routes/teachingStaffProfileRoutes');
 
 // Placeholder routes for future implementation
@@ -34,6 +35,8 @@ router.get('/health', (req, res) => {
 // Mount leave request management routes
 router.use('/leave-requests', leaveRequestRoutes);
 router.use('/directory', staffDirectoryRoutes);
+// Mount performance evaluation routes (authenticated users can view; writes restricted in route)
+router.use('/performance', protect, performanceEvalRoutes);
 router.use('/teaching-staff', teachingStaffProfileRoutes);
 // Assign TA responsibilities (professors only)
 router.post(
