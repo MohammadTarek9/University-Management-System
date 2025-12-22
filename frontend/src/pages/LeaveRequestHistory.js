@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -25,7 +25,6 @@ import {
   MenuItem,
   Grid
 } from '@mui/material';
-// FIX: Import icons individually
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -50,39 +49,71 @@ const LeaveRequestHistory = ({ isAdmin = false, refreshTrigger }) => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectLoading, setRejectLoading] = useState(false);
 
-  // Fetch requests
+  const abortControllerRef = useRef(null);
+
   useEffect(() => {
-    fetchRequests();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+    fetchRequests(abortControllerRef.current.signal);
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [page, statusFilter, refreshTrigger, isAdmin]);
 
-  const fetchRequests = async () => {
-    try {
-      setLoading(true);
-      setError('');
+  const fetchRequests = async (signal) => {
+  try {
+    setLoading(true);
+    setError('');
 
-      let response;
-      if (isAdmin) {
-        response = await leaveRequestService.getPendingRequests({
-          page,
-          limit: pageSize,
-          search: ''
-        });
-      } else {
-        response = await leaveRequestService.getMyLeaveRequests({
-          status: statusFilter,
-          page,
-          limit: pageSize
-        });
-      }
-
-      setRequests(response.data?.requests || response.data?.leaves || []);
-      setTotalPages(response.data?.pagination?.totalPages || 1);
-    } catch (err) {
-      setError(err.message || 'Failed to load leave requests');
-    } finally {
-      setLoading(false);
+    let response;
+    if (isAdmin) {
+      response = await leaveRequestService.getPendingRequests({
+        page,
+        limit: pageSize,
+        search: ''
+      });
+    } else {
+      response = await leaveRequestService.getMyLeaveRequests({
+        status: statusFilter,
+        page,
+        limit: pageSize
+      });
     }
-  };
+
+    // ✓ FIXED: Check signal exists before checking aborted
+    if (signal && signal.aborted) {
+      console.log('Request was aborted');
+      return;
+    }
+
+    const requests = response.requests || response.leaves || [];
+    const pagination = response.pagination || {};
+
+    setRequests(Array.isArray(requests) ? requests : []);
+    setTotalPages(pagination.totalPages || pagination.pages || 1);
+  } catch (err) {
+    // ✓ FIXED: Better error type checking
+    if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
+      console.log('Fetch was aborted, ignoring error');
+      return;
+    }
+
+    const errorMessage = 
+      err?.message || 
+      (isAdmin ? 'Failed to load pending requests' : 'Failed to load leave requests');
+    
+    setError(errorMessage);
+    console.error('Fetch requests error:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getStatusColor = (status) => {
     const colorMap = {
@@ -200,7 +231,6 @@ const LeaveRequestHistory = ({ isAdmin = false, refreshTrigger }) => {
         </Alert>
       )}
 
-      {/* Filters */}
       {!isAdmin && (
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} md={4}>
@@ -225,7 +255,6 @@ const LeaveRequestHistory = ({ isAdmin = false, refreshTrigger }) => {
         </Grid>
       )}
 
-      {/* Table */}
       <TableContainer>
         <Table>
           <TableHead>
@@ -254,8 +283,8 @@ const LeaveRequestHistory = ({ isAdmin = false, refreshTrigger }) => {
                   {isAdmin && (
                     <TableCell>
                       <Typography variant="body2">
-                        {request.firstName && request.lastName
-                          ? `${request.firstName} ${request.lastName}`
+                        {request.first_name && request.last_name
+                          ? `${request.first_name} ${request.last_name}`
                           : 'Unknown User'}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -321,7 +350,6 @@ const LeaveRequestHistory = ({ isAdmin = false, refreshTrigger }) => {
         </Table>
       </TableContainer>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
           <Pagination
@@ -333,7 +361,6 @@ const LeaveRequestHistory = ({ isAdmin = false, refreshTrigger }) => {
         </Box>
       )}
 
-      {/* Rejection Dialog */}
       <Dialog open={rejectDialog} onClose={() => setRejectDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Reject Leave Request</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>

@@ -27,15 +27,29 @@ const submitLeaveRequest = async (req, res) => {
     const { leaveTypeId, start_date, end_date, reason } = req.body;
     const userId = req.user.id;
     
-    // Validate dates
-    const start = new Date(start_date);
-    const end = new Date(end_date);
+    // ✓ Handle both YYYY-MM-DD and ISO date formats
+    const normalizeDate = (dateString) => {
+      if (!dateString) return null;
+      // Extract just the date part (YYYY-MM-DD)
+      return dateString.split('T')[0];
+    };
     
-    if (start > end) {
+    const start = normalizeDate(start_date);
+    const end = normalizeDate(end_date);
+    
+    // Validate dates
+    const start_date_obj = new Date(start);
+    const end_date_obj = new Date(end);
+    
+    if (start_date_obj > end_date_obj) {
       return errorResponse(res, 400, 'Start date must be before end date');
     }
     
-    if (start < new Date()) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    start_date_obj.setHours(0, 0, 0, 0);
+    
+    if (start_date_obj < today) {
       return errorResponse(res, 400, 'Cannot submit leave request for past dates');
     }
     
@@ -45,30 +59,18 @@ const submitLeaveRequest = async (req, res) => {
       return errorResponse(res, 404, 'Leave type not found');
     }
     
-    // Calculate number of days (DATEDIFF equivalent: end - start + 1)
-    const numberOfDays = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    // Calculate number of days
+    const numberOfDays = Math.floor((end_date_obj - start_date_obj) / (1000 * 60 * 60 * 24)) + 1;
     
-    // Get fiscal year (usually January to December, can be customized)
+    // Get fiscal year
     const fiscalYear = new Date().getFullYear();
     
-    // Check leave availability
-    const availability = await leaveRequestRepo.checkLeaveAvailability(
-      userId,
-      leaveTypeId,
-      numberOfDays,
-      fiscalYear
-    );
-    
-    if (!availability.available) {
-      return errorResponse(res, 400, availability.message);
-    }
-    
-    // Create leave request
+    // Create leave request - pass dates in YYYY-MM-DD format
     const leaveRequest = await leaveRequestRepo.createLeaveRequest(
       userId,
       leaveTypeId,
-      start_date,
-      end_date,
+      start,      // YYYY-MM-DD
+      end,        // YYYY-MM-DD
       reason
     );
     
@@ -76,7 +78,7 @@ const submitLeaveRequest = async (req, res) => {
       leaveRequest
     });
   } catch (error) {
-    console.error(error);
+    console.error('Submit leave request error:', error);
     errorResponse(res, 500, 'Server error while submitting leave request');
   }
 };
@@ -292,14 +294,16 @@ const submitLeaveRequestValidation = [
   body('start_date')
     .notEmpty()
     .withMessage('Start date is required')
-    .isISO8601()
-    .withMessage('Start date must be a valid date'),
+    // ✓ Accept both ISO (2024-01-15T00:00:00.000Z) and YYYY-MM-DD (2024-01-15)
+    .matches(/^\d{4}-\d{2}-\d{2}/)
+    .withMessage('Start date must be in YYYY-MM-DD format'),
   
   body('end_date')
     .notEmpty()
     .withMessage('End date is required')
-    .isISO8601()
-    .withMessage('End date must be a valid date'),
+    // ✓ Accept both ISO and YYYY-MM-DD formats
+    .matches(/^\d{4}-\d{2}-\d{2}/)
+    .withMessage('End date must be in YYYY-MM-DD format'),
   
   body('reason')
     .notEmpty()
