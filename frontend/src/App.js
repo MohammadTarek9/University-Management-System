@@ -166,7 +166,7 @@ function App() {
                     path="/curriculum"
                     element={
                       <ProtectedRoute
-                        allowedRoles={['admin', 'staff', 'professor', 'student']}
+                        allowedRoles={['admin', 'ta', 'staff', 'professor', 'student']}
                       >
                         <Curriculum />
                       </ProtectedRoute>
