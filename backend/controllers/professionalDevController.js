@@ -205,6 +205,34 @@ const getStatistics = async (req, res) => {
   }
 };
 
+// ===================================================================
+// @desc    Get activities for a specific user (Admin/viewing profiles)
+// @route   GET /api/staff/professional-development/user/:userId
+// @access  Private (Admin or own profile)
+// ===================================================================
+const getUserActivities = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const requestingUserId = req.user.id;
+
+    // Check authorization: must be admin or viewing own profile
+    if (req.user.role !== 'admin' && parseInt(userId) !== requestingUserId) {
+      return errorResponse(res, 403, 'You are not authorized to view this user\'s activities');
+    }
+
+    const activities = await professionalDevRepo.getActivitiesByUserId(userId);
+    const statistics = await professionalDevRepo.getActivityStatistics(userId);
+
+    successResponse(res, 200, 'Professional development activities retrieved successfully', {
+      activities,
+      statistics
+    });
+  } catch (error) {
+    console.error('Error fetching user activities:', error);
+    errorResponse(res, 500, 'Server error while retrieving activities');
+  }
+};
+
 module.exports = {
   getMyActivities,
   getActivitiesByStatus,
@@ -212,5 +240,6 @@ module.exports = {
   createActivity,
   updateActivity,
   deleteActivity,
-  getStatistics
+  getStatistics,
+  getUserActivities
 };
