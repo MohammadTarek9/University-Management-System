@@ -3,21 +3,32 @@ const pool = require('../db/mysql');
 
 const messageRepo = {
   /**
-   * Get all messages sent by a parent
+   * Get all messages sent by a parent (including teacher replies)
    * @param {number} parentId - Parent user ID
-   * @returns {Promise<Array>} Array of sent messages
+   * @returns {Promise<Array>} Array of sent messages and received replies
    */
   getSentMessages: async (parentId) => {
     const query = `
       SELECT
         m.*,
-        CONCAT(t.first_name, ' ', t.last_name) as teacher_name,
-        t.email as teacher_email,
+        CASE 
+          WHEN m.parent_id = ? THEN CONCAT(t.first_name, ' ', t.last_name)
+          ELSE CONCAT(p.first_name, ' ', p.last_name)
+        END as teacher_name,
+        CASE 
+          WHEN m.parent_id = ? THEN t.email
+          ELSE p.email
+        END as teacher_email,
         CONCAT(s.first_name, ' ', s.last_name) as student_name,
         se.name as course_name,
-        subj_code.value_string as course_code
+        subj_code.value_string as course_code,
+        CASE 
+          WHEN m.parent_id = ? THEN 'sent'
+          ELSE 'received'
+        END as message_type
       FROM parent_teacher_messages m
       LEFT JOIN users t ON m.teacher_id = t.id
+      LEFT JOIN users p ON m.parent_id = p.id
       LEFT JOIN users s ON m.student_id = s.id
       LEFT JOIN courses_eav_entities ce ON m.course_id = ce.entity_id
       LEFT JOIN courses_eav_values subj_id_val ON ce.entity_id = subj_id_val.entity_id 
@@ -25,10 +36,10 @@ const messageRepo = {
       LEFT JOIN subjects_eav_entities se ON subj_id_val.value_number = se.entity_id
       LEFT JOIN subjects_eav_values subj_code ON se.entity_id = subj_code.entity_id 
         AND subj_code.attribute_id = (SELECT attribute_id FROM subjects_eav_attributes WHERE attribute_name = 'code')
-      WHERE m.parent_id = ?
-      ORDER BY m.created_at DESC
+      WHERE m.parent_id = ? OR m.teacher_id = ?
+      ORDER BY COALESCE(m.parent_message_id, m.id), m.created_at ASC
     `;
-    const [rows] = await pool.query(query, [parentId]);
+    const [rows] = await pool.query(query, [parentId, parentId, parentId, parentId, parentId]);
     return rows;
   },
 
