@@ -42,6 +42,8 @@ import TeachingStaffProfilePage from './pages/teachingStaffUpdateProfile.js';
 import ViewTeachingStaffProfilePage from './pages/ViewTeachingStaffProfile';
 import ResearchManagement from './pages/ResearchManagement';
 import ProfessionalDevelopment from './pages/ProfessionalDevelopment';
+import MyPerformanceRecords from './pages/MyPerformanceRecords';
+import MyBenefits from './pages/MyBenefits';
 import StaffPayrollPage, {
   StaffPayrollListPage,
 } from './pages/StaffPayrollPage';
@@ -347,6 +349,22 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta']}>
                         <ProfessionalDevelopment />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/staff/my-performance"
+                    element={
+                      <ProtectedRoute allowedRoles={['staff', 'professor', 'ta']}>
+                        <MyPerformanceRecords />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/staff/my-benefits"
+                    element={
+                      <ProtectedRoute allowedRoles={['staff', 'professor', 'ta', 'admin']}>
+                        <MyBenefits />
                       </ProtectedRoute>
                     }
                   />
