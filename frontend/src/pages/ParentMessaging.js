@@ -41,13 +41,15 @@ import { format } from 'date-fns';
 const ParentMessaging = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [children, setChildren] = useState([]);
+  const [selectedChild, setSelectedChild] = useState(null);
   const [teachers, setTeachers] = useState([]);
   const [sentMessages, setSentMessages] = useState([]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
   const [formData, setFormData] = useState({
     teacher_id: '',
-    student_id: user?.id || '', // Assuming parent user ID is same as student for now
+    student_id: '',
     course_id: '',
     subject: '',
     content: ''
@@ -58,21 +60,71 @@ const ParentMessaging = () => {
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchChildren();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (selectedChild) {
+      fetchData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChild]);
+
+  const fetchChildren = async () => {
+    console.log("fetchChildren called");
+    console.log("Current user:", user);
+    console.log("User ID:", user?.id);
+    console.log("User role:", user?.role);
+    try {
+      setLoading(true);
+      setError('');
+      console.log("Making API call to getParentChildren");
+
+      const response = await messageService.getParentChildren();
+      console.log('Full API Response:', response);
+      console.log('Response status:', response.status);
+      console.log('Response data:', response.data);
+      console.log('Response data success:', response.data?.success);
+      console.log('Response data message:', response.data?.message);
+      const childrenData = response.data?.children || [];
+      console.log('Parsed childrenData:', childrenData);
+      console.log('ChildrenData length:', childrenData.length);
+      setChildren(childrenData);
+
+      // Auto-select first child if available
+      if (childrenData.length > 0) {
+        console.log("Setting selectedChild to first child:", childrenData[0]);
+        setSelectedChild(childrenData[0]);
+      } else {
+        console.log("No children found, setting error");
+        setError('No children found in your account. Please contact the administrator.');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Error fetching children:', err);
+      console.error('Error response:', err.response);
+      console.error('Error response data:', err.response?.data);
+      setError(err.message || 'Failed to load children information');
+      setLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError('');
 
-      // Fetch teachers for the student
-      // TODO: Replace with actual child/student ID when parent-child relationship is implemented
-      const studentId = user?.id;
-      
-      const teachersResponse = await messageService.getStudentTeachers(studentId);
-      setTeachers(teachersResponse.data?.teachers || []);
+      if (!selectedChild) return;
+
+      // Fetch teachers for the selected child
+      const teachersResponse = await messageService.getStudentTeachers(selectedChild.student_id);
+      console.log('Teachers API Response:', teachersResponse);
+      console.log('Teachers response data:', teachersResponse.data);
+      console.log('Teachers response data.data:', teachersResponse.data?.data);
+      console.log('Teachers response data.teachers:', teachersResponse.data?.teachers);
+      console.log('Teachers response data.data?.teachers:', teachersResponse.data?.data?.teachers);
+      setTeachers(teachersResponse.data?.data?.teachers || teachersResponse.data?.teachers || []);
 
       // Fetch sent messages
       const messagesResponse = await messageService.getSentMessages();
@@ -99,7 +151,7 @@ const ParentMessaging = () => {
     setOpenDialog(false);
     setFormData({
       teacher_id: '',
-      student_id: user?.id || '',
+      student_id: selectedChild?.student_id || '',
       course_id: '',
       subject: '',
       content: ''
@@ -158,7 +210,13 @@ const ParentMessaging = () => {
       setSending(true);
       setError('');
 
-      await messageService.sendMessage(formData);
+      // Ensure student_id is set to the selected child
+      const messageData = {
+        ...formData,
+        student_id: selectedChild?.student_id
+      };
+
+      await messageService.sendMessage(messageData);
       
       setSuccess('Message sent successfully!');
       handleCloseDialog();
@@ -211,17 +269,67 @@ const ParentMessaging = () => {
         </Typography>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
-          {error}
+      {/* Child Selector */}
+      {children.length > 0 && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="subtitle1" gutterBottom>
+            Select Child:
+          </Typography>
+          <Grid container spacing={2}>
+            {children.map((child) => (
+              <Grid item xs={12} sm={6} md={4} key={child.id}>
+                <Card
+                  sx={{
+                    cursor: 'pointer',
+                    border: selectedChild?.id === child.id ? '2px solid' : '1px solid',
+                    borderColor: selectedChild?.id === child.id ? 'primary.main' : 'divider',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      boxShadow: 3
+                    }
+                  }}
+                  onClick={() => setSelectedChild(child)}
+                >
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Person sx={{ mr: 1, color: 'primary.main' }} />
+                      <Typography variant="h6">
+                        {child.student_name || `${child.first_name} ${child.last_name}`}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {child.student_email || child.email}
+                    </Typography>
+                    {child.is_primary && (
+                      <Chip label="Primary" size="small" color="primary" sx={{ mt: 1 }} />
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      )}
+
+      {!selectedChild && children.length === 0 && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          No children found in your account. Please contact the administrator to link your child's account.
         </Alert>
       )}
 
-      {success && (
-        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess('')}>
-          {success}
-        </Alert>
-      )}
+      {selectedChild && (
+        <>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+              {error}
+            </Alert>
+          )}
+
+          {success && (
+            <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess('')}>
+              {success}
+            </Alert>
+          )}
 
       {/* New Message Button */}
       <Box sx={{ mb: 3 }}>
@@ -431,6 +539,8 @@ const ParentMessaging = () => {
           </Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
     </Container>
   );
 };

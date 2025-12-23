@@ -3,6 +3,36 @@ const { successResponse, errorResponse } = require('../utils/responseHelpers');
 const messageRepo = require('../repositories/messageRepo');
 
 /**
+ * Get parent's children (students)
+ * @route GET /api/community/messages/children
+ * @access Private (parent)
+ */
+const getParentChildren = async (req, res) => {
+  try {
+    const parentId = req.user.id;
+    console.log('getParentChildren called for parentId:', parentId);
+    console.log('req.user:', req.user);
+    console.log('req.user.role:', req.user.role);
+    
+    // Ensure user is a parent
+    if (req.user.role !== 'parent') {
+      console.log('User role is not parent:', req.user.role);
+      return errorResponse(res, 403, 'Only parents can access this resource');
+    }
+    
+    console.log('Calling messageRepo.getParentChildren with parentId:', parentId);
+    const children = await messageRepo.getParentChildren(parentId);
+    console.log('Children returned from repo:', children);
+    console.log('Children length:', children.length);
+    
+    return successResponse(res, 200, 'Children retrieved successfully', { children });
+  } catch (error) {
+    console.error('Error fetching parent children:', error);
+    return errorResponse(res, 500, 'Server error while retrieving children');
+  }
+};
+
+/**
  * Get teachers for parent's child
  * @route GET /api/community/messages/teachers/:studentId
  * @access Private (parent)
@@ -10,12 +40,28 @@ const messageRepo = require('../repositories/messageRepo');
 const getStudentTeachers = async (req, res) => {
   try {
     const { studentId } = req.params;
+    const parentId = req.user.id;
     
-    // TODO: Add authorization check - ensure the requesting user is the parent of this student
+    // Ensure user is a parent
+    if (req.user.role !== 'parent') {
+      return errorResponse(res, 403, 'Only parents can access this resource');
+    }
+    
+    // Verify the student is the parent's child
+    const children = await messageRepo.getParentChildren(parentId);
+    const isParentOfStudent = children.some(child => child.student_id === parseInt(studentId));
+    
+    if (!isParentOfStudent) {
+      return errorResponse(res, 403, 'You can only view teachers for your own children');
+    }
     
     const teachers = await messageRepo.getStudentTeachers(studentId);
+    console.log('Teachers from repo:', teachers);
+    console.log('Teachers length:', teachers.length);
     
-    return successResponse(res, 200, 'Teachers retrieved successfully', { teachers });
+    const responseData = { teachers };
+    console.log('Response data being sent:', responseData);
+    return successResponse(res, 200, 'Teachers retrieved successfully', responseData);
   } catch (error) {
     console.error('Error fetching student teachers:', error);
     return errorResponse(res, 500, 'Server error while retrieving teachers');
@@ -211,6 +257,7 @@ const deleteMessage = async (req, res) => {
 };
 
 module.exports = {
+  getParentChildren,
   getStudentTeachers,
   sendMessage,
   getSentMessages,

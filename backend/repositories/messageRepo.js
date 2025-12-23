@@ -9,17 +9,18 @@ const messageRepo = {
    */
   getSentMessages: async (parentId) => {
     const query = `
-      SELECT 
+      SELECT
         m.*,
-        CONCAT(t.firstName, ' ', t.lastName) as teacher_name,
+        CONCAT(t.first_name, ' ', t.last_name) as teacher_name,
         t.email as teacher_email,
-        CONCAT(s.firstName, ' ', s.lastName) as student_name,
-        c.name as course_name,
-        c.code as course_code
+        CONCAT(s.first_name, ' ', s.last_name) as student_name,
+        subj.name as course_name,
+        subj.code as course_code
       FROM parent_teacher_messages m
       LEFT JOIN users t ON m.teacher_id = t.id
       LEFT JOIN users s ON m.student_id = s.id
       LEFT JOIN courses c ON m.course_id = c.id
+      LEFT JOIN subjects subj ON c.subject_id = subj.id
       WHERE m.parent_id = ?
       ORDER BY m.created_at DESC
     `;
@@ -34,17 +35,18 @@ const messageRepo = {
    */
   getReceivedMessages: async (teacherId) => {
     const query = `
-      SELECT 
+      SELECT
         m.*,
-        CONCAT(p.firstName, ' ', p.lastName) as parent_name,
+        CONCAT(p.first_name, ' ', p.last_name) as parent_name,
         p.email as parent_email,
-        CONCAT(s.firstName, ' ', s.lastName) as student_name,
-        c.name as course_name,
-        c.code as course_code
+        CONCAT(s.first_name, ' ', s.last_name) as student_name,
+        subj.name as course_name,
+        subj.code as course_code
       FROM parent_teacher_messages m
       LEFT JOIN users p ON m.parent_id = p.id
       LEFT JOIN users s ON m.student_id = s.id
       LEFT JOIN courses c ON m.course_id = c.id
+      LEFT JOIN subjects subj ON c.subject_id = subj.id
       WHERE m.teacher_id = ?
       ORDER BY m.created_at DESC
     `;
@@ -59,20 +61,21 @@ const messageRepo = {
    */
   getMessageById: async (id) => {
     const query = `
-      SELECT 
+      SELECT
         m.*,
-        CONCAT(p.firstName, ' ', p.lastName) as parent_name,
+        CONCAT(p.first_name, ' ', p.last_name) as parent_name,
         p.email as parent_email,
-        CONCAT(t.firstName, ' ', t.lastName) as teacher_name,
+        CONCAT(t.first_name, ' ', t.last_name) as teacher_name,
         t.email as teacher_email,
-        CONCAT(s.firstName, ' ', s.lastName) as student_name,
-        c.name as course_name,
-        c.code as course_code
+        CONCAT(s.first_name, ' ', s.last_name) as student_name,
+        subj.name as course_name,
+        subj.code as course_code
       FROM parent_teacher_messages m
       LEFT JOIN users p ON m.parent_id = p.id
       LEFT JOIN users t ON m.teacher_id = t.id
       LEFT JOIN users s ON m.student_id = s.id
       LEFT JOIN courses c ON m.course_id = c.id
+      LEFT JOIN subjects subj ON c.subject_id = subj.id
       WHERE m.id = ?
     `;
     const [rows] = await pool.query(query, [id]);
@@ -139,29 +142,93 @@ const messageRepo = {
   },
 
   /**
+   * Get children (students) for a parent
+   * @param {number} parentId - Parent user ID
+   * @returns {Promise<Array>} Array of children
+   */
+  getParentChildren: async (parentId) => {
+    console.log('getParentChildren repo called with parentId:', parentId);
+    const query = `
+      SELECT 
+        psr.id as relationship_id,
+        psr.student_id,
+        psr.relationship_type,
+        psr.is_primary,
+        u.id,
+        CONCAT(u.first_name, ' ', u.last_name) as student_name,
+        u.email as student_email,
+        u.first_name,
+        u.last_name
+      FROM parent_student_relationships psr
+      INNER JOIN users u ON psr.student_id = u.id
+      WHERE psr.parent_id = ?
+      ORDER BY psr.is_primary DESC, u.first_name
+    `;
+    console.log('Executing query:', query);
+    console.log('With parameter:', parentId);
+    const [rows] = await pool.query(query, [parentId]);
+    console.log('Query result rows:', rows);
+    console.log('Rows length:', rows.length);
+    return rows;
+  },
+
+  /**
    * Get teachers for a student's enrolled courses
    * @param {number} studentId - Student user ID
    * @returns {Promise<Array>} Array of teachers with course info
    */
   getStudentTeachers: async (studentId) => {
+    console.log('getStudentTeachers called with studentId:', studentId);
+    
+    // First, check what enrollments exist for this student
+    const enrollmentCheckQuery = `
+      SELECT e.*, ce.name as course_name, inst.value_number as instructor_id, u.first_name, u.last_name, u.role
+      FROM enrollments e
+      LEFT JOIN courses_eav_entities ce ON e.course_id = ce.entity_id
+      LEFT JOIN courses_eav_values inst ON ce.entity_id = inst.entity_id 
+        AND inst.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'instructor_id')
+      LEFT JOIN users u ON inst.value_number = u.id
+      WHERE e.student_id = ?
+    `;
+    console.log('Checking enrollments for student:', studentId);
+    const [enrollmentRows] = await pool.query(enrollmentCheckQuery, [studentId]);
+    console.log('All enrollments for student:', enrollmentRows);
+    
     const query = `
       SELECT DISTINCT
         u.id as teacher_id,
-        CONCAT(u.firstName, ' ', u.lastName) as teacher_name,
+        CONCAT(u.first_name, ' ', u.last_name) as teacher_name,
         u.email as teacher_email,
-        c.id as course_id,
-        c.name as course_name,
-        c.code as course_code,
-        c.instructor_id
+        ce.entity_id as course_id,
+        ce.name as course_name,
+        subj.name as subject_name,
+        subj.code as course_code,
+        inst.value_number as instructor_id,
+        sem.value_string as semester,
+        yr.value_number as year
       FROM enrollments e
-      INNER JOIN courses c ON e.course_id = c.id
-      INNER JOIN users u ON c.instructor_id = u.id
+      INNER JOIN courses_eav_entities ce ON e.course_id = ce.entity_id
+      LEFT JOIN courses_eav_values inst ON ce.entity_id = inst.entity_id 
+        AND inst.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'instructor_id')
+      LEFT JOIN courses_eav_values subj_id ON ce.entity_id = subj_id.entity_id 
+        AND subj_id.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'subject_id')
+      LEFT JOIN subjects subj ON subj_id.value_number = subj.id
+      LEFT JOIN courses_eav_values sem ON ce.entity_id = sem.entity_id 
+        AND sem.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'semester')
+      LEFT JOIN courses_eav_values yr ON ce.entity_id = yr.entity_id 
+        AND yr.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'year')
+      INNER JOIN users u ON inst.value_number = u.id
       WHERE e.student_id = ?
-        AND e.status = 'approved'
+        AND e.status IN ('enrolled', 'approved', 'active')
         AND u.role IN ('professor', 'ta')
-      ORDER BY c.name
+        AND ce.is_active = 1
+      ORDER BY ce.name
     `;
+    console.log('Executing getStudentTeachers query:', query);
+    console.log('With studentId parameter:', studentId);
     const [rows] = await pool.query(query, [studentId]);
+    console.log('getStudentTeachers query result rows:', rows);
+    console.log('getStudentTeachers rows length:', rows.length);
     return rows;
   },
 

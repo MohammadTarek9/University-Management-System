@@ -99,7 +99,7 @@ setMyCourses(Array.isArray(courses) ? courses : []);
       color: '#ed6c02',
       features: ['Parent Communication', 'Student Forums', 'Announcements'],
       path: '/community',
-      available: false
+      available: ['parent', 'student', 'professor', 'ta', 'admin', 'staff'].includes(user?.role)
     },
 
   

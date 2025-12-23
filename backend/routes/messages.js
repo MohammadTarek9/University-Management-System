@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const {
+  getParentChildren,
   getStudentTeachers,
   sendMessage,
   getSentMessages,
@@ -15,6 +16,9 @@ const {
 
 // All routes require authentication
 router.use(protect);
+
+// Get parent's children (parent access)
+router.get('/children', authorize('parent'), getParentChildren);
 
 // Get teachers for a student (parent access)
 router.get('/teachers/:studentId', authorize('parent'), getStudentTeachers);

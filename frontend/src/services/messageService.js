@@ -3,6 +3,19 @@ import api from './api';
 
 const messageService = {
   /**
+   * Get parent's children (students)
+   * @returns {Promise} Response with children list
+   */
+  getParentChildren: async () => {
+    try {
+      const response = await api.get('/community/messages/children');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch children' };
+    }
+  },
+
+  /**
    * Get teachers for a student
    * @param {number} studentId - Student user ID
    * @returns {Promise} Response with teachers list
