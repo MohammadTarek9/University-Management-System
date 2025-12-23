@@ -18,6 +18,7 @@ import {
   Assignment,
   ArrowForward,
   LibraryBooks,
+  School,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -106,6 +107,16 @@ const Staff = () => {
       color: 'success',
       permissions: ['admin', 'staff', 'professor', 'ta'],
       features: ['Publish Research', 'Track Publications', 'Share Outputs']
+    },
+    {
+      id: 'professional-dev',
+      title: 'Professional Development Activities',
+      description: 'Track your career growth through workshops, certifications, conferences, and training programs.',
+      icon: <School sx={{ fontSize: 40 }} />,
+      path: '/staff/professional-development',
+      color: 'info',
+      permissions: ['admin', 'staff', 'professor', 'ta'],
+      features: ['Track Activities', 'View Certificates', 'Monitor Progress', 'Career Growth']
     },
     {
   id: 'my-payroll',
