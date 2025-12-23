@@ -26,6 +26,7 @@ const Community = () => {
   const navigate = useNavigate();
   const isParent = user?.role === 'parent';
   const isStudent = user?.role === 'student';
+  const isTeacher = ['professor', 'ta'].includes(user?.role);
 
   const communityModules = [
     {
@@ -38,6 +39,17 @@ const Community = () => {
       color: 'primary',
       permissions: ['parent'],
       features: ['Send Messages', 'View Teachers', 'Track Communication'],
+    },
+    {
+      id: 'teacher-inbox',
+      title: 'Teacher Inbox',
+      description:
+        'View and respond to messages from parents about their children\'s academic progress.',
+      icon: <Message sx={{ fontSize: 40 }} />,
+      path: '/community/teacher-inbox',
+      color: 'primary',
+      permissions: ['professor', 'ta'],
+      features: ['View Messages', 'Reply to Parents', 'Track Communication'],
     },
     {
       id: 'student-staff',
@@ -99,6 +111,8 @@ const Community = () => {
         <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 800, mx: 'auto' }}>
           {isParent
             ? 'Stay connected with your child\'s teachers and the university community.'
+            : isTeacher
+            ? 'Communicate with parents and stay informed about student concerns.'
             : isStudent
             ? 'Connect with your professors and stay informed about campus activities.'
             : 'Communicate with parents, students, and colleagues across the university.'}
