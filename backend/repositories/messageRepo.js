@@ -14,13 +14,17 @@ const messageRepo = {
         CONCAT(t.first_name, ' ', t.last_name) as teacher_name,
         t.email as teacher_email,
         CONCAT(s.first_name, ' ', s.last_name) as student_name,
-        subj.name as course_name,
-        subj.code as course_code
+        se.name as course_name,
+        subj_code.value_string as course_code
       FROM parent_teacher_messages m
       LEFT JOIN users t ON m.teacher_id = t.id
       LEFT JOIN users s ON m.student_id = s.id
-      LEFT JOIN courses c ON m.course_id = c.id
-      LEFT JOIN subjects subj ON c.subject_id = subj.id
+      LEFT JOIN courses_eav_entities ce ON m.course_id = ce.entity_id
+      LEFT JOIN courses_eav_values subj_id_val ON ce.entity_id = subj_id_val.entity_id 
+        AND subj_id_val.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'subject_id')
+      LEFT JOIN subjects_eav_entities se ON subj_id_val.value_number = se.entity_id
+      LEFT JOIN subjects_eav_values subj_code ON se.entity_id = subj_code.entity_id 
+        AND subj_code.attribute_id = (SELECT attribute_id FROM subjects_eav_attributes WHERE attribute_name = 'code')
       WHERE m.parent_id = ?
       ORDER BY m.created_at DESC
     `;
@@ -40,13 +44,17 @@ const messageRepo = {
         CONCAT(p.first_name, ' ', p.last_name) as parent_name,
         p.email as parent_email,
         CONCAT(s.first_name, ' ', s.last_name) as student_name,
-        subj.name as course_name,
-        subj.code as course_code
+        se.name as course_name,
+        subj_code.value_string as course_code
       FROM parent_teacher_messages m
       LEFT JOIN users p ON m.parent_id = p.id
       LEFT JOIN users s ON m.student_id = s.id
-      LEFT JOIN courses c ON m.course_id = c.id
-      LEFT JOIN subjects subj ON c.subject_id = subj.id
+      LEFT JOIN courses_eav_entities ce ON m.course_id = ce.entity_id
+      LEFT JOIN courses_eav_values subj_id_val ON ce.entity_id = subj_id_val.entity_id 
+        AND subj_id_val.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'subject_id')
+      LEFT JOIN subjects_eav_entities se ON subj_id_val.value_number = se.entity_id
+      LEFT JOIN subjects_eav_values subj_code ON se.entity_id = subj_code.entity_id 
+        AND subj_code.attribute_id = (SELECT attribute_id FROM subjects_eav_attributes WHERE attribute_name = 'code')
       WHERE m.teacher_id = ?
       ORDER BY m.created_at DESC
     `;
@@ -68,14 +76,18 @@ const messageRepo = {
         CONCAT(t.first_name, ' ', t.last_name) as teacher_name,
         t.email as teacher_email,
         CONCAT(s.first_name, ' ', s.last_name) as student_name,
-        subj.name as course_name,
-        subj.code as course_code
+        se.name as course_name,
+        subj_code.value_string as course_code
       FROM parent_teacher_messages m
       LEFT JOIN users p ON m.parent_id = p.id
       LEFT JOIN users t ON m.teacher_id = t.id
       LEFT JOIN users s ON m.student_id = s.id
-      LEFT JOIN courses c ON m.course_id = c.id
-      LEFT JOIN subjects subj ON c.subject_id = subj.id
+      LEFT JOIN courses_eav_entities ce ON m.course_id = ce.entity_id
+      LEFT JOIN courses_eav_values subj_id_val ON ce.entity_id = subj_id_val.entity_id 
+        AND subj_id_val.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'subject_id')
+      LEFT JOIN subjects_eav_entities se ON subj_id_val.value_number = se.entity_id
+      LEFT JOIN subjects_eav_values subj_code ON se.entity_id = subj_code.entity_id 
+        AND subj_code.attribute_id = (SELECT attribute_id FROM subjects_eav_attributes WHERE attribute_name = 'code')
       WHERE m.id = ?
     `;
     const [rows] = await pool.query(query, [id]);
@@ -200,9 +212,8 @@ const messageRepo = {
         CONCAT(u.first_name, ' ', u.last_name) as teacher_name,
         u.email as teacher_email,
         ce.entity_id as course_id,
-        ce.name as course_name,
-        subj.name as subject_name,
-        subj.code as course_code,
+        se.name as course_name,
+        subj_code.value_string as course_code,
         inst.value_number as instructor_id,
         sem.value_string as semester,
         yr.value_number as year
@@ -210,9 +221,11 @@ const messageRepo = {
       INNER JOIN courses_eav_entities ce ON e.course_id = ce.entity_id
       LEFT JOIN courses_eav_values inst ON ce.entity_id = inst.entity_id 
         AND inst.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'instructor_id')
-      LEFT JOIN courses_eav_values subj_id ON ce.entity_id = subj_id.entity_id 
-        AND subj_id.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'subject_id')
-      LEFT JOIN subjects subj ON subj_id.value_number = subj.id
+      LEFT JOIN courses_eav_values subj_id_val ON ce.entity_id = subj_id_val.entity_id 
+        AND subj_id_val.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'subject_id')
+      LEFT JOIN subjects_eav_entities se ON subj_id_val.value_number = se.entity_id
+      LEFT JOIN subjects_eav_values subj_code ON se.entity_id = subj_code.entity_id 
+        AND subj_code.attribute_id = (SELECT attribute_id FROM subjects_eav_attributes WHERE attribute_name = 'code')
       LEFT JOIN courses_eav_values sem ON ce.entity_id = sem.entity_id 
         AND sem.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'semester')
       LEFT JOIN courses_eav_values yr ON ce.entity_id = yr.entity_id 
@@ -222,7 +235,7 @@ const messageRepo = {
         AND e.status IN ('enrolled', 'approved', 'active')
         AND u.role IN ('professor', 'ta')
         AND ce.is_active = 1
-      ORDER BY ce.name
+      ORDER BY se.name
     `;
     console.log('Executing getStudentTeachers query:', query);
     console.log('With studentId parameter:', studentId);
