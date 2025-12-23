@@ -13,6 +13,7 @@ const staffDirectoryRoutes = require('../../routes/staffDirectoryRoutes');
 const performanceEvalRoutes = require('../../routes/performanceEval');
 const teachingStaffProfileRoutes = require('../../routes/teachingStaffProfileRoutes');
 const researchRoutes = require('../../routes/researchRoutes');
+const professionalDevRoutes = require('../../routes/professionalDev');
 
 // Placeholder routes for future implementation
 router.get('/health', (req, res) => {
@@ -28,7 +29,8 @@ router.get('/health', (req, res) => {
       'GET /api/staff/leave-requests - leave request management',
       'GET /api/staff/directory - teaching staff directory',
       'GET /api/staff/teaching-staff - teaching staff profiles',
-      'GET /api/staff/research - research publication management'
+      'GET /api/staff/research - research publication management',
+      'GET /api/staff/professional-development - professional development activities'
     ]
   });
 });
@@ -40,6 +42,7 @@ router.use('/directory', staffDirectoryRoutes);
 router.use('/performance', protect, performanceEvalRoutes);
 router.use('/teaching-staff', teachingStaffProfileRoutes);
 router.use('/research', researchRoutes);
+router.use('/professional-development', professionalDevRoutes);
 // Assign TA responsibilities (professors only)
 router.post(
   '/ta-assignments',
