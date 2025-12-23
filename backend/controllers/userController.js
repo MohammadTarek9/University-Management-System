@@ -85,7 +85,8 @@ const createUser = async (req, res) => {
       firstLogin,
       mustChangePassword,
       securityQuestion,
-      securityAnswer
+      securityAnswer,
+      student_id // For parent-child relationship
     } = req.body;
 
     // 1) Check if email exists
@@ -154,6 +155,23 @@ const createUser = async (req, res) => {
       securityQuestion,
       securityAnswer
     });
+
+    // 7) If creating a parent, create parent-student relationship
+    if (userRole === 'parent' && student_id) {
+      console.log('Creating parent-student relationship for parent role:', userRole);
+      console.log('student_id provided:', student_id);
+      console.log('New user id:', user.id);
+      const pool = require('../db/mysql');
+      console.log('Inserting into parent_student_relationships');
+      await pool.query(
+        `INSERT INTO parent_student_relationships (parent_id, student_id, relationship_type, is_primary, created_at, updated_at)
+         VALUES (?, ?, 'guardian', TRUE, NOW(), NOW())`,
+        [user.id, student_id]
+      );
+      console.log('Parent-student relationship created successfully');
+    } else {
+      console.log('Not creating parent-student relationship. Role:', userRole, 'student_id:', student_id);
+    }
 
     successResponse(res, 201, 'User created successfully', {
       user: {

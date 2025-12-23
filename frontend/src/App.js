@@ -47,6 +47,8 @@ import MyBenefits from './pages/MyBenefits';
 import StaffPayrollPage, {
   StaffPayrollListPage,
 } from './pages/StaffPayrollPage';
+import Community from './pages/Community';
+import ParentMessaging from './pages/ParentMessaging';
 
 
 // Leave Request Page
@@ -368,12 +370,21 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  {/* Community placeholder */}
+                  
+                  {/* Community Module Routes */}
                   <Route
-                    path="/community/*"
+                    path="/community"
                     element={
-                      <ProtectedRoute>
-                        <div>Community Module - Coming Soon</div>
+                      <ProtectedRoute allowedRoles={['parent', 'student', 'professor', 'ta', 'admin', 'staff']}>
+                        <Community />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/community/parent-messaging"
+                    element={
+                      <ProtectedRoute allowedRoles={['parent']}>
+                        <ParentMessaging />
                       </ProtectedRoute>
                     }
                   />
