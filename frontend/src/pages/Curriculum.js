@@ -44,7 +44,7 @@ const Curriculum = () => {
       color: 'secondary',
       permissions: ['admin', 'staff', 'student', 'professor'],
       features: ['Browse Courses', 'Registration Workflow', 'Approval System', 'Enrollment Management'],
-      comingSoon: true
+      comingSoon: false
     },
     {
       id: 'materials',
