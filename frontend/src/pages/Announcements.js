@@ -60,6 +60,12 @@ const Announcements = () => {
     return user.role === 'admin' || announcement.author_id === user.id;
   };
 
+  // Check if user can edit a specific announcement
+  const canEditAnnouncement = (announcement) => {
+    if (!user) return false;
+    return user.role === 'admin' || announcement.author_id === user.id;
+  };
+
   useEffect(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -367,14 +373,16 @@ const Announcements = () => {
                     >
                       View Details
                     </Button>
-                    {canManageAnnouncements && (
+                    {(canEditAnnouncement(announcement) || canDeleteAnnouncement(announcement)) && (
                       <Box>
-                        <Button
-                          size="small"
-                          onClick={() => handleEdit(announcement)}
-                        >
-                          Edit
-                        </Button>
+                        {canEditAnnouncement(announcement) && (
+                          <Button
+                            size="small"
+                            onClick={() => handleEdit(announcement)}
+                          >
+                            Edit
+                          </Button>
+                        )}
                         {canDeleteAnnouncement(announcement) && (
                           <Button
                             size="small"
