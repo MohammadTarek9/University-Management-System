@@ -63,8 +63,10 @@ const UserManagement = () => {
     employeeId: '',
     department: '',
     major: '',
-    phoneNumber: ''
+    phoneNumber: '',
+    student_id: '' // For parent-child relationship
   });
+  const [students, setStudents] = useState([]);
   const [addLoading, setAddLoading] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
@@ -102,8 +104,19 @@ const UserManagement = () => {
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchUsers();
+      fetchStudents(); // Fetch students for parent dropdown
     }
   }, [page, rowsPerPage, searchTerm, roleFilter, user]);
+
+  // Fetch all students for parent dropdown
+  const fetchStudents = async () => {
+    try {
+      const response = await userService.getAllUsers({ role: 'student', limit: 1000 });
+      setStudents(response.data.users || []);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    }
+  };
 
   // Check for pre-populated data from student credentials
   useEffect(() => {
@@ -188,6 +201,10 @@ const UserManagement = () => {
       setError('Employee ID is required for faculty/staff accounts');
       return;
     }
+    if (newUser.role === 'parent' && !newUser.student_id) {
+      setError('Please select a student (child) for this parent account');
+      return;
+    }
 
     setAddLoading(true);
     setError('');
@@ -205,6 +222,8 @@ const UserManagement = () => {
       };
       
       console.log('Creating user with data:', { ...userData, password: '[HIDDEN]' });
+      console.log('Role:', userData.role);
+      console.log('student_id:', userData.student_id);
       const response = await userService.createUser(userData);
       setAddDialogOpen(false);
       setNewUser({
@@ -217,7 +236,8 @@ const UserManagement = () => {
         employeeId: '',
         department: '',
         major: '',
-        phoneNumber: ''
+        phoneNumber: '',
+        student_id: ''
       });
       setSuccessMessage(`User '${newUser.firstName} ${newUser.lastName}' created successfully`);
       fetchUsers(); // Refresh the user list
@@ -673,6 +693,29 @@ const UserManagement = () => {
                 </Select>
               </FormControl>
             </Grid>
+            
+            {/* Parent-Student Relationship */}
+            {newUser.role === 'parent' && (
+              <Grid item xs={12}>
+                <FormControl fullWidth required>
+                  <InputLabel>Child (Student)</InputLabel>
+                  <Select
+                    value={newUser.student_id}
+                    label="Child (Student)"
+                    onChange={(e) => handleInputChange('student_id', e.target.value)}
+                  >
+                    <MenuItem value="" disabled>
+                      <em>Select a student</em>
+                    </MenuItem>
+                    {students.map((student) => (
+                      <MenuItem key={student.id} value={student.id}>
+                        {student.firstName} {student.lastName} ({student.studentId || student.email})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
             
             {/* Conditional ID Fields */}
             {newUser.role === 'student' && (

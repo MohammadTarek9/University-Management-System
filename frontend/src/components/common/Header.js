@@ -23,7 +23,8 @@ import {
   School,
   Assignment,
   HowToReg,
-  MenuBook
+  MenuBook,
+  Forum
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -160,6 +161,14 @@ const Header = () => {
                     <School fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>Admissions</ListItemText>
+                </MenuItem>
+              )}
+              {['parent', 'student', 'professor', 'ta', 'admin', 'staff'].includes(user?.role) && (
+                <MenuItem onClick={() => { handleClose(); navigate('/community'); }}>
+                  <ListItemIcon>
+                    <Forum fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Community</ListItemText>
                 </MenuItem>
               )}
               {user?.role === 'admin' && (
