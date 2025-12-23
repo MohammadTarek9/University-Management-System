@@ -14,6 +14,7 @@ const performanceEvalRoutes = require('../../routes/performanceEval');
 const teachingStaffProfileRoutes = require('../../routes/teachingStaffProfileRoutes');
 const researchRoutes = require('../../routes/researchRoutes');
 const professionalDevRoutes = require('../../routes/professionalDev');
+const benefitsRoutes = require('../../routes/benefits');
 
 // Placeholder routes for future implementation
 router.get('/health', (req, res) => {
@@ -43,6 +44,7 @@ router.use('/performance', protect, performanceEvalRoutes);
 router.use('/teaching-staff', teachingStaffProfileRoutes);
 router.use('/research', researchRoutes);
 router.use('/professional-development', professionalDevRoutes);
+router.use('/benefits', benefitsRoutes);
 // Assign TA responsibilities (professors only)
 router.post(
   '/ta-assignments',

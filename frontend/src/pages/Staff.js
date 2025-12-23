@@ -19,6 +19,8 @@ import {
   ArrowForward,
   LibraryBooks,
   School,
+  TrendingUp,
+  HealthAndSafety,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -117,6 +119,26 @@ const Staff = () => {
       color: 'info',
       permissions: ['admin', 'staff', 'professor', 'ta'],
       features: ['Track Activities', 'View Certificates', 'Monitor Progress', 'Career Growth']
+    },
+    {
+      id: 'my-performance',
+      title: 'My Performance Records',
+      description: 'View your performance evaluations, feedback, and track your progress over time.',
+      icon: <TrendingUp sx={{ fontSize: 40 }} />,
+      path: '/staff/my-performance',
+      color: 'primary',
+      permissions: ['staff', 'professor', 'ta'],
+      features: ['View Evaluations', 'Track Progress', 'Review Feedback']
+    },
+    {
+      id: 'my-benefits',
+      title: 'My Benefits Information',
+      description: 'Access your employee benefits package including health insurance, retirement, and additional perks.',
+      icon: <HealthAndSafety sx={{ fontSize: 40 }} />,
+      path: '/staff/my-benefits',
+      color: 'success',
+      permissions: ['staff', 'professor', 'ta', 'admin'],
+      features: ['Health Insurance', 'Retirement Plan', 'Leave Benefits', 'Additional Perks']
     },
     {
   id: 'my-payroll',
