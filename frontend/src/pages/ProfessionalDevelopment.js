@@ -14,7 +14,15 @@ import {
   CircularProgress,
   Alert,
   Divider,
-  Stack
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  FormControlLabel,
+  Checkbox
 } from '@mui/material';
 import {
   School,
@@ -24,7 +32,8 @@ import {
   Cancel,
   TrendingUp,
   Event,
-  ArrowBack
+  ArrowBack,
+  Add
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -35,9 +44,30 @@ const ProfessionalDevelopmentActivities = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [activities, setActivities] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    activityType: 'workshop',
+    title: '',
+    description: '',
+    organizer: '',
+    location: '',
+    startDate: '',
+    endDate: '',
+    durationHours: '',
+    status: 'planned',
+    completionDate: '',
+    certificateObtained: false,
+    certificateUrl: '',
+    creditsEarned: '',
+    cost: '',
+    fundingSource: '',
+    skillsAcquired: '',
+    notes: ''
+  });
 
   useEffect(() => {
     fetchActivities();
@@ -119,6 +149,70 @@ const ProfessionalDevelopmentActivities = () => {
     });
   };
 
+  const handleOpenDialog = () => {
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setFormData({
+      activityType: 'workshop',
+      title: '',
+      description: '',
+      organizer: '',
+      location: '',
+      startDate: '',
+      endDate: '',
+      durationHours: '',
+      status: 'planned',
+      completionDate: '',
+      certificateObtained: false,
+      certificateUrl: '',
+      creditsEarned: '',
+      cost: '',
+      fundingSource: '',
+      skillsAcquired: '',
+      notes: ''
+    });
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmit = async () => {
+    try {
+      // Validate required fields
+      if (!formData.title || !formData.startDate) {
+        setError('Title and start date are required');
+        return;
+      }
+
+      setError('');
+      const token = localStorage.getItem('token');
+      
+      const response = await axios.post(
+        'http://localhost:5000/api/staff/professional-development',
+        formData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        setSuccess('Professional development activity added successfully!');
+        handleCloseDialog();
+        fetchActivities(); // Refresh the list
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('Error creating activity:', err);
+      setError(err.response?.data?.message || 'Failed to create activity');
+    }
+  };
+
   const getFilteredActivities = () => {
     switch (activeTab) {
       case 1:
@@ -151,17 +245,34 @@ const ProfessionalDevelopmentActivities = () => {
         >
           Back to Staff Module
         </Button>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Professional Development Activities
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Track your career growth and professional learning journey
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Professional Development Activities
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Track your career growth and professional learning journey
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={handleOpenDialog}
+          >
+            Add Activity
+          </Button>
+        </Box>
       </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
           {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess('')}>
+          {success}
         </Alert>
       )}
 
@@ -401,6 +512,217 @@ const ProfessionalDevelopmentActivities = () => {
           ))}
         </Stack>
       )}
+
+      {/* Add Activity Dialog */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <DialogTitle>Add Professional Development Activity</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                select
+                label="Activity Type"
+                name="activityType"
+                value={formData.activityType}
+                onChange={handleInputChange}
+                required
+              >
+                <MenuItem value="conference">Conference</MenuItem>
+                <MenuItem value="workshop">Workshop</MenuItem>
+                <MenuItem value="seminar">Seminar</MenuItem>
+                <MenuItem value="certification">Certification</MenuItem>
+                <MenuItem value="course">Course</MenuItem>
+                <MenuItem value="training">Training</MenuItem>
+                <MenuItem value="presentation">Presentation</MenuItem>
+                <MenuItem value="publication">Publication</MenuItem>
+                <MenuItem value="other">Other</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                select
+                label="Status"
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+              >
+                <MenuItem value="planned">Planned</MenuItem>
+                <MenuItem value="ongoing">Ongoing</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="cancelled">Cancelled</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Title"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Organizer"
+                name="organizer"
+                value={formData.organizer}
+                onChange={handleInputChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Location"
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Start Date"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleInputChange}
+                InputLabelProps={{ shrink: true }}
+                required
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="End Date"
+                name="endDate"
+                value={formData.endDate}
+                onChange={handleInputChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Duration (Hours)"
+                name="durationHours"
+                value={formData.durationHours}
+                onChange={handleInputChange}
+                inputProps={{ step: 0.5, min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Completion Date"
+                name="completionDate"
+                value={formData.completionDate}
+                onChange={handleInputChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Credits Earned"
+                name="creditsEarned"
+                value={formData.creditsEarned}
+                onChange={handleInputChange}
+                inputProps={{ step: 0.5, min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Cost"
+                name="cost"
+                value={formData.cost}
+                onChange={handleInputChange}
+                inputProps={{ step: 0.01, min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Funding Source"
+                name="fundingSource"
+                value={formData.fundingSource}
+                onChange={handleInputChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.certificateObtained}
+                    onChange={handleInputChange}
+                    name="certificateObtained"
+                  />
+                }
+                label="Certificate Obtained"
+              />
+            </Grid>
+            {formData.certificateObtained && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Certificate URL"
+                  name="certificateUrl"
+                  value={formData.certificateUrl}
+                  onChange={handleInputChange}
+                />
+              </Grid>
+            )}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                label="Skills Acquired"
+                name="skillsAcquired"
+                value={formData.skillsAcquired}
+                onChange={handleInputChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                label="Notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleInputChange}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button onClick={handleSubmit} variant="contained">
+            Add Activity
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
