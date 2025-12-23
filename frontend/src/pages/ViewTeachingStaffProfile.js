@@ -34,7 +34,10 @@ import {
   CalendarToday,
   AccessTime,
   Groups,
-  Info
+  Info,
+  EmojiEvents,
+  CheckCircle,
+  Event
 } from '@mui/icons-material';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -54,6 +57,8 @@ const ViewTeachingStaffProfilePage = () => {
   const [teachingProfile, setTeachingProfile] = useState(null);
   const [assignedCourses, setAssignedCourses] = useState([]);
   const [coursesError, setCoursesError] = useState('');
+  const [profDevData, setProfDevData] = useState(null);
+  const [loadingProfDev, setLoadingProfDev] = useState(false);
 
   // Fetch staff member data
   useEffect(() => {
@@ -65,8 +70,13 @@ const ViewTeachingStaffProfilePage = () => {
   // Fetch teaching profile and courses when staff member data is available
   useEffect(() => {
     if (staffMember) {
+      console.log('staffMember loaded, fetching related data...', staffMember);
+      const isTeaching = ['professor', 'ta'].includes(staffMember.role);
+      
       fetchTeachingProfile();
-      if (isTeachingStaff) {
+      fetchProfessionalDevelopment();
+      
+      if (isTeaching) {
         fetchAssignedCourses();
       }
     }
@@ -141,6 +151,39 @@ const ViewTeachingStaffProfilePage = () => {
         setLoadingCourses(false);
     }
     };
+
+  const fetchProfessionalDevelopment = async () => {
+    try {
+      setLoadingProfDev(true);
+      const token = localStorage.getItem('token');
+      
+      console.log('Fetching professional development for staffId:', staffId);
+      
+      const response = await fetch(
+        `http://localhost:5000/api/staff/professional-development/user/${staffId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      console.log('Professional development response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Professional development data:', data);
+        if (data.success) {
+          setProfDevData(data.data);
+          console.log('Set profDevData:', data.data);
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to fetch professional development:', errorData);
+      }
+    } catch (err) {
+      console.error('Error fetching professional development:', err);
+      // Don't show error to user, just don't display the section
+    } finally {
+      setLoadingProfDev(false);
+    }
+  };
 
   const getRoleColor = (role) => {
     switch (role) {
@@ -589,6 +632,160 @@ const ViewTeachingStaffProfilePage = () => {
           </Grid>
         )}
       </Grid>
+
+      {/* Professional Development Summary */}
+      {console.log('profDevData check:', { profDevData, hasStatistics: profDevData?.statistics })}
+      {profDevData && profDevData.statistics && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+            <EmojiEvents sx={{ mr: 1 }} />
+            Professional Development Summary
+          </Typography>
+          
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            {/* Statistics Cards */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <EmojiEvents color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="h6" component="div">
+                      {profDevData.statistics.total_activities || 0}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Activities
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <CheckCircle color="success" sx={{ mr: 1 }} />
+                    <Typography variant="h6" component="div">
+                      {profDevData.statistics.completed_count || 0}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Completed
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Schedule color="info" sx={{ mr: 1 }} />
+                    <Typography variant="h6" component="div">
+                      {Number(profDevData.statistics.total_hours || 0).toFixed(1)}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Hours
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <School color="warning" sx={{ mr: 1 }} />
+                    <Typography variant="h6" component="div">
+                      {profDevData.statistics.certificates_count || 0}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Certificates
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            {/* Recent Activities */}
+            {profDevData.activities && profDevData.activities.length > 0 && (
+              <Grid item xs={12}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Recent Activities
+                    </Typography>
+                    <List>
+                      {profDevData.activities.slice(0, 5).map((activity, index) => (
+                        <React.Fragment key={activity.id}>
+                          <ListItem>
+                            <ListItemIcon>
+                              {activity.activity_type === 'conference' || activity.activity_type === 'seminar' ? (
+                                <Event color="primary" />
+                              ) : activity.activity_type === 'certification' || activity.activity_type === 'course' ? (
+                                <School color="secondary" />
+                              ) : (
+                                <EmojiEvents color="action" />
+                              )}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="subtitle2">
+                                    {activity.title}
+                                  </Typography>
+                                  <Chip
+                                    label={activity.status}
+                                    size="small"
+                                    color={
+                                      activity.status === 'completed' ? 'success' :
+                                      activity.status === 'ongoing' ? 'primary' :
+                                      'default'
+                                    }
+                                  />
+                                </Box>
+                              }
+                              secondary={
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary" component="span">
+                                    {activity.activity_type.charAt(0).toUpperCase() + activity.activity_type.slice(1)}
+                                  </Typography>
+                                  {activity.start_date && (
+                                    <Typography variant="caption" color="text.secondary" component="span" sx={{ ml: 2 }}>
+                                      • {formatDate(activity.start_date)}
+                                    </Typography>
+                                  )}
+                                  {activity.duration_hours && (
+                                    <Typography variant="caption" color="text.secondary" component="span" sx={{ ml: 2 }}>
+                                      • {activity.duration_hours} hours
+                                    </Typography>
+                                  )}
+                                </Box>
+                              }
+                            />
+                          </ListItem>
+                          {index < Math.min(profDevData.activities.length - 1, 4) && <Divider component="li" />}
+                        </React.Fragment>
+                      ))}
+                    </List>
+                    {isOwnProfile && (
+                      <Box sx={{ mt: 2, textAlign: 'center' }}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => navigate('/staff/professional-development')}
+                        >
+                          View All Activities
+                        </Button>
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            )}
+          </Grid>
+        </Box>
+      )}
     </Container>
   );
 };

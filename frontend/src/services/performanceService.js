@@ -11,6 +11,16 @@ const performanceService = {
     }
   },
 
+  // Alias for getAllPerformanceRecords
+  listPerformances: async (params = {}) => {
+    try {
+      const response = await api.get('/staff/performance', { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch performance records' };
+    }
+  },
+
   // Get a single performance record
   getPerformanceRecordById: async (id) => {
     try {
