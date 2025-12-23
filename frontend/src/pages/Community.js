@@ -73,7 +73,7 @@ const Community = () => {
       color: 'warning',
       permissions: ['parent', 'student', 'professor', 'ta', 'admin', 'staff'],
       features: ['University News', 'Important Updates', 'Faculty Announcements'],
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       id: 'events',
