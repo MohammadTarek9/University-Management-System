@@ -250,7 +250,7 @@ const MyPerformanceRecords = () => {
                     )}
 
                     {/* Action Plan */}
-                    {record.actionPlan || record.action_plan && (
+                    {(record.actionPlan || record.action_plan) && (
                       <Grid item xs={12}>
                         <Divider sx={{ my: 2 }} />
                         <Typography variant="subtitle2" gutterBottom color="primary">
