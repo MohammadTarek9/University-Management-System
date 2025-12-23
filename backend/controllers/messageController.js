@@ -312,6 +312,94 @@ const replyToMessage = async (req, res) => {
   }
 };
 
+// In messageController.js - Add these functions:
+
+/**
+ * Get available staff for student's courses
+ * @route GET /api/community/messages/staff
+ * @access Private (student)
+ */
+const getAvailableStaff = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    
+    if (req.user.role !== 'student') {
+      return errorResponse(res, 403, 'Only students can access this resource');
+    }
+    
+    const staff = await messageRepo.getStudentStaff(studentId);
+    
+    return successResponse(res, 200, 'Staff retrieved successfully', { staff });
+  } catch (error) {
+    console.error('Error fetching staff:', error);
+    return errorResponse(res, 500, 'Server error while retrieving staff');
+  }
+};
+
+/**
+ * Send message from student to staff
+ * @route POST /api/community/messages/student
+ * @access Private (student)
+ */
+const sendStudentMessage = async (req, res) => {
+  try {
+    const { staff_id, course_id, subject, content } = req.body;
+    const studentId = req.user.id;
+    
+    // Validation
+    if (!staff_id) {
+      return errorResponse(res, 400, 'Staff member is required');
+    }
+    if (!subject || !subject.trim()) {
+      return errorResponse(res, 400, 'Subject is required');
+    }
+    if (!content || !content.trim()) {
+      return errorResponse(res, 400, 'Message content is required');
+    }
+    
+    // For student messages, use parent_id as sender (student), teacher_id as recipient (staff)
+    const messageData = {
+      parent_id: studentId,        // Student as sender
+      teacher_id: staff_id,        // Staff as recipient
+      student_id: studentId,       // Student is also the subject
+      course_id,
+      subject: subject.trim(),
+      content: content.trim(),
+      is_student_message: true     // Add this flag if you want to track message type
+    };
+    
+    const message = await messageRepo.createMessage(messageData);
+    
+    return successResponse(res, 201, 'Message sent successfully', { message });
+  } catch (error) {
+    console.error('Error sending student message:', error);
+    return errorResponse(res, 500, 'Server error while sending message');
+  }
+};
+
+/**
+ * Get student's sent and received messages
+ * @route GET /api/community/messages/student/conversations
+ * @access Private (student)
+ */
+const getStudentConversations = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    
+    if (req.user.role !== 'student') {
+      return errorResponse(res, 403, 'Only students can access this resource');
+    }
+    
+    // Student can be either sender (parent_id) or subject (student_id)
+    const conversations = await messageRepo.getStudentConversations(studentId);
+    
+    return successResponse(res, 200, 'Conversations retrieved successfully', { conversations });
+  } catch (error) {
+    console.error('Error fetching student conversations:', error);
+    return errorResponse(res, 500, 'Server error while retrieving conversations');
+  }
+};
+
 module.exports = {
   getParentChildren,
   getStudentTeachers,
@@ -322,5 +410,8 @@ module.exports = {
   markMessageAsRead,
   getUnreadCount,
   deleteMessage,
-  replyToMessage
+  replyToMessage,
+  getAvailableStaff,
+  sendStudentMessage,
+  getStudentConversations
 };

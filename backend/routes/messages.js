@@ -12,7 +12,10 @@ const {
   markMessageAsRead,
   getUnreadCount,
   deleteMessage,
-  replyToMessage
+  replyToMessage,
+  getAvailableStaff,
+  sendStudentMessage,
+  getStudentConversations
 } = require('../controllers/messageController');
 
 // All routes require authentication
@@ -47,5 +50,14 @@ router.put('/:id/read', authorize('professor', 'ta'), markMessageAsRead);
 
 // Delete a message (parent access)
 router.delete('/:id', authorize('parent'), deleteMessage);
+
+// Get available staff (student access)
+router.get('/staff', authorize('student'), getAvailableStaff);
+
+// Send message (student access)
+router.post('/student', authorize('student'), sendStudentMessage);
+
+// Get student conversations (student access)
+router.get('/student/conversations', authorize('student'), getStudentConversations);
 
 module.exports = router;
