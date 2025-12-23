@@ -8,7 +8,8 @@ const {
   createActivity,
   updateActivity,
   deleteActivity,
-  getStatistics
+  getStatistics,
+  getUserActivities
 } = require('../controllers/professionalDevController');
 
 // All routes require authentication and are accessible to staff, professors, TAs, and admins
@@ -17,6 +18,9 @@ router.use(authorize('professor', 'ta', 'staff', 'admin'));
 
 // Get statistics (must come before /:id route to avoid conflict)
 router.get('/statistics', getStatistics);
+
+// Get activities for a specific user (admin or own profile)
+router.get('/user/:userId', getUserActivities);
 
 // Get activities by status
 router.get('/status/:status', getActivitiesByStatus);
