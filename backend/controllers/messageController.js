@@ -256,6 +256,62 @@ const deleteMessage = async (req, res) => {
   }
 };
 
+/**
+ * Reply to a message (teacher to parent)
+ * @route POST /api/community/messages/:id/reply
+ * @access Private (teacher)
+ */
+const replyToMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    const teacherId = req.user.id;
+    
+    // Ensure user is a teacher
+    if (!['professor', 'ta'].includes(req.user.role)) {
+      return errorResponse(res, 403, 'Only teachers can reply to messages');
+    }
+    
+    // Validate content
+    if (!content || !content.trim()) {
+      return errorResponse(res, 400, 'Reply content is required');
+    }
+    
+    // Get the original message
+    const originalMessage = await messageRepo.getMessageById(id);
+    
+    if (!originalMessage) {
+      return errorResponse(res, 404, 'Original message not found');
+    }
+    
+    // Verify the teacher is the recipient of the original message
+    if (originalMessage.teacher_id !== teacherId) {
+      return errorResponse(res, 403, 'You can only reply to messages sent to you');
+    }
+    
+    // Create the reply (swap parent and teacher roles)
+    const replyData = {
+      parent_id: teacherId, // Teacher becomes the sender
+      teacher_id: originalMessage.parent_id, // Original parent becomes recipient
+      student_id: originalMessage.student_id,
+      course_id: originalMessage.course_id,
+      subject: `Re: ${originalMessage.subject}`,
+      content: content.trim(),
+      parent_message_id: id // Link to original message
+    };
+    
+    const reply = await messageRepo.createMessage(replyData);
+    
+    // Mark original message as read
+    await messageRepo.markAsRead(id);
+    
+    return successResponse(res, 201, 'Reply sent successfully', { message: reply });
+  } catch (error) {
+    console.error('Error replying to message:', error);
+    return errorResponse(res, 500, 'Server error while sending reply');
+  }
+};
+
 module.exports = {
   getParentChildren,
   getStudentTeachers,
@@ -265,5 +321,6 @@ module.exports = {
   getMessage,
   markMessageAsRead,
   getUnreadCount,
-  deleteMessage
+  deleteMessage,
+  replyToMessage
 };

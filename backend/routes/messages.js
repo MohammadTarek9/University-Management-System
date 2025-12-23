@@ -11,7 +11,8 @@ const {
   getMessage,
   markMessageAsRead,
   getUnreadCount,
-  deleteMessage
+  deleteMessage,
+  replyToMessage
 } = require('../controllers/messageController');
 
 // All routes require authentication
@@ -37,6 +38,9 @@ router.get('/:id', getMessage);
 
 // Send a message (parent access)
 router.post('/', authorize('parent'), sendMessage);
+
+// Reply to a message (teacher access)
+router.post('/:id/reply', authorize('professor', 'ta'), replyToMessage);
 
 // Mark message as read (teacher access)
 router.put('/:id/read', authorize('professor', 'ta'), markMessageAsRead);

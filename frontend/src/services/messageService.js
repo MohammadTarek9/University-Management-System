@@ -44,6 +44,21 @@ const messageService = {
   },
 
   /**
+   * Reply to a message (teacher)
+   * @param {number} messageId - Message ID to reply to
+   * @param {Object} replyData - Reply content
+   * @returns {Promise} Response with reply message
+   */
+  replyToMessage: async (messageId, replyData) => {
+    try {
+      const response = await api.post(`/community/messages/${messageId}/reply`, replyData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to send reply' };
+    }
+  },
+
+  /**
    * Get sent messages
    * @returns {Promise} Response with sent messages
    */
