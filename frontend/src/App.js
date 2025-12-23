@@ -49,6 +49,7 @@ import StaffPayrollPage, {
 } from './pages/StaffPayrollPage';
 import Community from './pages/Community';
 import ParentMessaging from './pages/ParentMessaging';
+import TeacherInbox from './pages/TeacherInbox';
 
 
 // Leave Request Page
@@ -385,6 +386,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={['parent']}>
                         <ParentMessaging />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/community/teacher-inbox"
+                    element={
+                      <ProtectedRoute allowedRoles={['professor', 'ta']}>
+                        <TeacherInbox />
                       </ProtectedRoute>
                     }
                   />

@@ -435,27 +435,45 @@ const ParentMessaging = () => {
             <List>
               {sentMessages.map((message, index) => (
                 <React.Fragment key={message.id}>
-                  <ListItem alignItems="flex-start">
+                  <ListItem 
+                    alignItems="flex-start"
+                    sx={{
+                      bgcolor: message.message_type === 'received' ? 'action.hover' : 'transparent',
+                      ml: message.parent_message_id ? 4 : 0,
+                      borderLeft: message.parent_message_id ? '4px solid' : 'none',
+                      borderColor: message.message_type === 'received' ? 'primary.main' : 'grey.400'
+                    }}
+                  >
                     <ListItemIcon>
-                      <Email color="primary" />
+                      <Email color={message.message_type === 'received' ? 'secondary' : 'primary'} />
                     </ListItemIcon>
                     <ListItemText
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          {message.message_type === 'received' && (
+                            <Chip
+                              label="Reply from Teacher"
+                              size="small"
+                              color="secondary"
+                              sx={{ mr: 1 }}
+                            />
+                          )}
                           <Typography variant="subtitle1" component="span">
                             {message.subject}
                           </Typography>
-                          <Chip
-                            label={message.is_read ? 'Read' : 'Unread'}
-                            size="small"
-                            color={message.is_read ? 'success' : 'default'}
-                          />
+                          {message.message_type === 'sent' && (
+                            <Chip
+                              label={message.is_read ? 'Read' : 'Unread'}
+                              size="small"
+                              color={message.is_read ? 'success' : 'default'}
+                            />
+                          )}
                         </Box>
                       }
                       secondary={
                         <>
                           <Typography variant="body2" color="text.primary" sx={{ mb: 1 }}>
-                            To: {message.teacher_name} ({message.course_name})
+                            {message.message_type === 'sent' ? 'To:' : 'From:'} {message.teacher_name} ({message.course_name})
                           </Typography>
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                             {message.content.substring(0, 100)}
