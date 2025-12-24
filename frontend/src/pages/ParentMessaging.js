@@ -37,9 +37,11 @@ import {
 import { useAuth } from '../context/AuthContext';
 import messageService from '../services/messageService';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 const ParentMessaging = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
@@ -331,22 +333,37 @@ const ParentMessaging = () => {
             </Alert>
           )}
 
-      {/* New Message Button */}
-      <Box sx={{ mb: 3 }}>
-        <Button
-          variant="contained"
-          startIcon={<Send />}
-          onClick={handleOpenDialog}
-          disabled={teachers.length === 0}
-        >
-          Send New Message
-        </Button>
-        {teachers.length === 0 && (
-          <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
-            No teachers available. Your child must be enrolled in courses first.
-          </Typography>
-        )}
-      </Box>
+     {/* New Message + View Progress Buttons */}
+<Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+  <Button
+    variant="contained"
+    startIcon={<Send />}
+    onClick={handleOpenDialog}
+    disabled={teachers.length === 0}
+  >
+    Send New Message
+  </Button>
+
+  <Button
+  variant="outlined"
+  onClick={() =>
+    navigate('/parent/child-progress', {
+      state: selectedChild ? { initialChildId: selectedChild.id } : {},
+    })
+  }
+  disabled={!selectedChild}
+>
+  View Academic Progress
+</Button>
+
+
+  {teachers.length === 0 && (
+    <Typography variant="caption" color="text.secondary">
+      No teachers available. Your child must be enrolled in courses first.
+    </Typography>
+  )}
+</Box>
+
 
       {/* Tabs */}
       <Paper sx={{ mb: 3 }}>

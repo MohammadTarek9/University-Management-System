@@ -16,7 +16,7 @@ const materialRoutes = require('./routes/materials');
 const staffRoutes = require('./modules/staff/routes');
 const staffPayrollRoutes = require('./routes/staffPayrollRoutes');
 const communityRoutes = require('./modules/community/routes');
-
+const parentChildProgressRoutes = require('./routes/parentChildProgressRoutes'); 
 const app = express();
 
 // Trust first proxy for rate limiting and proxy headers
@@ -105,6 +105,8 @@ app.use('/api/payroll', staffPayrollRoutes);
 
 
 app.use('/api/community', communityRoutes);
+
+app.use('/api/parent/progress', parentChildProgressRoutes); 
 
 app.get('/api/health', (req, res) => {
   res.json({ 
