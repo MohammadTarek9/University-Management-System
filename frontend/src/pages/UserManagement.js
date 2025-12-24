@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -77,11 +77,11 @@ const UserManagement = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const params = {
         page: page + 1,
         limit: rowsPerPage,
@@ -90,23 +90,23 @@ const UserManagement = () => {
       };
 
       const response = await userService.getAllUsers(params);
-      
+
       setUsers(response.data.users);
       setTotalUsers(response.data.pagination.totalUsers);
-      
+
     } catch (error) {
       console.error('Error fetching users:', error);
       setError(error.message || 'Failed to load users');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, rowsPerPage, searchTerm, roleFilter]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchUsers();
     }
-  }, [page, rowsPerPage, searchTerm, roleFilter, user]);
+  }, [fetchUsers, user]);
 
   useEffect(() => {
     if (user?.role === 'admin' && addDialogOpen) {
@@ -230,7 +230,7 @@ const UserManagement = () => {
       console.log('Creating user with data:', { ...userData, password: '[HIDDEN]' });
       console.log('Role:', userData.role);
       console.log('student_id:', userData.student_id);
-      const response = await userService.createUser(userData);
+      await userService.createUser(userData);
       setAddDialogOpen(false);
       setNewUser({
         firstName: '',
@@ -786,10 +786,10 @@ const UserManagement = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Phone Number"
+                label="Phone Number *"
                 value={newUser.phoneNumber}
                 onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                helperText="Optional: Contact phone number"
+                helperText="Required: Contact phone number"
               />
             </Grid>
           </Grid>
