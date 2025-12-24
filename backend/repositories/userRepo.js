@@ -61,25 +61,61 @@ function mapUserWithDetails(userRow, studentDetails, employeeDetails) {
   return user;
 }
 
-// Build WHERE clause for filtering
 function buildUserFilter({ search, role }) {
   const where = [];
   const params = [];
 
   if (search && search.trim() !== '') {
-    const like = `%${search.trim()}%`;
-    where.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)');
-    params.push(like, like, like);
+    const trimmed = search.trim();
+
+    // Split by any whitespace (handles multiple spaces)
+    const terms = trimmed.split(/\s+/).filter(Boolean);
+
+    // For 1 term: match any column
+    // For 2+ terms: require ALL terms to appear somewhere (AND), but each term can match any column (OR)
+    if (terms.length === 1) {
+      const like = `%${terms[0]}%`;
+      where.push(`
+        (
+          u.first_name LIKE ?
+          OR u.last_name LIKE ?
+          OR u.email LIKE ?
+          OR CONCAT(u.first_name, ' ', u.last_name) LIKE ?
+        )
+      `);
+      params.push(like, like, like, like);
+    } else {
+      const perTermClauses = terms.map(() => `
+        (
+          u.first_name LIKE ?
+          OR u.last_name LIKE ?
+          OR u.email LIKE ?
+          OR CONCAT(u.first_name, ' ', u.last_name) LIKE ?
+        )
+      `);
+
+      where.push(`(${perTermClauses.join(' AND ')})`);
+
+      // for each term we add 4 params
+      terms.forEach((t) => {
+        const like = `%${t}%`;
+        params.push(like, like, like, like);
+      });
+    }
   }
 
   if (role && role.trim() !== '') {
     where.push('u.role = ?');
-    params.push(role);
+    params.push(role.trim());
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   return { whereSql, params };
 }
+
+
+
+
 
 // Get student details by user ID
 async function getStudentDetails(userId) {
