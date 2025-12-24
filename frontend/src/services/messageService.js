@@ -137,7 +137,71 @@ const messageService = {
     } catch (error) {
       throw error.response?.data || { message: 'Failed to delete message' };
     }
-  }
+  },
+
+  getAvailableStaff: async () => {
+    try {
+      //console.log('Fetching available staff...');
+      const response = await api.get('/community/messages/staff');
+      //console.log('Staff API response:', response);
+      
+      // Handle different response structures
+      if (response.data && response.data.data) {
+        return { 
+          data: response.data.data,
+          success: true 
+        };
+      } else if (response.data) {
+        return { 
+          data: response.data,
+          success: true 
+        };
+      }
+      return response;
+    } catch (error) {
+      console.error('Error in getAvailableStaff:', error.response || error);
+      throw error.response?.data || { 
+        message: 'Failed to fetch staff',
+        error: error.message 
+      };
+    }
+  },
+
+  sendStudentMessage: async (messageData) => {
+    try {
+      //console.log('Sending student message:', messageData);
+      const response = await api.post('/community/messages/student', messageData);
+      //console.log('Send message response:', response);
+      
+      if (response.data && response.data.data) {
+        return { 
+          data: response.data.data,
+          success: true 
+        };
+      }
+      return response;
+    } catch (error) {
+      console.error('Error in sendStudentMessage:', error.response || error);
+      throw error.response?.data || { 
+        message: 'Failed to send message',
+        error: error.message 
+      };
+    }
+  },
+
+  /**
+   * Get student's conversations
+   * @returns {Promise} Response with conversations
+   */
+  getStudentConversations: async () => {
+    try {
+      const response = await api.get('/community/messages/student/conversations');
+      return response;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch conversations' };
+    }
+  },
+
 };
 
 export default messageService;

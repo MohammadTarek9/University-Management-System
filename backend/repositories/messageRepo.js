@@ -267,8 +267,6 @@ const messageRepo = {
     return result.affectedRows > 0;
   },
 
-  // In messageRepo.js - Add these methods:
-
   /**
    * Get staff for student's enrolled courses
    * @param {number} studentId - Student user ID

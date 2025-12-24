@@ -53,7 +53,7 @@ import TeacherInbox from './pages/TeacherInbox';
 
 import Announcements from './pages/Announcements';
 
-
+import StudentStaffMessaging from './pages/StudentToStaffMessaging.js'
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
 
@@ -404,6 +404,14 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta', 'student', 'parent']}>
                         <Announcements />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/community/student-staff"
+                    element={
+                      <ProtectedRoute allowedRoles={['student']}>
+                        <StudentStaffMessaging />
                       </ProtectedRoute>
                     }
                   />

@@ -61,7 +61,6 @@ const Community = () => {
       color: 'secondary',
       permissions: ['student'],
       features: ['Ask Questions', 'Schedule Meetings', 'Academic Guidance'],
-      comingSoon: true,
     },
     {
       id: 'announcements',

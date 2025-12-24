@@ -36,6 +36,15 @@ router.get('/received', authorize('professor', 'ta'), getReceivedMessages);
 // Get unread count (teacher access)
 router.get('/unread/count', authorize('professor', 'ta'), getUnreadCount);
 
+// Get available staff (student access)
+router.get('/staff', authorize('student'), getAvailableStaff);
+
+// Send message (student access)
+router.post('/student', authorize('student'), sendStudentMessage);
+
+// Get student conversations (student access)
+router.get('/student/conversations', authorize('student'), getStudentConversations);
+
 // Get specific message (parent or teacher)
 router.get('/:id', getMessage);
 
@@ -50,14 +59,5 @@ router.put('/:id/read', authorize('professor', 'ta'), markMessageAsRead);
 
 // Delete a message (parent access)
 router.delete('/:id', authorize('parent'), deleteMessage);
-
-// Get available staff (student access)
-router.get('/staff', authorize('student'), getAvailableStaff);
-
-// Send message (student access)
-router.post('/student', authorize('student'), sendStudentMessage);
-
-// Get student conversations (student access)
-router.get('/student/conversations', authorize('student'), getStudentConversations);
 
 module.exports = router;
