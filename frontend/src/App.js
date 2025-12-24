@@ -53,7 +53,10 @@ import TeacherInbox from './pages/TeacherInbox';
 
 import Announcements from './pages/Announcements';
 
-import StudentStaffMessaging from './pages/StudentToStaffMessaging.js'
+import StudentStaffMessaging from './pages/StudentToStaffMessaging.js';
+
+import StudentMeetingPage from './pages/StudentMeeting.js';
+import ProfessorMeetingPage from './pages/ProfessorMeeting.js';
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
 
@@ -412,6 +415,22 @@ function App() {
                     element={
                       <ProtectedRoute allowedRoles={['student']}>
                         <StudentStaffMessaging />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/community/meetings/student"
+                    element={
+                      <ProtectedRoute allowedRoles={['student']}>
+                        <StudentMeetingPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/community/meetings/prof"
+                    element={
+                      <ProtectedRoute allowedRoles={['professor']}>
+                        <ProfessorMeetingPage />
                       </ProtectedRoute>
                     }
                   />

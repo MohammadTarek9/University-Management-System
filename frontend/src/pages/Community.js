@@ -17,6 +17,7 @@ import {
   Event,
   Forum,
   ArrowForward,
+  MeetingRoom
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -86,6 +87,30 @@ const Community = () => {
       features: ['Event Calendar', 'RSVP', 'Important Dates'],
       comingSoon: true,
     },
+    {
+      id: 'student-meetings',
+      title: 'Meetings',
+      description:
+        'View and Request meetings with your professors.',
+      icon: <MeetingRoom sx={{ fontSize: 40 }} />,
+      path: '/community/meetings/student',
+      color: 'info',
+      permissions: ['student'],
+      features: ['View Meetings', 'Book Meeting Requests'],
+      comingSoon: false,
+    },
+    {
+      id: 'profesor-meetings',
+      title: 'Meetings',
+      description:
+        'View meeting requests from students',
+      icon: <MeetingRoom sx={{ fontSize: 40 }} />,
+      path: '/community/meetings/prof',
+      color: 'info',
+      permissions: ['professor'],
+      features: ['View Meetings', 'Approve/Reject Requests'],
+      comingSoon: false,
+    }
   ];
 
   const visibleModules = communityModules.filter((m) =>
