@@ -50,6 +50,7 @@ const UserManagement = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -104,9 +105,14 @@ const UserManagement = () => {
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchUsers();
-      fetchStudents(); // Fetch students for parent dropdown
     }
   }, [page, rowsPerPage, searchTerm, roleFilter, user]);
+
+  useEffect(() => {
+    if (user?.role === 'admin' && addDialogOpen) {
+      fetchStudents();
+    }
+  }, [addDialogOpen, user]);
 
   // Fetch all students for parent dropdown
   const fetchStudents = async () => {
@@ -361,9 +367,19 @@ const UserManagement = () => {
 
   // Handle search input change
   const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
+    setSearchInput(event.target.value);
     setPage(0); // Reset to first page when searching
   };
+
+  //debounce effect for search input
+  useEffect(() => {
+  const t = setTimeout(() => {
+    setSearchTerm(searchInput);
+  }, 300);
+
+  return () => clearTimeout(t);
+}, [searchInput]);
+
 
   // Handle role filter change
   const handleRoleFilterChange = (event) => {
@@ -430,7 +446,7 @@ const UserManagement = () => {
             <TextField
               fullWidth
               label="Search users"
-              value={searchTerm}
+              value={searchInput}
               onChange={handleSearchChange}
               placeholder="Search by name or email..."
               InputProps={{
