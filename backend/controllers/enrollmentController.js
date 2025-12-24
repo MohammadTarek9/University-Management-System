@@ -1,9 +1,9 @@
-const enrollmentRepo = require('../repositories/enrollmentRepo');
-const courseRepo = require('../repositories/courseEavRepoNew');
-const subjectRepo = require('../repositories/subjectEavRepoNew');
-const userRepo = require('../repositories/userRepo');
-const eav = require('../utils/eavNew');
-const { successResponse, errorResponse } = require('../utils/responseHelpers');
+const enrollmentRepo = require("../repositories/enrollmentRepo");
+const courseRepo = require("../repositories/courseEavRepoNew");
+const subjectRepo = require("../repositories/subjectEavRepoNew");
+const userRepo = require("../repositories/userRepo");
+const eav = require("../utils/eavNew");
+const { successResponse, errorResponse } = require("../utils/responseHelpers");
 
 /**
  * @desc    Register for a course
@@ -18,46 +18,74 @@ const registerForCourse = async (req, res) => {
     // Validate course exists
     const course = await courseRepo.getCourseById(courseId);
     if (!course) {
-      return errorResponse(res, 404, 'Course not found');
+      return errorResponse(res, 404, "Course not found");
     }
 
     if (!course.isActive) {
-      return errorResponse(res, 400, 'This course is not currently active');
+      return errorResponse(res, 400, "This course is not currently active");
     }
 
     // Check if already enrolled or has pending request
-    const existingEnrollment = await enrollmentRepo.isStudentEnrolled(studentId, courseId);
+    const existingEnrollment = await enrollmentRepo.isStudentEnrolled(
+      studentId,
+      courseId
+    );
     if (existingEnrollment) {
-      if (existingEnrollment.status === 'pending') {
-        return errorResponse(res, 400, 'You already have a pending registration request for this course');
-      } else if (existingEnrollment.status === 'enrolled') {
-        return errorResponse(res, 400, 'You are already enrolled in this course');
-      } else if (existingEnrollment.status === 'rejected') {
-        return errorResponse(res, 400, 'Your previous registration request for this course was rejected. Please contact the administrator.');
+      if (existingEnrollment.status === "pending") {
+        return errorResponse(
+          res,
+          400,
+          "You already have a pending registration request for this course"
+        );
+      } else if (existingEnrollment.status === "enrolled") {
+        return errorResponse(
+          res,
+          400,
+          "You are already enrolled in this course"
+        );
+      } else if (existingEnrollment.status === "rejected") {
+        return errorResponse(
+          res,
+          400,
+          "Your previous registration request for this course was rejected. Please contact the administrator."
+        );
       } else {
-        return errorResponse(res, 400, 'You already have a registration record for this course');
+        return errorResponse(
+          res,
+          400,
+          "You already have a registration record for this course"
+        );
       }
     }
 
     // Check course capacity
-    const currentEnrollment = await enrollmentRepo.getCourseEnrollmentCount(courseId);
+    const currentEnrollment = await enrollmentRepo.getCourseEnrollmentCount(
+      courseId
+    );
     if (currentEnrollment >= course.maxEnrollment) {
-      return errorResponse(res, 400, 'Class is full');
+      return errorResponse(res, 400, "Class is full");
     }
 
     // Get subject details to check prerequisites
     const subject = await subjectRepo.getSubjectById(course.subjectId);
     if (!subject) {
-      return errorResponse(res, 404, 'Subject not found');
+      return errorResponse(res, 404, "Subject not found");
     }
 
     // Check prerequisites if they exist
-    if (subject.prerequisites && subject.prerequisites.trim() !== '') {
+    if (subject.prerequisites && subject.prerequisites.trim() !== "") {
       // Prerequisites are stored as text (e.g., "CS101, CS102" or JSON array)
       // For now, we'll do basic validation - in production, you'd check completed courses
-      const hasPrerequisites = await checkPrerequisites(studentId, subject.prerequisites);
+      const hasPrerequisites = await checkPrerequisites(
+        studentId,
+        subject.prerequisites
+      );
       if (!hasPrerequisites.met) {
-        return errorResponse(res, 400, `Prerequisites not met: ${hasPrerequisites.message}`);
+        return errorResponse(
+          res,
+          400,
+          `Prerequisites not met: ${hasPrerequisites.message}`
+        );
       }
     }
 
@@ -65,24 +93,24 @@ const registerForCourse = async (req, res) => {
     const enrollment = await enrollmentRepo.createEnrollment({
       studentId,
       courseId,
-      status: 'pending'
+      status: "pending",
     });
 
     // Note: Course enrollment count is NOT updated until admin approves
 
-    successResponse(res, 201, 'Registration request submitted successfully', { 
+    successResponse(res, 201, "Registration request submitted successfully", {
       enrollment,
       course: {
         id: course.id,
         subjectName: subject.name,
         subjectCode: subject.code,
         semester: course.semester,
-        year: course.year
-      }
+        year: course.year,
+      },
     });
   } catch (error) {
-    console.error('Error in registerForCourse:', error);
-    errorResponse(res, 500, 'Server error during course registration');
+    console.error("Error in registerForCourse:", error);
+    errorResponse(res, 500, "Server error during course registration");
   }
 };
 
@@ -96,54 +124,61 @@ const getMyEnrollments = async (req, res) => {
     const studentId = req.user.id;
     const { status, semester, year } = req.query;
 
-    const enrollments = await enrollmentRepo.getEnrollmentsByStudent(studentId, {
-      status,
-      isActive: true
-    });
+    const enrollments = await enrollmentRepo.getEnrollmentsByStudent(
+      studentId,
+      {
+        status,
+        isActive: true,
+      }
+    );
 
     // Enrich with course and subject details
-    const enrichedEnrollments = await Promise.all(enrollments.map(async (enrollment) => {
-      const course = await courseRepo.getCourseById(enrollment.course_id);
-      if (!course) return null;
+    const enrichedEnrollments = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        const course = await courseRepo.getCourseById(enrollment.course_id);
+        if (!course) return null;
 
-      const subject = await subjectRepo.getSubjectById(course.subjectId);
-      
-      return {
-        enrollmentId: enrollment.enrollment_id,
-        courseId: enrollment.course_id,
-        status: enrollment.status,
-        enrollmentDate: enrollment.enrollment_date,
-        grade: enrollment.grade,
-        gradePoints: enrollment.grade_points,
-        course: {
-          id: course.id,
-          semester: course.semester,
-          year: course.year,
-          schedule: course.schedule,
-          instructorId: course.instructorId,
-          maxEnrollment: course.maxEnrollment,
-          currentEnrollment: course.currentEnrollment
-        },
-        subject: subject ? {
-          id: subject.id,
-          name: subject.name,
-          code: subject.code,
-          credits: subject.credits,
-          description: subject.description
-        } : null
-      };
-    }));
+        const subject = await subjectRepo.getSubjectById(course.subjectId);
+
+        return {
+          enrollmentId: enrollment.enrollment_id,
+          courseId: enrollment.course_id,
+          status: enrollment.status,
+          enrollmentDate: enrollment.enrollment_date,
+          grade: enrollment.grade,
+          gradePoints: enrollment.grade_points,
+          course: {
+            id: course.id,
+            semester: course.semester,
+            year: course.year,
+            schedule: course.schedule,
+            instructorId: course.instructorId,
+            maxEnrollment: course.maxEnrollment,
+            currentEnrollment: course.currentEnrollment,
+          },
+          subject: subject
+            ? {
+                id: subject.id,
+                name: subject.name,
+                code: subject.code,
+                credits: subject.credits,
+                description: subject.description,
+              }
+            : null,
+        };
+      })
+    );
 
     // Filter out null entries
-    const validEnrollments = enrichedEnrollments.filter(e => e !== null);
+    const validEnrollments = enrichedEnrollments.filter((e) => e !== null);
 
-    successResponse(res, 200, 'Enrollments retrieved successfully', { 
+    successResponse(res, 200, "Enrollments retrieved successfully", {
       enrollments: validEnrollments,
-      count: validEnrollments.length
+      count: validEnrollments.length,
     });
   } catch (error) {
-    console.error('Error in getMyEnrollments:', error);
-    errorResponse(res, 500, 'Server error retrieving enrollments');
+    console.error("Error in getMyEnrollments:", error);
+    errorResponse(res, 500, "Server error retrieving enrollments");
   }
 };
 
@@ -159,31 +194,39 @@ const dropCourse = async (req, res) => {
 
     const enrollment = await enrollmentRepo.getEnrollmentById(enrollmentId);
     if (!enrollment) {
-      return errorResponse(res, 404, 'Enrollment not found');
+      return errorResponse(res, 404, "Enrollment not found");
     }
 
     // Verify the enrollment belongs to the student
     if (enrollment.student_id !== studentId) {
-      return errorResponse(res, 403, 'Not authorized to drop this enrollment');
+      return errorResponse(res, 403, "Not authorized to drop this enrollment");
     }
 
-    if (enrollment.status !== 'enrolled') {
-      return errorResponse(res, 400, 'Can only drop courses with enrolled status');
+    if (enrollment.status !== "enrolled") {
+      return errorResponse(
+        res,
+        400,
+        "Can only drop courses with enrolled status"
+      );
     }
 
     // Update enrollment status
     const updatedEnrollment = await enrollmentRepo.dropEnrollment(enrollmentId);
 
     // Update course current enrollment count
-    const currentCount = await enrollmentRepo.getCourseEnrollmentCount(enrollment.course_id);
+    const currentCount = await enrollmentRepo.getCourseEnrollmentCount(
+      enrollment.course_id
+    );
     await courseRepo.updateCourse(enrollment.course_id, {
-      currentEnrollment: currentCount
+      currentEnrollment: currentCount,
     });
 
-    successResponse(res, 200, 'Course dropped successfully', { enrollment: updatedEnrollment });
+    successResponse(res, 200, "Course dropped successfully", {
+      enrollment: updatedEnrollment,
+    });
   } catch (error) {
-    console.error('Error in dropCourse:', error);
-    errorResponse(res, 500, 'Server error dropping course');
+    console.error("Error in dropCourse:", error);
+    errorResponse(res, 500, "Server error dropping course");
   }
 };
 
@@ -202,65 +245,72 @@ const getAvailableCourses = async (req, res) => {
       semester,
       year,
       isActive: true,
-      limit: 100
+      limit: 100,
     });
 
     const courses = coursesResult.courses || [];
 
     // Get student's current enrollments
-    const studentEnrollments = await enrollmentRepo.getEnrollmentsByStudent(studentId, {
-      status: 'enrolled',
-      isActive: true
-    });
-    const enrolledCourseIds = studentEnrollments.map(e => e.course_id);
+    const studentEnrollments = await enrollmentRepo.getEnrollmentsByStudent(
+      studentId,
+      {
+        status: "enrolled",
+        isActive: true,
+      }
+    );
+    const enrolledCourseIds = studentEnrollments.map((e) => e.course_id);
 
     // Enrich courses with subject details and enrollment status
-    const availableCourses = await Promise.all(courses.map(async (course) => {
-      const subject = await subjectRepo.getSubjectById(course.subjectId);
-      if (!subject || !subject.isActive) return null;
+    const availableCourses = await Promise.all(
+      courses.map(async (course) => {
+        const subject = await subjectRepo.getSubjectById(course.subjectId);
+        if (!subject || !subject.isActive) return null;
 
-      // Filter by department if specified
-      if (departmentId && subject.departmentId !== parseInt(departmentId)) {
-        return null;
-      }
+        // Filter by department if specified
+        if (departmentId && subject.departmentId !== parseInt(departmentId)) {
+          return null;
+        }
 
-      const enrollmentCount = await enrollmentRepo.getCourseEnrollmentCount(course.id);
-      const isEnrolled = enrolledCourseIds.includes(course.id);
-      const isFull = enrollmentCount >= course.maxEnrollment;
+        const enrollmentCount = await enrollmentRepo.getCourseEnrollmentCount(
+          course.id
+        );
+        const isEnrolled = enrolledCourseIds.includes(course.id);
+        const isFull = enrollmentCount >= course.maxEnrollment;
 
-      return {
-        courseId: course.id,
-        subjectId: subject.id,
-        subjectName: subject.name,
-        subjectCode: subject.code,
-        subjectCredits: subject.credits,
-        subjectDescription: subject.description,
-        classification: subject.classification,
-        prerequisites: subject.prerequisites,
-        semester: course.semester,
-        year: course.year,
-        schedule: course.schedule,
-        instructorId: course.instructorId,
-        instructorName: course.instructorName,
-        maxEnrollment: course.maxEnrollment,
-        currentEnrollment: enrollmentCount,
-        availableSeats: course.maxEnrollment - enrollmentCount,
-        isEnrolled,
-        isFull,
-        canRegister: !isEnrolled && !isFull
-      };
-    }));
+        return {
+          courseId: course.id,
+          subjectId: subject.id,
+          subjectName: subject.name,
+          subjectCode: subject.code,
+          subjectCredits: subject.credits,
+          subjectDescription: subject.description,
+          classification: subject.classification,
+          prerequisites: subject.prerequisites,
+          semester: course.semester,
+          year: course.year,
+          schedule: course.schedule,
+          instructorId: course.instructorId,
+          instructorName: course.instructorName,
+          maxEnrollment: course.maxEnrollment,
+          currentEnrollment: enrollmentCount,
+          availableSeats: course.maxEnrollment - enrollmentCount,
+          isEnrolled,
+          isFull,
+          canRegister: !isEnrolled && !isFull,
+        };
+      })
+    );
 
     // Filter out null entries
-    const validCourses = availableCourses.filter(c => c !== null);
+    const validCourses = availableCourses.filter((c) => c !== null);
 
-    successResponse(res, 200, 'Available courses retrieved successfully', { 
+    successResponse(res, 200, "Available courses retrieved successfully", {
       courses: validCourses,
-      count: validCourses.length
+      count: validCourses.length,
     });
   } catch (error) {
-    console.error('Error in getAvailableCourses:', error);
-    errorResponse(res, 500, 'Server error retrieving available courses');
+    console.error("Error in getAvailableCourses:", error);
+    errorResponse(res, 500, "Server error retrieving available courses");
   }
 };
 
@@ -275,27 +325,27 @@ const getCourseEnrollments = async (req, res) => {
 
     const course = await courseRepo.getCourseById(courseId);
     if (!course) {
-      return errorResponse(res, 404, 'Course not found');
+      return errorResponse(res, 404, "Course not found");
     }
 
     const enrollments = await enrollmentRepo.getEnrollmentsByCourse(courseId, {
-      status: 'enrolled',
-      isActive: true
+      status: "enrolled",
+      isActive: true,
     });
 
-    successResponse(res, 200, 'Course enrollments retrieved successfully', { 
+    successResponse(res, 200, "Course enrollments retrieved successfully", {
       enrollments,
       count: enrollments.length,
       course: {
         id: course.id,
         semester: course.semester,
         year: course.year,
-        maxEnrollment: course.maxEnrollment
-      }
+        maxEnrollment: course.maxEnrollment,
+      },
     });
   } catch (error) {
-    console.error('Error in getCourseEnrollments:', error);
-    errorResponse(res, 500, 'Server error retrieving course enrollments');
+    console.error("Error in getCourseEnrollments:", error);
+    errorResponse(res, 500, "Server error retrieving course enrollments");
   }
 };
 
@@ -307,7 +357,7 @@ async function checkPrerequisites(studentId, prerequisites) {
   try {
     // Parse prerequisites - could be comma-separated list or JSON array
     let requiredCodes = [];
-    
+
     try {
       // Try to parse as JSON array
       const parsed = JSON.parse(prerequisites);
@@ -315,22 +365,28 @@ async function checkPrerequisites(studentId, prerequisites) {
         requiredCodes = parsed;
       } else {
         // If it's an object, treat it as comma-separated string
-        requiredCodes = prerequisites.split(',').map(p => p.trim());
+        requiredCodes = prerequisites.split(",").map((p) => p.trim());
       }
     } catch (e) {
       // Not JSON, treat as comma-separated list
-      requiredCodes = prerequisites.split(',').map(p => p.trim()).filter(p => p);
+      requiredCodes = prerequisites
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => p);
     }
 
     if (requiredCodes.length === 0) {
-      return { met: true, message: '' };
+      return { met: true, message: "" };
     }
 
     // Get student's completed enrollments
-    const studentEnrollments = await enrollmentRepo.getEnrollmentsByStudent(studentId, {
-      status: 'enrolled', // Consider both enrolled and completed as met
-      isActive: true
-    });
+    const studentEnrollments = await enrollmentRepo.getEnrollmentsByStudent(
+      studentId,
+      {
+        status: "enrolled", // Consider both enrolled and completed as met
+        isActive: true,
+      }
+    );
 
     // Get all subjects to match codes
     const completedSubjectIds = [];
@@ -351,22 +407,24 @@ async function checkPrerequisites(studentId, prerequisites) {
     }
 
     // Check if all required prerequisites are met
-    const missingPrereqs = requiredCodes.filter(code => !completedCodes.includes(code));
+    const missingPrereqs = requiredCodes.filter(
+      (code) => !completedCodes.includes(code)
+    );
 
     if (missingPrereqs.length > 0) {
       return {
         met: false,
-        message: `Missing prerequisites: ${missingPrereqs.join(', ')}`
+        message: `Missing prerequisites: ${missingPrereqs.join(", ")}`,
       };
     }
 
-    return { met: true, message: '' };
+    return { met: true, message: "" };
   } catch (error) {
-    console.error('Error checking prerequisites:', error);
+    console.error("Error checking prerequisites:", error);
     // If there's an error checking, fail safe and deny registration
     return {
       met: false,
-      message: 'Error validating prerequisites. Please contact administrator.'
+      message: "Error validating prerequisites. Please contact administrator.",
     };
   }
 }
@@ -382,78 +440,83 @@ const getPendingEnrollments = async (req, res) => {
 
     // Get all pending enrollments
     const enrollments = await enrollmentRepo.getAllEnrollments({
-      status: 'pending',
-      isActive: true
+      status: "pending",
+      isActive: true,
     });
 
     // Enrich with student, course, and subject details
-    const enrichedEnrollments = await Promise.all(enrollments.map(async (enrollment) => {
-      const student = await userRepo.getUserById(enrollment.student_id);
-      if (!student) {
-        console.error(`Student not found for enrollment ${enrollment.enrollment_id}, student_id: ${enrollment.student_id}`);
-        return null;
-      }
-      
-      const course = await courseRepo.getCourseById(enrollment.course_id);
-      
-      if (!course) return null;
-      
-      const subject = await subjectRepo.getSubjectById(course.subjectId);
-      if (!subject) return null;
-
-      // Filter by department if specified
-      if (departmentId && subject.departmentId !== parseInt(departmentId)) {
-        return null;
-      }
-
-      // Filter by semester if specified
-      if (semester && course.semester !== semester) {
-        return null;
-      }
-
-      // Filter by year if specified
-      if (year && course.year !== parseInt(year)) {
-        return null;
-      }
-
-      return {
-        enrollmentId: enrollment.enrollment_id,
-        status: enrollment.status,
-        enrollmentDate: enrollment.enrollment_date,
-        student: {
-          id: student.id,
-          firstName: student.first_name,
-          lastName: student.last_name,
-          email: student.email,
-          studentId: student.student_id
-        },
-        course: {
-          id: course.id,
-          semester: course.semester,
-          year: course.year,
-          schedule: course.schedule,
-          maxEnrollment: course.maxEnrollment,
-          currentEnrollment: course.currentEnrollment
-        },
-        subject: {
-          id: subject.id,
-          name: subject.name,
-          code: subject.code,
-          credits: subject.credits,
-          departmentId: subject.departmentId
+    const enrichedEnrollments = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        const student = await userRepo.getUserById(enrollment.student_id);
+        if (!student) {
+          console.error(
+            `Student not found for enrollment ${enrollment.enrollment_id}, student_id: ${enrollment.student_id}`
+          );
+          return null;
         }
-      };
-    }));
 
-    const validEnrollments = enrichedEnrollments.filter(e => e !== null);
+        const course = await courseRepo.getCourseById(enrollment.course_id);
 
-    successResponse(res, 200, 'Pending enrollments retrieved successfully', {
+        if (!course) return null;
+
+        const subject = await subjectRepo.getSubjectById(course.subjectId);
+        if (!subject) return null;
+
+        // Filter by department if specified
+        if (departmentId && subject.departmentId !== parseInt(departmentId)) {
+          return null;
+        }
+
+        // Filter by semester if specified
+        if (semester && course.semester !== semester) {
+          return null;
+        }
+
+        // Filter by year if specified
+        if (year && course.year !== parseInt(year)) {
+          return null;
+        }
+
+        return {
+          enrollmentId: enrollment.enrollment_id,
+          status: enrollment.status,
+          enrollmentDate: enrollment.enrollment_date,
+
+          student: {
+            id: student.id,
+            firstName: student.first_name ?? student.firstName ?? "",
+            lastName: student.last_name ?? student.lastName ?? "",
+            email: student.email ?? "",
+            studentId: student.student_id ?? student.studentId ?? null,
+          },
+          course: {
+            id: course.id,
+            semester: course.semester,
+            year: course.year,
+            schedule: course.schedule,
+            maxEnrollment: course.maxEnrollment,
+            currentEnrollment: course.currentEnrollment,
+          },
+          subject: {
+            id: subject.id,
+            name: subject.name,
+            code: subject.code,
+            credits: subject.credits,
+            departmentId: subject.departmentId,
+          },
+        };
+      })
+    );
+
+    const validEnrollments = enrichedEnrollments.filter((e) => e !== null);
+
+    successResponse(res, 200, "Pending enrollments retrieved successfully", {
       enrollments: validEnrollments,
-      count: validEnrollments.length
+      count: validEnrollments.length,
     });
   } catch (error) {
-    console.error('Error in getPendingEnrollments:', error);
-    errorResponse(res, 500, 'Server error retrieving pending enrollments');
+    console.error("Error in getPendingEnrollments:", error);
+    errorResponse(res, 500, "Server error retrieving pending enrollments");
   }
 };
 
@@ -468,37 +531,45 @@ const approveEnrollment = async (req, res) => {
 
     const enrollment = await enrollmentRepo.getEnrollmentById(enrollmentId);
     if (!enrollment) {
-      return errorResponse(res, 404, 'Enrollment not found');
+      return errorResponse(res, 404, "Enrollment not found");
     }
 
-    if (enrollment.status !== 'pending') {
-      return errorResponse(res, 400, 'Only pending enrollments can be approved');
+    if (enrollment.status !== "pending") {
+      return errorResponse(
+        res,
+        400,
+        "Only pending enrollments can be approved"
+      );
     }
 
     // Check if course is still not full
     const course = await courseRepo.getCourseById(enrollment.course_id);
-    const currentCount = await enrollmentRepo.getCourseEnrollmentCount(enrollment.course_id);
-    
+    const currentCount = await enrollmentRepo.getCourseEnrollmentCount(
+      enrollment.course_id
+    );
+
     if (currentCount >= course.maxEnrollment) {
-      return errorResponse(res, 400, 'Cannot approve - course is now full');
+      return errorResponse(res, 400, "Cannot approve - course is now full");
     }
 
     // Update enrollment status to enrolled
-    await enrollmentRepo.updateEnrollmentStatus(enrollmentId, 'enrolled');
+    await enrollmentRepo.updateEnrollmentStatus(enrollmentId, "enrolled");
 
     // Update course enrollment count
     await courseRepo.updateCourse(enrollment.course_id, {
-      currentEnrollment: currentCount + 1
+      currentEnrollment: currentCount + 1,
     });
 
-    const updatedEnrollment = await enrollmentRepo.getEnrollmentById(enrollmentId);
+    const updatedEnrollment = await enrollmentRepo.getEnrollmentById(
+      enrollmentId
+    );
 
-    successResponse(res, 200, 'Enrollment approved successfully', { 
-      enrollment: updatedEnrollment 
+    successResponse(res, 200, "Enrollment approved successfully", {
+      enrollment: updatedEnrollment,
     });
   } catch (error) {
-    console.error('Error in approveEnrollment:', error);
-    errorResponse(res, 500, 'Server error approving enrollment');
+    console.error("Error in approveEnrollment:", error);
+    errorResponse(res, 500, "Server error approving enrollment");
   }
 };
 
@@ -514,24 +585,34 @@ const rejectEnrollment = async (req, res) => {
 
     const enrollment = await enrollmentRepo.getEnrollmentById(enrollmentId);
     if (!enrollment) {
-      return errorResponse(res, 404, 'Enrollment not found');
+      return errorResponse(res, 404, "Enrollment not found");
     }
 
-    if (enrollment.status !== 'pending') {
-      return errorResponse(res, 400, 'Only pending enrollments can be rejected');
+    if (enrollment.status !== "pending") {
+      return errorResponse(
+        res,
+        400,
+        "Only pending enrollments can be rejected"
+      );
     }
 
     // Update enrollment status to rejected
-    await enrollmentRepo.updateEnrollmentStatus(enrollmentId, 'rejected', reason);
+    await enrollmentRepo.updateEnrollmentStatus(
+      enrollmentId,
+      "rejected",
+      reason
+    );
 
-    const updatedEnrollment = await enrollmentRepo.getEnrollmentById(enrollmentId);
+    const updatedEnrollment = await enrollmentRepo.getEnrollmentById(
+      enrollmentId
+    );
 
-    successResponse(res, 200, 'Enrollment rejected successfully', { 
-      enrollment: updatedEnrollment 
+    successResponse(res, 200, "Enrollment rejected successfully", {
+      enrollment: updatedEnrollment,
     });
   } catch (error) {
-    console.error('Error in rejectEnrollment:', error);
-    errorResponse(res, 500, 'Server error rejecting enrollment');
+    console.error("Error in rejectEnrollment:", error);
+    errorResponse(res, 500, "Server error rejecting enrollment");
   }
 };
 
@@ -543,5 +624,5 @@ module.exports = {
   getCourseEnrollments,
   getPendingEnrollments,
   approveEnrollment,
-  rejectEnrollment
+  rejectEnrollment,
 };

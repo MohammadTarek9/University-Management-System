@@ -355,28 +355,28 @@ setMyCourses(Array.isArray(courses) ? courses : []);
           <Grid item xs={12} sm={6} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="warning.main">
-                🚧
+                ✅
               </Typography>
               <Typography variant="body2">Facilities Module</Typography>
-              <Typography variant="caption" color="text.secondary">In Development</Typography>
+              <Typography variant="caption" color="text.secondary">Active</Typography>
             </Box>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="warning.main">
-                🚧
+                ✅
               </Typography>
               <Typography variant="body2">Curriculum Module</Typography>
-              <Typography variant="caption" color="text.secondary">In Development</Typography>
+              <Typography variant="caption" color="text.secondary">Active</Typography>
             </Box>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="warning.main">
-                🚧
+                ✅
               </Typography>
               <Typography variant="body2">Staff & Community</Typography>
-              <Typography variant="caption" color="text.secondary">In Development</Typography>
+              <Typography variant="caption" color="text.secondary">Active</Typography>
             </Box>
           </Grid>
         </Grid>

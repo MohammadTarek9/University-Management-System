@@ -52,7 +52,9 @@ import TeacherInbox from './pages/TeacherInbox';
 import Announcements from './pages/Announcements';
 import ParentChildProgress from './pages/ParentChildProgress';
 import ChildCourseDetails from './pages/ChildCourseDetails';
-
+import StudentStaffMessaging from './pages/StudentToStaffMessaging.js';
+import StudentMeetingPage from './pages/StudentMeeting.js';
+import ProfessorMeetingPage from './pages/ProfessorMeeting.js';
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
 
@@ -420,25 +422,48 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="/community/student-staff"
+                    element={
+                      <ProtectedRoute allowedRoles={['student']}>
+                        <StudentStaffMessaging />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/community/meetings/student"
+                    element={
+                      <ProtectedRoute allowedRoles={['student']}>
+                        <StudentMeetingPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/community/meetings/prof"
+                    element={
+                      <ProtectedRoute allowedRoles={['professor']}>
+                        <ProfessorMeetingPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   {/* Parent child progress routes */}
                   <Route
-  path="/parent/child-progress"
-  element={
-    <ProtectedRoute allowedRoles={['parent']}>
-      <ParentChildProgress />
-    </ProtectedRoute>
-  }
-/>
-
-<Route
-  path="/parent/children/:childId/courses/:courseId"
-  element={
-    <ProtectedRoute allowedRoles={['parent']}>
-      <ChildCourseDetails />
-    </ProtectedRoute>
-  }
-/>
+                    path="/parent/child-progress"
+                    element={
+                      <ProtectedRoute allowedRoles={['parent']}>
+                        <ParentChildProgress />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/parent/children/:childId/courses/:courseId"
+                    element={
+                      <ProtectedRoute allowedRoles={['parent']}>
+                        <ChildCourseDetails />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   {/* Default redirects */}
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />

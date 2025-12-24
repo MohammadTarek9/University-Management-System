@@ -265,7 +265,93 @@ const messageRepo = {
     const query = 'DELETE FROM parent_teacher_messages WHERE id = ?';
     const [result] = await pool.query(query, [id]);
     return result.affectedRows > 0;
+  },
+
+  /**
+   * Get staff for student's enrolled courses
+   * @param {number} studentId - Student user ID
+   * @returns {Promise<Array>} Array of staff with course info
+   */
+  getStudentStaff: async (studentId) => {
+    const query = `
+      SELECT DISTINCT
+        u.id as staff_id,
+        CONCAT(u.first_name, ' ', u.last_name) as staff_name,
+        u.email as staff_email,
+        u.role as staff_role,
+        ce.entity_id as course_id,
+        se.name as course_name,
+        subj_code.value_string as course_code
+      FROM enrollments e
+      INNER JOIN courses_eav_entities ce ON e.course_id = ce.entity_id
+      LEFT JOIN courses_eav_values inst ON ce.entity_id = inst.entity_id 
+        AND inst.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'instructor_id')
+      LEFT JOIN courses_eav_values subj_id_val ON ce.entity_id = subj_id_val.entity_id 
+        AND subj_id_val.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'subject_id')
+      LEFT JOIN subjects_eav_entities se ON subj_id_val.value_number = se.entity_id
+      LEFT JOIN subjects_eav_values subj_code ON se.entity_id = subj_code.entity_id 
+        AND subj_code.attribute_id = (SELECT attribute_id FROM subjects_eav_attributes WHERE attribute_name = 'code')
+      INNER JOIN users u ON inst.value_number = u.id
+      WHERE e.student_id = ?
+        AND e.status IN ('enrolled', 'approved', 'active')
+        AND u.role IN ('professor', 'ta', 'staff')  // Include staff role
+        AND ce.is_active = 1
+      ORDER BY se.name, u.first_name
+    `;
+    const [rows] = await pool.query(query, [studentId]);
+    return rows;
+  },
+
+  /**
+   * Get student's conversations (both sent and received)
+   * @param {number} studentId - Student user ID
+   * @returns {Promise<Array>} Array of conversations
+   */
+  getStudentConversations: async (studentId) => {
+    const query = `
+      SELECT DISTINCT
+        m.*,
+        -- Sender info
+        CASE 
+          WHEN m.parent_id = ? THEN 'student'
+          ELSE 'staff'
+        END as sender_type,
+        CASE 
+          WHEN m.parent_id = ? THEN CONCAT(su.first_name, ' ', su.last_name)
+          ELSE CONCAT(ru.first_name, ' ', ru.last_name)
+        END as sender_name,
+        -- Recipient info
+        CASE 
+          WHEN m.parent_id = ? THEN CONCAT(ru.first_name, ' ', ru.last_name)
+          ELSE CONCAT(su.first_name, ' ', su.last_name)
+        END as recipient_name,
+        CONCAT(stu.first_name, ' ', stu.last_name) as student_name,
+        se.name as course_name,
+        subj_code.value_string as course_code,
+        -- Group conversations by other party
+        CASE 
+          WHEN m.parent_id = ? THEN m.teacher_id
+          ELSE m.parent_id
+        END as conversation_with_id
+      FROM parent_teacher_messages m
+      LEFT JOIN users su ON m.parent_id = su.id  -- Sender user
+      LEFT JOIN users ru ON m.teacher_id = ru.id -- Recipient user
+      LEFT JOIN users stu ON m.student_id = stu.id -- Student user (if different)
+      LEFT JOIN courses_eav_entities ce ON m.course_id = ce.entity_id
+      LEFT JOIN courses_eav_values subj_id_val ON ce.entity_id = subj_id_val.entity_id 
+        AND subj_id_val.attribute_id = (SELECT attribute_id FROM courses_eav_attributes WHERE attribute_name = 'subject_id')
+      LEFT JOIN subjects_eav_entities se ON subj_id_val.value_number = se.entity_id
+      LEFT JOIN subjects_eav_values subj_code ON se.entity_id = subj_code.entity_id 
+        AND subj_code.attribute_id = (SELECT attribute_id FROM subjects_eav_attributes WHERE attribute_name = 'code')
+      WHERE (m.parent_id = ? OR m.student_id = ?)  -- Student is sender or subject
+      ORDER BY m.created_at DESC
+    `;
+    const [rows] = await pool.query(query, [
+      studentId, studentId, studentId, studentId, studentId, studentId
+    ]);
+    return rows;
   }
+
 };
 
 module.exports = messageRepo;

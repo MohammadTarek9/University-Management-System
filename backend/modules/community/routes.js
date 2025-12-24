@@ -3,6 +3,7 @@ const router = express.Router();
 const { protect, authorize } = require('../../middleware/auth');
 const messageRoutes = require('../../routes/messages');
 const announcementsRoutes = require('../../routes/announcementsRoutes');
+const meetingRoutes = require('../../routes/meetingRoutes');
 
 // Placeholder routes for future implementation
 router.get('/health', (req, res) => {
@@ -16,7 +17,8 @@ router.get('/health', (req, res) => {
     ],
     activeRoutes: [
       'GET /api/community/messages - parent-teacher messaging',
-      'GET /api/community/announcements - university announcements'
+      'GET /api/community/announcements - university announcements',
+      'GET /api/community/meetings - student and professors meetings'
     ]
   });
 });
@@ -25,6 +27,8 @@ router.get('/health', (req, res) => {
 router.use('/messages', messageRoutes);
 // Mount announcements routes
 router.use('/announcements', announcementsRoutes);
+// Mount meeting routes
+router.use('/meetings', meetingRoutes);
 
 
 // router.get('/announcements', protect, getAnnouncements);

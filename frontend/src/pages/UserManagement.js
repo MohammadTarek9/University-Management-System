@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -50,6 +50,7 @@ const UserManagement = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -76,11 +77,11 @@ const UserManagement = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const params = {
         page: page + 1,
         limit: rowsPerPage,
@@ -89,24 +90,29 @@ const UserManagement = () => {
       };
 
       const response = await userService.getAllUsers(params);
-      
+
       setUsers(response.data.users);
       setTotalUsers(response.data.pagination.totalUsers);
-      
+
     } catch (error) {
       console.error('Error fetching users:', error);
       setError(error.message || 'Failed to load users');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, rowsPerPage, searchTerm, roleFilter]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchUsers();
-      fetchStudents(); // Fetch students for parent dropdown
     }
-  }, [page, rowsPerPage, searchTerm, roleFilter, user]);
+  }, [fetchUsers, user]);
+
+  useEffect(() => {
+    if (user?.role === 'admin' && addDialogOpen) {
+      fetchStudents();
+    }
+  }, [addDialogOpen, user]);
 
   // Fetch all students for parent dropdown
   const fetchStudents = async () => {
@@ -224,7 +230,7 @@ const UserManagement = () => {
       console.log('Creating user with data:', { ...userData, password: '[HIDDEN]' });
       console.log('Role:', userData.role);
       console.log('student_id:', userData.student_id);
-      const response = await userService.createUser(userData);
+      await userService.createUser(userData);
       setAddDialogOpen(false);
       setNewUser({
         firstName: '',
@@ -361,9 +367,19 @@ const UserManagement = () => {
 
   // Handle search input change
   const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
+    setSearchInput(event.target.value);
     setPage(0); // Reset to first page when searching
   };
+
+  //debounce effect for search input
+  useEffect(() => {
+  const t = setTimeout(() => {
+    setSearchTerm(searchInput);
+  }, 300);
+
+  return () => clearTimeout(t);
+}, [searchInput]);
+
 
   // Handle role filter change
   const handleRoleFilterChange = (event) => {
@@ -430,7 +446,7 @@ const UserManagement = () => {
             <TextField
               fullWidth
               label="Search users"
-              value={searchTerm}
+              value={searchInput}
               onChange={handleSearchChange}
               placeholder="Search by name or email..."
               InputProps={{
@@ -770,10 +786,10 @@ const UserManagement = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Phone Number"
+                label="Phone Number *"
                 value={newUser.phoneNumber}
                 onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                helperText="Optional: Contact phone number"
+                helperText="Required: Contact phone number"
               />
             </Grid>
           </Grid>
