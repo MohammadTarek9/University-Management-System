@@ -93,7 +93,12 @@ const Curriculum = () => {
   // Handle module navigation
   const handleModuleClick = (module) => {
     if (!module.comingSoon && canAccessModule(module.permissions)) {
-      navigate(module.path);
+      // Admins should go to the enrollment requests page instead of the student-facing
+      // registration page when accessing the Course Registration module.
+      const targetPath = module.id === 'registration' && user?.role === 'admin'
+        ? '/curriculum/enrollment-requests'
+        : module.path;
+      navigate(targetPath);
     }
   };
 
