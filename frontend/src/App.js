@@ -15,7 +15,6 @@ import ForgotPassword from './components/auth/ForgotPassword';
 import FirstLoginPasswordChange from './components/auth/FirstLoginPasswordChange';
 import MainLayout from './components/layout/MainLayout';
 import MaintenanceDashboard from './components/Maintenance/MaintenanceDashboard';
-
 // Pages
 import Dashboard from './pages/Dashboard';
 import Unauthorized from './pages/Unauthorized';
@@ -50,10 +49,12 @@ import StaffPayrollPage, {
 import Community from './pages/Community';
 import ParentMessaging from './pages/ParentMessaging';
 import TeacherInbox from './pages/TeacherInbox';
-
 import Announcements from './pages/Announcements';
-
-
+import ParentChildProgress from './pages/ParentChildProgress';
+import ChildCourseDetails from './pages/ChildCourseDetails';
+import StudentStaffMessaging from './pages/StudentToStaffMessaging.js';
+import StudentMeetingPage from './pages/StudentMeeting.js';
+import ProfessorMeetingPage from './pages/ProfessorMeeting.js';
 // Leave Request Page
 import LeaveRequests from './pages/LeaveRequests';
 
@@ -93,6 +94,7 @@ function App() {
             <Header />
 
             <Box component="main" sx={{ flexGrow: 1 }}>
+              {/* Global layout around protected content */}
               <MainLayout>
                 <Routes>
                   {/* Public routes */}
@@ -102,6 +104,7 @@ function App() {
                     element={<FirstLoginPasswordChange />}
                   />
                   <Route path="/unauthorized" element={<Unauthorized />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
 
                   {/* Protected routes */}
                   <Route
@@ -250,6 +253,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+
                   {/* Staff Module Routes */}
                   <Route
                     path="/staff"
@@ -261,7 +265,6 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  
                   <Route
                     path="/staff/leave-requests"
                     element={
@@ -282,7 +285,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                 {/*admin list of all staff for payroll */}
+                  {/* Admin list of all staff for payroll */}
                   <Route
                     path="/admin/payroll"
                     element={
@@ -291,7 +294,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                                    {/* Detail: single staff payroll (used by teaching staff directory and non‑admin self view) */}
+                  {/* Detail: single staff payroll */}
                   <Route
                     path="/staff/:id/payroll"
                     element={
@@ -319,24 +322,25 @@ function App() {
                   <Route
                     path="/staff/performance"
                     element={
-                      <ProtectedRoute allowedRoles={["admin"]}>
+                      <ProtectedRoute allowedRoles={['admin']}>
                         <PerformanceManagement />
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
                     path="/staff/teaching-staff/profile/me"
-                      element={
-                        <ProtectedRoute allowedRoles={['professor', 'ta']}>
-                          <TeachingStaffProfilePage />
-                        </ProtectedRoute>
-                      }
-                    />
+                    element={
+                      <ProtectedRoute allowedRoles={['professor', 'ta']}>
+                        <TeachingStaffProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="/staff/teaching-staff/profiles/:staffId"
                     element={
-                      <ProtectedRoute allowedRoles={['student', 'professor', 'ta', 'admin', 'staff']}>
+                      <ProtectedRoute
+                        allowedRoles={['student', 'professor', 'ta', 'admin', 'staff']}
+                      >
                         <ViewTeachingStaffProfilePage />
                       </ProtectedRoute>
                     }
@@ -373,12 +377,14 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  
+
                   {/* Community Module Routes */}
                   <Route
                     path="/community"
                     element={
-                      <ProtectedRoute allowedRoles={['parent', 'student', 'professor', 'ta', 'admin', 'staff']}>
+                      <ProtectedRoute
+                        allowedRoles={['parent', 'student', 'professor', 'ta', 'admin', 'staff']}
+                      >
                         <Community />
                       </ProtectedRoute>
                     }
@@ -402,12 +408,62 @@ function App() {
                   <Route
                     path="/community/announcements"
                     element={
-                      <ProtectedRoute allowedRoles={['admin', 'staff', 'professor', 'ta', 'student', 'parent']}>
+                      <ProtectedRoute
+                        allowedRoles={[
+                          'admin',
+                          'staff',
+                          'professor',
+                          'ta',
+                          'student',
+                          'parent',
+                        ]}
+                      >
                         <Announcements />
                       </ProtectedRoute>
                     }
                   />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route
+                    path="/community/student-staff"
+                    element={
+                      <ProtectedRoute allowedRoles={['student']}>
+                        <StudentStaffMessaging />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/community/meetings/student"
+                    element={
+                      <ProtectedRoute allowedRoles={['student']}>
+                        <StudentMeetingPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/community/meetings/prof"
+                    element={
+                      <ProtectedRoute allowedRoles={['professor']}>
+                        <ProfessorMeetingPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Parent child progress routes */}
+                  <Route
+                    path="/parent/child-progress"
+                    element={
+                      <ProtectedRoute allowedRoles={['parent']}>
+                        <ParentChildProgress />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/parent/children/:childId/courses/:courseId"
+                    element={
+                      <ProtectedRoute allowedRoles={['parent']}>
+                        <ChildCourseDetails />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   {/* Default redirects */}
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />

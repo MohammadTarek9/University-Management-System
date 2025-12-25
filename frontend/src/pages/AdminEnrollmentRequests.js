@@ -83,14 +83,22 @@ const AdminEnrollmentRequests = () => {
     }
   };
 
+  const getStudentDisplay = (enrollment) => {
+    const student = enrollment?.student || {};
+    const first = student.firstName || student.first_name || '';
+    const last = student.lastName || student.last_name || '';
+    const fullName = `${first} ${last}`.trim() || student.name || 'Unknown Student';
+    return { fullName };
+  };
+
   const handleApprove = async () => {
     try {
       setError('');
       setSuccess('');
-      const studentName = `${approveDialog.enrollment.student.firstName} ${approveDialog.enrollment.student.lastName}`;
-      const courseName = approveDialog.enrollment.subject.name;
+      const courseName = approveDialog.enrollment?.subject?.name || 'the course';
+      const { fullName } = getStudentDisplay(approveDialog.enrollment || {});
       await approveEnrollment(approveDialog.enrollment.enrollmentId);
-      setSuccess(`Successfully approved enrollment for ${studentName} in ${courseName}`);
+      setSuccess(`Successfully approved enrollment for ${fullName} in ${courseName}`);
       setApproveDialog({ open: false, enrollment: null });
       fetchEnrollments(); // Refresh the list
     } catch (err) {
@@ -103,10 +111,10 @@ const AdminEnrollmentRequests = () => {
     try {
       setError('');
       setSuccess('');
-      const studentName = `${rejectDialog.enrollment.student.firstName} ${rejectDialog.enrollment.student.lastName}`;
-      const courseName = rejectDialog.enrollment.subject.name;
+      const courseName = rejectDialog.enrollment?.subject?.name || 'the course';
+      const { fullName } = getStudentDisplay(rejectDialog.enrollment || {});
       await rejectEnrollment(rejectDialog.enrollment.enrollmentId, rejectReason);
-      setSuccess(`Successfully rejected enrollment for ${studentName} in ${courseName}`);
+      setSuccess(`Successfully rejected enrollment for ${fullName} in ${courseName}`);
       setRejectDialog({ open: false, enrollment: null });
       setRejectReason('');
       fetchEnrollments(); // Refresh the list

@@ -1,4 +1,4 @@
-// pages/ParentMessaging.js
+// pages/StudentStaffMessaging.js
 import React, { useState, useEffect } from 'react';
 import {
   Container,
@@ -37,22 +37,16 @@ import {
 import { useAuth } from '../context/AuthContext';
 import messageService from '../services/messageService';
 import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
 
-const ParentMessaging = () => {
+const StudentStaffMessaging = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [children, setChildren] = useState([]);
-  const [selectedChild, setSelectedChild] = useState(null);
-  const [teachers, setTeachers] = useState([]);
-  const [sentMessages, setSentMessages] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
   const [formData, setFormData] = useState({
-    teacher_id: '',
-    student_id: '',
-    course_id: '',
+    staff_id: '',
     subject: '',
     content: ''
   });
@@ -60,77 +54,50 @@ const ParentMessaging = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [sending, setSending] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState(null);
 
   useEffect(() => {
-    fetchChildren();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    if (selectedChild) {
-      fetchData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChild]);
-
-  const fetchChildren = async () => {
-    console.log("fetchChildren called");
-    console.log("Current user:", user);
-    console.log("User ID:", user?.id);
-    console.log("User role:", user?.role);
-    try {
-      setLoading(true);
-      setError('');
-      console.log("Making API call to getParentChildren");
-
-      const response = await messageService.getParentChildren();
-      console.log('Full API Response:', response);
-      console.log('Response status:', response.status);
-      console.log('Response data:', response.data);
-      console.log('Response data success:', response.data?.success);
-      console.log('Response data message:', response.data?.message);
-      const childrenData = response.data?.children || [];
-      console.log('Parsed childrenData:', childrenData);
-      console.log('ChildrenData length:', childrenData.length);
-      setChildren(childrenData);
-
-      // Auto-select first child if available
-      if (childrenData.length > 0) {
-        console.log("Setting selectedChild to first child:", childrenData[0]);
-        setSelectedChild(childrenData[0]);
-      } else {
-        console.log("No children found, setting error");
-        setError('No children found in your account. Please contact the administrator.');
-        setLoading(false);
-      }
-    } catch (err) {
-      console.error('Error fetching children:', err);
-      console.error('Error response:', err.response);
-      console.error('Error response data:', err.response?.data);
-      setError(err.message || 'Failed to load children information');
-      setLoading(false);
-    }
-  };
-
+  // In StudentToStaffMessaging.js - Update fetchData function
   const fetchData = async () => {
     try {
       setLoading(true);
       setError('');
 
-      if (!selectedChild) return;
+      const staffResponse = await messageService.getAvailableStaff();
+      
+      // Handle different response structures
+      let staffData = [];
+      if (staffResponse.data?.data?.teachers) {
+        staffData = staffResponse.data.data.teachers;
+      } else if (staffResponse.data?.teachers) {
+        staffData = staffResponse.data.teachers;
+      } else if (staffResponse.teachers) {
+        staffData = staffResponse.teachers;
+      }
+      
+      //console.log('Parsed staff data:', staffData);
+      setStaff(staffData);
 
-      // Fetch teachers for the selected child
-      const teachersResponse = await messageService.getStudentTeachers(selectedChild.student_id);
-      console.log('Teachers API Response:', teachersResponse);
-      console.log('Teachers response data:', teachersResponse.data);
-      console.log('Teachers response data.data:', teachersResponse.data?.data);
-      console.log('Teachers response data.teachers:', teachersResponse.data?.teachers);
-      console.log('Teachers response data.data?.teachers:', teachersResponse.data?.data?.teachers);
-      setTeachers(teachersResponse.data?.data?.teachers || teachersResponse.data?.teachers || []);
+      // Fetch conversations
+      //console.log('Fetching conversations...');
+      const conversationsResponse = await messageService.getStudentConversations();
+      //console.log('Conversations response:', conversationsResponse);
+      
+      let conversationsData = [];
+      if (conversationsResponse.data?.data?.conversations) {
+        conversationsData = conversationsResponse.data.data.conversations;
+      } else if (conversationsResponse.data?.conversations) {
+        conversationsData = conversationsResponse.data.conversations;
+      } else if (conversationsResponse.conversations) {
+        conversationsData = conversationsResponse.conversations;
+      }
+      
+      //console.log('Parsed conversations data:', conversationsData);
+      setConversations(conversationsData);
 
-      // Fetch sent messages
-      const messagesResponse = await messageService.getSentMessages();
-      setSentMessages(messagesResponse.data?.messages || []);
     } catch (err) {
       console.error('Error fetching data:', err);
       setError(err.message || 'Failed to load data');
@@ -152,9 +119,7 @@ const ParentMessaging = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setFormData({
-      teacher_id: '',
-      student_id: selectedChild?.student_id || '',
-      course_id: '',
+      staff_id: '',
       subject: '',
       content: ''
     });
@@ -165,32 +130,16 @@ const ParentMessaging = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Clear error for this field
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handleTeacherSelect = (e) => {
-    const teacherId = e.target.value;
-    const teacher = teachers.find(t => t.teacher_id === teacherId);
-    
-    setFormData(prev => ({
-      ...prev,
-      teacher_id: teacherId,
-      course_id: teacher?.course_id || ''
-    }));
-    
-    if (formErrors.teacher_id) {
-      setFormErrors(prev => ({ ...prev, teacher_id: '' }));
     }
   };
 
   const validateForm = () => {
     const errors = {};
     
-    if (!formData.teacher_id) {
-      errors.teacher_id = 'Please select a teacher';
+    if (!formData.staff_id) {
+      errors.staff_id = 'Please select a staff member';
     }
     if (!formData.subject.trim()) {
       errors.subject = 'Subject is required';
@@ -212,22 +161,15 @@ const ParentMessaging = () => {
       setSending(true);
       setError('');
 
-      // Ensure student_id is set to the selected child
-      const messageData = {
-        ...formData,
-        student_id: selectedChild?.student_id
-      };
-
-      await messageService.sendMessage(messageData);
+      await messageService.sendStudentMessage(formData);
       
       setSuccess('Message sent successfully!');
       handleCloseDialog();
       
-      // Refresh sent messages
-      const messagesResponse = await messageService.getSentMessages();
-      setSentMessages(messagesResponse.data?.messages || []);
+      // Refresh conversations
+      await fetchData();
       
-      // Switch to sent messages tab
+      // Switch to conversations tab
       setSelectedTab(1);
       
       setTimeout(() => setSuccess(''), 3000);
@@ -248,6 +190,27 @@ const ParentMessaging = () => {
     }
   };
 
+  // Group conversations by staff member
+  const groupedConversations = conversations.reduce((groups, message) => {
+    const staffId = message.message_type === 'sent' ? message.teacher_id : message.parent_id;
+    const staffName = message.message_type === 'sent' ? message.teacher_name : message.parent_name;
+    
+    if (!groups[staffId]) {
+      groups[staffId] = {
+        staffId,
+        staffName,
+        staffEmail: message.message_type === 'sent' ? message.teacher_email : message.parent_email,
+        messages: []
+      };
+    }
+    
+    groups[staffId].messages.push(message);
+    
+    return groups;
+  }, {});
+
+  const conversationList = Object.values(groupedConversations);
+
   if (loading) {
     return (
       <Container>
@@ -264,152 +227,87 @@ const ParentMessaging = () => {
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
           <MessageIcon sx={{ mr: 1, fontSize: 36 }} />
-          Parent-Teacher Communication
+          Student-Staff Communication
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Communicate with your child's teachers about academic progress and concerns.
+          Ask questions, schedule meetings, and communicate with your professors and staff.
         </Typography>
       </Box>
 
-      {/* Child Selector */}
-      {children.length > 0 && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Select Child:
-          </Typography>
-          <Grid container spacing={2}>
-            {children.map((child) => (
-              <Grid item xs={12} sm={6} md={4} key={child.id}>
-                <Card
-                  sx={{
-                    cursor: 'pointer',
-                    border: selectedChild?.id === child.id ? '2px solid' : '1px solid',
-                    borderColor: selectedChild?.id === child.id ? 'primary.main' : 'divider',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      boxShadow: 3
-                    }
-                  }}
-                  onClick={() => setSelectedChild(child)}
-                >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Person sx={{ mr: 1, color: 'primary.main' }} />
-                      <Typography variant="h6">
-                        {child.student_name || `${child.first_name} ${child.last_name}`}
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      {child.student_email || child.email}
-                    </Typography>
-                    {child.is_primary && (
-                      <Chip label="Primary" size="small" color="primary" sx={{ mt: 1 }} />
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Paper>
-      )}
-
-      {!selectedChild && children.length === 0 && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          No children found in your account. Please contact the administrator to link your child's account.
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
         </Alert>
       )}
 
-      {selectedChild && (
-        <>
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
-              {error}
-            </Alert>
-          )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
 
-          {success && (
-            <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess('')}>
-              {success}
-            </Alert>
-          )}
-
-     {/* New Message + View Progress Buttons */}
-<Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-  <Button
-    variant="contained"
-    startIcon={<Send />}
-    onClick={handleOpenDialog}
-    disabled={teachers.length === 0}
-  >
-    Send New Message
-  </Button>
-
-  <Button
-  variant="outlined"
-  onClick={() =>
-    navigate('/parent/child-progress', {
-      state: selectedChild ? { initialChildId: selectedChild.id } : {},
-    })
-  }
-  disabled={!selectedChild}
->
-  View Academic Progress
-</Button>
-
-
-  {teachers.length === 0 && (
-    <Typography variant="caption" color="text.secondary">
-      No teachers available. Your child must be enrolled in courses first.
-    </Typography>
-  )}
-</Box>
-
+      {/* New Message Button */}
+      <Box sx={{ mb: 3 }}>
+        <Button
+          variant="contained"
+          startIcon={<Send />}
+          onClick={handleOpenDialog}
+          disabled={staff.length === 0}
+        >
+          Send New Message
+        </Button>
+        {staff.length === 0 && (
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
+            No staff available. You must be enrolled in courses first.
+          </Typography>
+        )}
+      </Box>
 
       {/* Tabs */}
       <Paper sx={{ mb: 3 }}>
         <Tabs value={selectedTab} onChange={handleTabChange}>
-          <Tab label={`Teachers (${teachers.length})`} />
-          <Tab label={`Sent Messages (${sentMessages.length})`} />
+          <Tab label={`Available Staff (${staff.length})`} />
+          <Tab label={`Conversations (${conversationList.length})`} />
         </Tabs>
       </Paper>
 
-      {/* Teachers List Tab */}
+      {/* Staff List Tab */}
       {selectedTab === 0 && (
         <Grid container spacing={3}>
-          {teachers.length === 0 ? (
+          {staff.length === 0 ? (
             <Grid item xs={12}>
               <Paper sx={{ p: 4, textAlign: 'center' }}>
                 <School sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
                 <Typography variant="h6" color="text.secondary">
-                  No Teachers Found
+                  No Staff Found
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Your child must be enrolled in courses to see their teachers.
+                  You must be enrolled in courses to see available staff members.
                 </Typography>
               </Paper>
             </Grid>
           ) : (
-            teachers.map((teacher) => (
-              <Grid item xs={12} md={6} key={`${teacher.teacher_id}-${teacher.course_id}`}>
+            staff.map((staffMember) => (
+              <Grid item xs={12} md={6} key={staffMember.teacher_id}>
                 <Card>
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                       <Person sx={{ mr: 1, color: 'primary.main' }} />
                       <Typography variant="h6">
-                        {teacher.teacher_name}
+                        {staffMember.teacher_name}
                       </Typography>
                     </Box>
                     <Divider sx={{ mb: 2 }} />
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <School sx={{ mr: 1, fontSize: 20, color: 'text.secondary' }} />
                       <Typography variant="body2">
-                        {teacher.course_name} ({teacher.course_code})
+                        {staffMember.course_name} ({staffMember.course_code})
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                       <Email sx={{ mr: 1, fontSize: 20, color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
-                        {teacher.teacher_email}
+                        {staffMember.teacher_email}
                       </Typography>
                     </Box>
                     <Button
@@ -419,8 +317,7 @@ const ParentMessaging = () => {
                       onClick={() => {
                         setFormData(prev => ({
                           ...prev,
-                          teacher_id: teacher.teacher_id,
-                          course_id: teacher.course_id
+                          staff_id: staffMember.teacher_id
                         }));
                         handleOpenDialog();
                       }}
@@ -435,22 +332,22 @@ const ParentMessaging = () => {
         </Grid>
       )}
 
-      {/* Sent Messages Tab */}
+      {/* Conversations Tab */}
       {selectedTab === 1 && (
         <Paper>
-          {sentMessages.length === 0 ? (
+          {conversations.length === 0 ? (
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <Email sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary">
-                No Messages Sent Yet
+                No Conversations Yet
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Send your first message to a teacher using the button above.
+                Send your first message to a staff member using the button above.
               </Typography>
             </Box>
           ) : (
             <List>
-              {sentMessages.map((message, index) => (
+              {conversations.map((message, index) => (
                 <React.Fragment key={message.id}>
                   <ListItem 
                     alignItems="flex-start"
@@ -469,7 +366,7 @@ const ParentMessaging = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                           {message.message_type === 'received' && (
                             <Chip
-                              label="Reply from Teacher"
+                              label="Reply from Staff"
                               size="small"
                               color="secondary"
                               sx={{ mr: 1 }}
@@ -490,7 +387,8 @@ const ParentMessaging = () => {
                       secondary={
                         <>
                           <Typography variant="body2" color="text.primary" sx={{ mb: 1 }}>
-                            {message.message_type === 'sent' ? 'To:' : 'From:'} {message.teacher_name} ({message.course_name})
+                            {message.message_type === 'sent' ? 'To:' : 'From:'} {message.teacher_name} 
+                            {message.course_name && ` (${message.course_name})`}
                           </Typography>
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                             {message.content.substring(0, 100)}
@@ -506,7 +404,7 @@ const ParentMessaging = () => {
                       }
                     />
                   </ListItem>
-                  {index < sentMessages.length - 1 && <Divider component="li" />}
+                  {index < conversations.length - 1 && <Divider component="li" />}
                 </React.Fragment>
               ))}
             </List>
@@ -516,23 +414,23 @@ const ParentMessaging = () => {
 
       {/* Send Message Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>Send Message to Teacher</DialogTitle>
+        <DialogTitle>Send Message to Staff</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
             <TextField
               select
-              label="Select Teacher"
-              name="teacher_id"
-              value={formData.teacher_id}
-              onChange={handleTeacherSelect}
-              error={!!formErrors.teacher_id}
-              helperText={formErrors.teacher_id}
+              label="Select Staff Member"
+              name="staff_id"
+              value={formData.staff_id}
+              onChange={handleInputChange}
+              error={!!formErrors.staff_id}
+              helperText={formErrors.staff_id}
               required
               fullWidth
             >
-              {teachers.map((teacher) => (
-                <MenuItem key={`${teacher.teacher_id}-${teacher.course_id}`} value={teacher.teacher_id}>
-                  {teacher.teacher_name} - {teacher.course_name}
+              {staff.map((staffMember) => (
+                <MenuItem key={staffMember.teacher_id} value={staffMember.teacher_id}>
+                  {staffMember.teacher_name} - {staffMember.course_name}
                 </MenuItem>
               ))}
             </TextField>
@@ -554,7 +452,7 @@ const ParentMessaging = () => {
               value={formData.content}
               onChange={handleInputChange}
               error={!!formErrors.content}
-              helperText={formErrors.content || 'Enter your message to the teacher'}
+              helperText={formErrors.content || 'Enter your message to the staff member'}
               required
               fullWidth
               multiline
@@ -574,10 +472,8 @@ const ParentMessaging = () => {
           </Button>
         </DialogActions>
       </Dialog>
-        </>
-      )}
     </Container>
   );
 };
 
-export default ParentMessaging;
+export default StudentStaffMessaging;

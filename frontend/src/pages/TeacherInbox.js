@@ -106,6 +106,8 @@ const TeacherInbox = () => {
     setReplyDialogOpen(true);
   };
 
+  // In TeacherInbox.js, update the reply handling to check message type:
+
   const handleSendReply = async () => {
     if (!replyContent.trim()) {
       setError('Reply content cannot be empty');
@@ -116,19 +118,30 @@ const TeacherInbox = () => {
       setSending(true);
       setError('');
 
-      await messageService.replyToMessage(selectedMessage.id, {
-        content: replyContent
-      });
+      // Determine if replying to student or parent
+      const isStudentMessage = selectedMessage.sender_role === 'student' || 
+                            (selectedMessage.parent_id !== user.id && selectedMessage.sender_role !== 'parent');
+
+      if (isStudentMessage) {
+        // Use student reply endpoint if available, or use existing reply
+        await messageService.replyToMessage(selectedMessage.id, {
+          content: replyContent
+        });
+      } else {
+        // Standard parent-teacher reply
+        await messageService.replyToMessage(selectedMessage.id, {
+          content: replyContent
+        });
+      }
 
       setSuccessMessage('Reply sent successfully');
       setReplyDialogOpen(false);
       setReplyContent('');
       setSelectedMessage(null);
       
-      // Refresh messages
       fetchMessages();
+      fetchUnreadCount();
       
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       console.error('Error sending reply:', err);
@@ -145,6 +158,20 @@ const TeacherInbox = () => {
     } catch (error) {
       return dateString;
     }
+  };
+
+  const getMessageType = (message) => {
+    if (message.parent_id === user.id) {
+      return 'sent'; // Teacher sent this
+    }
+    
+    // Check if sender is a student (inferred from role or context)
+    const senderRole = message.sender_role || 'unknown';
+    if (senderRole === 'student') {
+      return 'student_message';
+    }
+    
+    return 'parent_message'; // Default
   };
 
   if (!user || !['professor', 'ta'].includes(user.role)) {
@@ -246,6 +273,9 @@ const TeacherInbox = () => {
                                 sx={{ fontWeight: !message.is_read ? 'bold' : 'normal' }}
                               >
                                 {message.subject}
+                                {getMessageType(message) === 'student_message' && (
+                                  <Chip label="Student" size="small" color="secondary" sx={{ ml: 1 }} />
+                                )}
                               </Typography>
                               {!message.is_read && (
                                 <Chip label="New" size="small" color="primary" />
@@ -300,10 +330,17 @@ const TeacherInbox = () => {
                     <Box sx={{ mb: 2 }}>
                       <Chip
                         icon={<Person />}
-                        label={`From: ${selectedMessage.parent_name}`}
+                        label={`From: ${selectedMessage.parent_name || selectedMessage.sender_name}`}
                         sx={{ mr: 1, mb: 1 }}
                       />
-                      {selectedMessage.student_name && (
+                      {selectedMessage.sender_role === 'student' && (
+                        <Chip
+                          label="Student"
+                          color="secondary"
+                          sx={{ mr: 1, mb: 1 }}
+                        />
+                      )}
+                      {selectedMessage.student_name && selectedMessage.sender_role !== 'student' && (
                         <Chip
                           icon={<School />}
                           label={`About: ${selectedMessage.student_name}`}
