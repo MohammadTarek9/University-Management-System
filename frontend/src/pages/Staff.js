@@ -159,7 +159,7 @@ const Staff = () => {
   const canAccessModule = (permissions) => permissions.includes(user?.role);
 
   const handleModuleClick = (module) => {
-    if (!module.comingSoon && canAccessModule(module.permissions)) {
+    if (canAccessModule(module.permissions)) {
       navigate(module.path);
     }
   };
@@ -192,12 +192,8 @@ const Staff = () => {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                cursor:
-                  !module.comingSoon && canAccessModule(module.permissions)
-                    ? 'pointer'
-                    : 'default',
-                '&:hover':
-                  !module.comingSoon && canAccessModule(module.permissions)
+                cursor: canAccessModule(module.permissions) ? 'pointer' : 'default',
+                '&:hover': canAccessModule(module.permissions)
                     ? {
                         transform: 'translateY(-4px)',
                         boxShadow: 4,
@@ -216,12 +212,8 @@ const Staff = () => {
                     <Typography variant="h5" component="h2" gutterBottom>
                       {module.title}
                     </Typography>
-                    {!module.comingSoon &&
-                      canAccessModule(module.permissions) && (
-                        <Chip label="Available" color="success" size="small" />
-                      )}
-                    {module.comingSoon && (
-                      <Chip label="Coming Soon" size="small" />
+                    {canAccessModule(module.permissions) && (
+                      <Chip label="Available" color="success" size="small" />
                     )}
                   </Box>
                 </Box>
@@ -258,19 +250,14 @@ const Staff = () => {
                   fullWidth
                   variant="contained"
                   color={module.color}
-                  endIcon={
-                    !module.comingSoon &&
-                    canAccessModule(module.permissions) && <ArrowForward />
-                  }
-                  disabled={
-                    module.comingSoon || !canAccessModule(module.permissions)
-                  }
+                  endIcon={canAccessModule(module.permissions) && <ArrowForward />}
+                  disabled={!canAccessModule(module.permissions)}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleModuleClick(module);
                   }}
                 >
-                  {module.comingSoon ? 'Coming Soon' : 'Access Module'}
+                  Access Module
                 </Button>
               </CardActions>
             </Card>
