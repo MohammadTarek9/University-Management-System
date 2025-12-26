@@ -80,9 +80,9 @@ const Curriculum = () => {
     }
   ];
 
-  // Filter modules to show only what the user has permission to see
+  // Filter modules to show only what the user has permission to see and that are not coming soon
   const visibleModules = curriculumModules.filter(module => 
-    module.permissions.includes(user?.role)
+    module.permissions.includes(user?.role) && !module.comingSoon
   );
 
   // Check user permissions for each module
@@ -92,7 +92,7 @@ const Curriculum = () => {
 
   // Handle module navigation
   const handleModuleClick = (module) => {
-    if (!module.comingSoon && canAccessModule(module.permissions)) {
+    if (canAccessModule(module.permissions)) {
       // Admins should go to the enrollment requests page instead of the student-facing
       // registration page when accessing the Course Registration module.
       const targetPath = module.id === 'registration' && user?.role === 'admin'
@@ -131,8 +131,8 @@ const Curriculum = () => {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                cursor: (!module.comingSoon && canAccessModule(module.permissions)) ? 'pointer' : 'default',
-                '&:hover': (!module.comingSoon && canAccessModule(module.permissions)) ? {
+                cursor: canAccessModule(module.permissions) ? 'pointer' : 'default',
+                '&:hover': canAccessModule(module.permissions) ? {
                   transform: 'translateY(-4px)',
                   boxShadow: 4,
                   transition: 'all 0.3s ease-in-out'
@@ -150,10 +150,7 @@ const Curriculum = () => {
                       {module.title}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {module.comingSoon && (
-                        <Chip label="Coming Soon" color="default" size="small" />
-                      )}
-                      {!module.comingSoon && canAccessModule(module.permissions) && (
+                      {canAccessModule(module.permissions) && (
                         <Chip label="Available" color="success" size="small" />
                       )}
                     </Box>
@@ -183,16 +180,16 @@ const Curriculum = () => {
               <CardActions sx={{ p: 2, pt: 0 }}>
                 <Button
                   fullWidth
-                  variant={!module.comingSoon && canAccessModule(module.permissions) ? "contained" : "outlined"}
+                  variant={canAccessModule(module.permissions) ? "contained" : "outlined"}
                   color={module.color}
-                  disabled={module.comingSoon || !canAccessModule(module.permissions)}
-                  endIcon={!module.comingSoon && <ArrowForward />}
+                  disabled={!canAccessModule(module.permissions)}
+                  endIcon={<ArrowForward />}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleModuleClick(module);
                   }}
                 >
-                  {module.comingSoon ? 'Coming Soon' : 'Access Module'}
+                  Access Module
                 </Button>
               </CardActions>
             </Card>

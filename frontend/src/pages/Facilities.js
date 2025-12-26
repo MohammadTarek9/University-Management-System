@@ -21,7 +21,9 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
-  IconButton
+  IconButton,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import {
   MeetingRoom,
@@ -56,7 +58,8 @@ const Facilities = () => {
       building: '',
       roomNumber: '',
       floor: ''
-    }
+    },
+    categorySpecific: {}
   });
 
   const facilityModules = [
@@ -123,9 +126,9 @@ const Facilities = () => {
     }
   ];
 
-  // Filter modules to show only what the user has permission to see
-  const visibleModules = facilityModules.filter(module => 
-    module.permissions.includes(user?.role)
+  // Filter modules to show only what user has permission to see and that are not coming soon
+  const visibleModules = facilityModules.filter(module =>
+    module.permissions.includes(user?.role) && !module.comingSoon
   );
 
   // Maintenance request functions
@@ -139,12 +142,321 @@ const Facilities = () => {
           [child]: value
         }
       }));
+    } else if (field === 'category') {
+      // Reset categorySpecific when category changes
+      setMaintenanceForm(prev => ({
+        ...prev,
+        category: value,
+        categorySpecific: {}
+      }));
     } else {
       setMaintenanceForm(prev => ({
         ...prev,
         [field]: value
       }));
     }
+  };
+
+  const handleCategorySpecificChange = (field, value) => {
+    setMaintenanceForm(prev => ({
+      ...prev,
+      categorySpecific: {
+        ...prev.categorySpecific,
+        [field]: value
+      }
+    }));
+  };
+
+  const renderCategorySpecificFields = () => {
+    const { category } = maintenanceForm;
+
+    if (category === 'Electrical') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              Electrical Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Voltage"
+              value={maintenanceForm.categorySpecific.voltage || ''}
+              onChange={(e) => handleCategorySpecificChange('voltage', e.target.value)}
+              placeholder="e.g., 120V, 240V"
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Circuit Breaker Location"
+              value={maintenanceForm.categorySpecific.circuitBreakerLocation || ''}
+              onChange={(e) => handleCategorySpecificChange('circuitBreakerLocation', e.target.value)}
+              placeholder="e.g., Panel A, Circuit 15"
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Wire Type"
+              value={maintenanceForm.categorySpecific.wireType || ''}
+              onChange={(e) => handleCategorySpecificChange('wireType', e.target.value)}
+              placeholder="e.g., 12 AWG Copper"
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Electrical Panel ID"
+              value={maintenanceForm.categorySpecific.electricalPanelId || ''}
+              onChange={(e) => handleCategorySpecificChange('electricalPanelId', e.target.value)}
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    if (category === 'Plumbing') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              Plumbing Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Pipe Size"
+              value={maintenanceForm.categorySpecific.pipeSize || ''}
+              onChange={(e) => handleCategorySpecificChange('pipeSize', e.target.value)}
+              placeholder="e.g., 1/2 inch, 3/4 inch"
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth disabled={maintenanceLoading}>
+              <InputLabel>Water Type</InputLabel>
+              <Select
+                value={maintenanceForm.categorySpecific.waterType || ''}
+                label="Water Type"
+                onChange={(e) => handleCategorySpecificChange('waterType', e.target.value)}
+              >
+                <MenuItem value="Fresh">Fresh Water</MenuItem>
+                <MenuItem value="Waste">Waste Water</MenuItem>
+                <MenuItem value="Hot">Hot Water</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth disabled={maintenanceLoading}>
+              <InputLabel>Leak Severity</InputLabel>
+              <Select
+                value={maintenanceForm.categorySpecific.leakSeverity || ''}
+                label="Leak Severity"
+                onChange={(e) => handleCategorySpecificChange('leakSeverity', e.target.value)}
+              >
+                <MenuItem value="Minor">Minor</MenuItem>
+                <MenuItem value="Moderate">Moderate</MenuItem>
+                <MenuItem value="Severe">Severe</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Shutoff Valve Location"
+              value={maintenanceForm.categorySpecific.shutoffValveLocation || ''}
+              onChange={(e) => handleCategorySpecificChange('shutoffValveLocation', e.target.value)}
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    if (category === 'HVAC') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              HVAC Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              type="number"
+              label="Temperature Reading (°F)"
+              value={maintenanceForm.categorySpecific.temperatureReading || ''}
+              onChange={(e) => handleCategorySpecificChange('temperatureReading', e.target.value)}
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth disabled={maintenanceLoading}>
+              <InputLabel>System Type</InputLabel>
+              <Select
+                value={maintenanceForm.categorySpecific.systemType || ''}
+                label="System Type"
+                onChange={(e) => handleCategorySpecificChange('systemType', e.target.value)}
+              >
+                <MenuItem value="Central AC">Central AC</MenuItem>
+                <MenuItem value="Heat Pump">Heat Pump</MenuItem>
+                <MenuItem value="Boiler">Boiler</MenuItem>
+                <MenuItem value="Furnace">Furnace</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Filter Size"
+              value={maintenanceForm.categorySpecific.filterSize || ''}
+              onChange={(e) => handleCategorySpecificChange('filterSize', e.target.value)}
+              placeholder="e.g., 20x25x1"
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Unit Number"
+              value={maintenanceForm.categorySpecific.unitNumber || ''}
+              onChange={(e) => handleCategorySpecificChange('unitNumber', e.target.value)}
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    if (category === 'Equipment') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              Equipment Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Model Number"
+              value={maintenanceForm.categorySpecific.modelNumber || ''}
+              onChange={(e) => handleCategorySpecificChange('modelNumber', e.target.value)}
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Serial Number"
+              value={maintenanceForm.categorySpecific.serialNumber || ''}
+              onChange={(e) => handleCategorySpecificChange('serialNumber', e.target.value)}
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Warranty Info"
+              value={maintenanceForm.categorySpecific.warrantyInfo || ''}
+              onChange={(e) => handleCategorySpecificChange('warrantyInfo', e.target.value)}
+              multiline
+              rows={2}
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Vendor Name"
+              value={maintenanceForm.categorySpecific.vendorName || ''}
+              onChange={(e) => handleCategorySpecificChange('vendorName', e.target.value)}
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Purchase Date"
+              value={maintenanceForm.categorySpecific.purchaseDate || ''}
+              onChange={(e) => handleCategorySpecificChange('purchaseDate', e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    if (category === 'Structural') {
+      return (
+        <>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+              Structural Details
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Material Type"
+              value={maintenanceForm.categorySpecific.materialType || ''}
+              onChange={(e) => handleCategorySpecificChange('materialType', e.target.value)}
+              placeholder="e.g., Concrete, Wood, Steel"
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Affected Area Size"
+              value={maintenanceForm.categorySpecific.affectedAreaSize || ''}
+              onChange={(e) => handleCategorySpecificChange('affectedAreaSize', e.target.value)}
+              placeholder="e.g., 10 sq ft"
+              disabled={maintenanceLoading}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth disabled={maintenanceLoading}>
+              <InputLabel>Safety Risk Level</InputLabel>
+              <Select
+                value={maintenanceForm.categorySpecific.safetyRiskLevel || ''}
+                label="Safety Risk Level"
+                onChange={(e) => handleCategorySpecificChange('safetyRiskLevel', e.target.value)}
+              >
+                <MenuItem value="Low">Low</MenuItem>
+                <MenuItem value="Medium">Medium</MenuItem>
+                <MenuItem value="High">High</MenuItem>
+                <MenuItem value="Critical">Critical</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={maintenanceForm.categorySpecific.structuralEngineerRequired || false}
+                  onChange={(e) => handleCategorySpecificChange('structuralEngineerRequired', e.target.checked)}
+                  disabled={maintenanceLoading}
+                />
+              }
+              label="Structural Engineer Required"
+            />
+          </Grid>
+        </>
+      );
+    }
+
+    return null;
   };
 
   const handleMaintenanceSubmit = async (e) => {
@@ -167,7 +479,8 @@ const Facilities = () => {
           building: '',
           roomNumber: '',
           floor: ''
-        }
+        },
+        categorySpecific: {}
       });
 
       // Close dialog after success
@@ -209,7 +522,7 @@ const Facilities = () => {
   const handleModuleClick = (module) => {
     if (module.id === 'maintenance') {
       openMaintenanceDialog();
-    } else if (!module.comingSoon && canAccessModule(module.permissions)) {
+    } else if (canAccessModule(module.permissions)) {
       navigate(module.path);
     }
   };
@@ -244,8 +557,8 @@ const Facilities = () => {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                cursor: (!module.comingSoon && canAccessModule(module.permissions)) ? 'pointer' : 'default',
-                '&:hover': (!module.comingSoon && canAccessModule(module.permissions)) ? {
+                cursor: canAccessModule(module.permissions) ? 'pointer' : 'default',
+                '&:hover': canAccessModule(module.permissions) ? {
                   transform: 'translateY(-4px)',
                   boxShadow: 4,
                 } : {}
@@ -262,10 +575,7 @@ const Facilities = () => {
                       {module.title}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {module.comingSoon && (
-                        <Chip label="Coming Soon" color="warning" size="small" />
-                      )}
-                      {!module.comingSoon && canAccessModule(module.permissions) && (
+                      {canAccessModule(module.permissions) && (
                         <Chip label="Available" color="success" size="small" />
                       )}
                     </Box>
@@ -295,14 +605,13 @@ const Facilities = () => {
               <CardActions sx={{ p: 2, pt: 0 }}>
                 <Button
                   fullWidth
-                  variant={!module.comingSoon && canAccessModule(module.permissions) ? "contained" : "outlined"}
+                  variant={canAccessModule(module.permissions) ? "contained" : "outlined"}
                   color={module.color}
-                  disabled={module.comingSoon || !canAccessModule(module.permissions)}
+                  disabled={!canAccessModule(module.permissions)}
                   endIcon={<ArrowForward />}
                   onClick={() => handleModuleClick(module)}
                 >
-                  {module.id === 'maintenance' ? 'Report Issue' : 
-                   module.comingSoon ? 'Coming Soon' : 'Access Module'}
+                  {module.id === 'maintenance' ? 'Report Issue' : 'Access Module'}
                 </Button>
               </CardActions>
             </Card>
@@ -478,6 +787,9 @@ const Facilities = () => {
                   disabled={maintenanceLoading}
                 />
               </Grid>
+
+              {/* Category-Specific Fields */}
+              {renderCategorySpecificFields()}
             </Grid>
           </form>
         </DialogContent>

@@ -167,11 +167,11 @@ setMyCourses(Array.isArray(courses) ? courses : []);
 
       {/* System Overview */}
       <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
-        University Management System Modules
+        Your Available Modules
       </Typography>
 
       <Grid container spacing={3}>
-        {modules.map((module, index) => (
+        {modules.filter(module => module.available).map((module, index) => (
           <Grid item xs={12} md={6} key={index}>
             <Card
               sx={{
@@ -179,11 +179,13 @@ setMyCourses(Array.isArray(courses) ? courses : []);
                 display: 'flex',
                 flexDirection: 'column',
                 transition: 'transform 0.3s ease-in-out',
+                cursor: 'pointer',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: 3
+                  boxShadow: 6
                 }
               }}
+              onClick={() => navigate(module.path)}
             >
               <CardContent sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -214,17 +216,22 @@ setMyCourses(Array.isArray(courses) ? courses : []);
                     bgcolor: module.color,
                     '&:hover': {
                       bgcolor: module.color,
-                      opacity: 0.8
+                      opacity: 0.9
                     }
                   }}
-                  disabled={!module.available}
-                  onClick={() => module.available && navigate(module.path)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(module.path);
+                  }}
                 >
-                  {module.available ? 'Access Module' : 'Coming Soon'}
+                  Access Module
                 </Button>
-                <Button size="small" color="primary">
-                  Learn More
-                </Button>
+                <Chip 
+                  label="Available" 
+                  size="small" 
+                  color="success" 
+                  variant="outlined"
+                />
               </CardActions>
             </Card>
           </Grid>

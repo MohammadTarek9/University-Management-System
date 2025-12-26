@@ -120,7 +120,7 @@ const Community = () => {
   const canAccessModule = (permissions) => permissions.includes(user?.role);
 
   const handleModuleClick = (module) => {
-    if (!module.comingSoon && canAccessModule(module.permissions)) {
+    if (canAccessModule(module.permissions)) {
       navigate(module.path);
     }
   };
@@ -154,11 +154,10 @@ const Community = () => {
                 flexDirection: 'column',
                 transition: 'transform 0.2s, box-shadow 0.2s',
                 '&:hover': {
-                  transform: !module.comingSoon ? 'translateY(-4px)' : 'none',
-                  boxShadow: !module.comingSoon ? 6 : 1,
-                  cursor: !module.comingSoon ? 'pointer' : 'default',
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                  cursor: 'pointer',
                 },
-                opacity: module.comingSoon ? 0.7 : 1,
               }}
               onClick={() => handleModuleClick(module)}
             >
@@ -176,15 +175,6 @@ const Community = () => {
                     {module.title}
                   </Typography>
                 </Box>
-
-                {module.comingSoon && (
-                  <Chip
-                    label="Coming Soon"
-                    color="default"
-                    size="small"
-                    sx={{ mb: 2 }}
-                  />
-                )}
 
                 <Typography variant="body2" color="text.secondary" paragraph>
                   {module.description}
@@ -206,20 +196,14 @@ const Community = () => {
               </CardContent>
 
               <CardActions>
-                {!module.comingSoon ? (
-                  <Button
-                    size="small"
-                    endIcon={<ArrowForward />}
-                    onClick={() => handleModuleClick(module)}
-                    disabled={!canAccessModule(module.permissions)}
-                  >
-                    Access
-                  </Button>
-                ) : (
-                  <Button size="small" disabled>
-                    Coming Soon
-                  </Button>
-                )}
+                <Button
+                  size="small"
+                  endIcon={<ArrowForward />}
+                  onClick={() => handleModuleClick(module)}
+                  disabled={!canAccessModule(module.permissions)}
+                >
+                  Access
+                </Button>
               </CardActions>
             </Card>
           </Grid>
