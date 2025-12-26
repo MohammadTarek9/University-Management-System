@@ -85,21 +85,3 @@ CREATE TABLE IF NOT EXISTS assessment_answers (
   INDEX idx_submission_id (submission_id)
 );
 
--- Assessment attachments table (for assignment files)
-CREATE TABLE IF NOT EXISTS assessment_attachments (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  assessment_id INT,
-  submission_id INT,
-  file_name VARCHAR(255) NOT NULL,
-  file_path VARCHAR(500) NOT NULL,
-  file_size INT NOT NULL,
-  file_type VARCHAR(100) NOT NULL,
-  uploaded_by INT NOT NULL,
-  upload_type ENUM('instruction', 'submission') NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON DELETE CASCADE,
-  FOREIGN KEY (submission_id) REFERENCES assessment_submissions(id) ON DELETE CASCADE,
-  FOREIGN KEY (uploaded_by) REFERENCES users(id),
-  INDEX idx_assessment_id (assessment_id),
-  INDEX idx_submission_id (submission_id)
-);
