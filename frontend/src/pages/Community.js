@@ -76,18 +76,6 @@ const Community = () => {
       comingSoon: false,
     },
     {
-      id: 'events',
-      title: 'Events & Calendar',
-      description:
-        'Stay informed about upcoming events, important deadlines, and university activities.',
-      icon: <Event sx={{ fontSize: 40 }} />,
-      path: '/community/events',
-      color: 'success',
-      permissions: ['parent', 'student', 'professor', 'ta', 'admin', 'staff'],
-      features: ['Event Calendar', 'RSVP', 'Important Dates'],
-      comingSoon: true,
-    },
-    {
       id: 'student-meetings',
       title: 'Meetings',
       description:
